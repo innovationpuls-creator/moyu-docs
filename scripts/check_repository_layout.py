@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+"""校验冻结的仓库布局（docs/architecture/27 §3、§72 第 20 条）。
+
+把架构文档冻结的「顶层 allow-list」与「冻结子目录白名单」落到自动化测试：
+- 任何非冻结命名的顶层源码目录都会失败（架构禁止引入平铺布局）；
+- 已存在的冻结目录只允许包含冻结的子目录，出现非冻结子目录即失败；
+- docs/architecture 必须存在 00-ARCHITECTURE-CONSTITUTION.md 与 26/27/28 文档。
+
+缺失的目录不报错（早期阶段允许尚未创建），但「非冻结名称」一定报错。
+仅依赖标准库。
+"""
+
+from __future__ import annotations
+
+import fnmatch
+import os
+import sys
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+# §3 顶层允许存在的源码目录 allow-list
+ALLOWED_TOP_LEVEL = {
+    "apps",
+    "services",
+    "workers",
+    "packages",
+    "contracts",
+    "migrations",
+    "tests",
+    "infra",
+    "scripts",
+    "docs",
+}
+
+# 冻结子目录白名单：键为已冻结目录，值为其允许的直接子目录集合。
+# 仅当该目录存在时才校验其子项；缺失不报错。
+FROZEN_SUBDIRS: dict[str, set[str]] = {
+    "services": {"api", "realtime"},
+    "workers": {"ai", "import_export", "asset", "search", "maintenance"},
+    "packages": {"ts", "py"},
+    "docs": {"architecture", "adr", "product", "behavior", "superpowers", "runbooks"},
+    "packages/py": {"core", "infrastructure", "task-runtime", "contracts"},
+    "packages/ts": {
+        "contracts",
+        "client-sdk",
+        "realtime-client",
+        "editor-core",
+        "resource-runtime",
+        "resource-adapters",
+        "shared",
+    },
+}
+
+# docs/architecture 必须存在的冻结文件（glob 以兼容 slug 改名）
+REQUIRED_ARCH_FILES = [
+    "00-ARCHITECTURE-CONSTITUTION.md",
+    "26-*.md",
+    "27-*.md",
+    "28-*.md",
+]
+
+# 跳过的非源码顶层项（隐藏目录、虚拟环境、依赖缓存等）
+SKIP_TOP_LEVEL = {
+    ".git",
+    ".venv",
+    ".ruff_cache",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".vscode",
+    ".worktrees",
+    ".idea",
+    "node_modules",
+    ".turbo",
+}
+
+
+def _check_top_level(repo: Path) -> list[str]:
+    problems: list[str] = []
+    for entry in sorted(os.listdir(repo)):
+        full = repo / entry
+        if not full.is_dir():
+            continue
+        if entry.startswith(".") or entry in SKIP_TOP_LEVEL:
+            continue
+        if entry not in ALLOWED_TOP_LEVEL:
+            problems.append(
+                f"[规则 §3 顶层 allow-list] 出现非冻结顶层目录: {entry}/ "
+                f"（架构禁止引入 backend/、frontend/、src/ 等平铺布局）"
+            )
+    return problems
+
+
+def _check_frozen_subdirs(repo: Path) -> list[str]:
+    problems: list[str] = []
+    for parent, allowed in FROZEN_SUBDIRS.items():
+        p = repo / parent
+        if not p.is_dir():
+            continue
+        for child in sorted(os.listdir(p)):
+            cp = p / child
+            if cp.is_dir() and child not in allowed:
+                problems.append(
+                    f"[规则 §3 冻结子目录] {parent}/{child}/ 不是冻结布局允许的目录 "
+                    f"（允许: {', '.join(sorted(allowed))}）"
+                )
+    return problems
+
+
+def _check_arch_files(repo: Path) -> list[str]:
+    problems: list[str] = []
+    arch_dir = repo / "docs" / "architecture"
+    if not arch_dir.is_dir():
+        return ["[规则 §4] 缺失目录 docs/architecture"]
+    present = set(os.listdir(arch_dir))
+    for pattern in REQUIRED_ARCH_FILES:
+        if pattern == "00-ARCHITECTURE-CONSTITUTION.md":
+            if pattern not in present:
+                problems.append(f"[规则 §4] 缺失冻结文件 docs/architecture/{pattern}")
+        elif not any(fnmatch.fnmatch(f, pattern) for f in present):
+            problems.append(f"[规则 §4] docs/architecture 缺少匹配 {pattern} 的文件")
+    return problems
+
+
+def collect_violations() -> list[str]:
+    return (
+        _check_top_level(REPO_ROOT)
+        + _check_frozen_subdirs(REPO_ROOT)
+        + _check_arch_files(REPO_ROOT)
+    )
+
+
+def main() -> int:
+    problems = collect_violations()
+    if problems:
+        print("FAIL: 仓库布局违反冻结约定（docs/architecture/27 §3、§72）")
+        for p in problems:
+            print(f"  - {p}")
+        print(f"\n共 {len(problems)} 项违规。")
+        return 1
+    print("PASS: 仓库布局符合冻结约定（docs/architecture/27 §3、§72）")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

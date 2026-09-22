@@ -2,6 +2,9 @@
 docs/
 AGENTS.md
 
+# 本阶段刻意使用嵌套 git worktree，忽略 worktree 目录本身
+.worktrees/
+
 # Dependencies & Virtual Environments
 node_modules/
 .pnpm-store/

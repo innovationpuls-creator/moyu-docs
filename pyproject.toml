@@ -9,14 +9,49 @@ dependencies = []
 [dependency-groups]
 dev = [
     "ruff>=0.9.0",
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "jsonschema>=4.21",
+    "pyyaml>=6.0",
+    "mypy>=1.10",
+    "openapi-spec-validator>=0.7",
+    "datamodel-code-generator>=0.25",
 ]
 
 [tool.uv.workspace]
+# 仅保留当前可解析的成员；packages/py/* 在 Task 3 会纳入 packages/py/contracts
 members = [
     "packages/py/*",
-    "services/api",
-    "workers/*",
 ]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra -q --strict-markers"
+asyncio_mode = "auto"
+testpaths = [
+    "tests",
+    "packages/py",
+]
+
+[tool.mypy]
+python_version = "3.12"
+# 当前阶段仅 scripts/tests 存在；packages、services 在后续 Task 创建后由其自身 pyproject 纳入。
+# 注：早期将不存在的目录列入 files 会触发 mypy 模块映射异常（duplicate __main__），
+# 故此处仅覆盖当前已存在的源码目录。
+files = [
+    "scripts",
+    "tests",
+]
+# 生成物（Task 3 产出）为机器生成代码，禁止手改，mypy 跳过
+exclude = [
+    "packages/py/contracts/src/app_contracts",
+]
+check_untyped_defs = true
+no_implicit_optional = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+strict_equality = true
+ignore_missing_imports = false
 
 [tool.ruff]
 # 限制单行长度，超出则由 Ruff Formatter 自动在合适的位置折行排版
