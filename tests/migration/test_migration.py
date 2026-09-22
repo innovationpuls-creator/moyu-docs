@@ -10,10 +10,7 @@ from sqlalchemy import create_engine, inspect
 
 @pytest.fixture
 def postgres_dsn() -> str:
-    return os.getenv(
-        "DATABASE_URL",
-        "postgresql+psycopg://postgres:postgres@localhost:5432/dom_dev",
-    )
+    return os.getenv("DATABASE_URL", "postgresql+psycopg:///dom_dev")
 
 
 def _alembic_config(postgres_dsn: str) -> Config:
@@ -42,6 +39,7 @@ def test_offline_migration_emits_required_schemas_and_tables() -> None:
         assert f"CREATE TABLE auth.{table}" in sql
     assert "CREATE TABLE audit.entries" in sql
     assert "CREATE TABLE integration.outbox_events" in sql
+    assert "CREATE TABLE integration.idempotency_records" in sql
     assert "ix_outbox_events_unpublished" in sql
 
 
@@ -63,7 +61,7 @@ def test_alembic_upgrade_and_downgrade(postgres_dsn: str) -> None:
                 "account_deletion_requests",
             },
             "audit": {"entries"},
-            "integration": {"outbox_events"},
+            "integration": {"outbox_events", "idempotency_records"},
         }
         for schema, tables in expected_tables.items():
             assert tables <= set(inspector.get_table_names(schema=schema))

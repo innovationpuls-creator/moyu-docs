@@ -215,6 +215,16 @@ def upgrade() -> None:
         sa.UniqueConstraint("event_id", name="uq_outbox_events_event_id"),
         schema="integration",
     )
+    op.create_table(
+        "idempotency_records",
+        sa.Column("idempotency_key", sa.String(255), primary_key=True),
+        sa.Column("response", sa.Text()),
+        sa.Column(
+            "created_at", _timestamp(), nullable=False, server_default=sa.func.now()
+        ),
+        schema="integration",
+    )
+
     op.create_index(
         "ix_outbox_events_unpublished",
         "outbox_events",
@@ -230,6 +240,7 @@ def downgrade() -> None:
         table_name="outbox_events",
         schema="integration",
     )
+    op.execute("DROP TABLE IF EXISTS integration.idempotency_records")
     op.drop_table("outbox_events", schema="integration")
     op.drop_table("entries", schema="audit")
     op.drop_table("account_deletion_requests", schema="auth")

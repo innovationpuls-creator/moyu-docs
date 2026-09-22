@@ -39,6 +39,11 @@ typecheck:
 test:
     uv run pytest
 
+# 运行 Phase 2 的真实 PostgreSQL 迁移与集成测试
+# 可通过 DATABASE_URL 覆盖本地测试数据库连接。
+test-db:
+    uv run pytest tests/migration tests/integration
+
 # 生成机器契约（registry 驱动，Python + TypeScript）
 contract: generate-contracts
 
