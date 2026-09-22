@@ -1,0 +1,13 @@
+{
+	"name": "dom-monorepo",
+	"private": true,
+	"packageManager": "pnpm@12.4.2",
+	"scripts": {
+		"lint:js": "biome check .",
+		"format:js": "biome check --write .",
+		"check:js": "biome check ."
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.5.14"
+	}
+}

@@ -1,0 +1,37 @@
+[project]
+name = "dom"
+version = "0.1.0"
+description = "DOM Monorepo"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "ruff>=0.9.0",
+]
+
+[tool.uv.workspace]
+members = [
+    "packages/py/*",
+    "services/api",
+    "workers/*",
+]
+
+[tool.ruff]
+# 限制单行长度，超出则由 Ruff Formatter 自动在合适的位置折行排版
+line-length = 88
+# 匹配当前 Python 的运行版本（与 .python-version 及 docs/architecture/26 §19 严格对齐）
+target-version = "py312"
+
+[tool.ruff.lint]
+# 激活的核心规则：
+# E/W: 基础语法与 PEP8 规范检查
+# F: 核心错误检查（包含 F401-未使用导入, F841-未使用变量）
+# I: isort 导入自动排序（把包按字母顺序排好）
+# C90: 检查单个函数的复杂度，防止写出过度嵌套的逻辑
+select = ["E", "W", "F", "I", "C90"]
+
+# 允许自动修复所有可安全修复的规则项
+fixable = ["ALL"]
+unfixable = []

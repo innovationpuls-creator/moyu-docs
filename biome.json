@@ -1,0 +1,38 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+	"files": {
+		"ignoreUnknown": false,
+		"includes": [
+			".vscode/**",
+			"apps/**",
+			"services/**",
+			"workers/**",
+			"packages/ts/**",
+			"contracts/**",
+			"**/*.json",
+			"**/*.jsonc",
+			"**/*.js",
+			"**/*.mjs",
+			"**/*.ts",
+			"**/*.tsx",
+			"**/*.jsx"
+		]
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"preset": "recommended"
+		}
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab",
+		"indentWidth": 2,
+		"lineWidth": 80
+	}
+}
