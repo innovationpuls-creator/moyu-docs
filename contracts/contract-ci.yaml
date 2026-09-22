@@ -1,0 +1,55 @@
+# Contract CI 义务清单（docs/architecture/28 §55、§55.2）
+#
+# enforced         已有自动化实现；evidence 指向可执行的测试或脚本
+# not-applicable   当前确实不适用；必须给出 reason 与 mandatoryWhen 触发条件
+#
+# 这里的每一项对应 doc 28 §55 列出的 Contract CI 义务，二者必须一一对应。
+version: "1.0.0"
+
+obligations:
+  schema-syntax-validation:
+    status: enforced
+    evidence: tests/contract/test_contract_syntax.py
+
+  reference-resolution:
+    status: enforced
+    evidence: tests/contract/test_contract_openapi.py
+
+  duplicate-logical-name-check:
+    status: enforced
+    evidence: tests/contract/test_contract_registry.py
+
+  duplicate-event-subject-check:
+    status: enforced
+    evidence: tests/contract/test_contract_registry.py
+
+  error-code-uniqueness:
+    status: enforced
+    evidence: tests/contract/test_contract_registry.py
+
+  openapi-validation:
+    status: enforced
+    evidence: tests/contract/test_contract_openapi.py
+
+  breaking-change-detection:
+    status: enforced
+    evidence: scripts/check_contract_compat.py
+
+  code-generation:
+    status: enforced
+    evidence: scripts/generate_contracts.py
+
+  generated-drift-check:
+    status: enforced
+    evidence: tests/contract/test_contract_drift.py
+
+  consumer-contract-tests:
+    status: not-applicable
+    reason: >-
+      尚无任何真实 Consumer。官方前端（apps/web）与 Realtime 服务（services/realtime）
+      尚未实现，当前没有任何进程消费 /contracts，因此没有可执行的 Consumer Test。
+    mandatoryWhen: >-
+      出现第一个真实 Consumer（apps/web 或 services/realtime 开始引用
+      packages/ts/contracts 或 packages/py/contracts）后，本项必须立即转为
+      enforced，并补充对应的 Consumer Contract Test；在此之前保持
+      not-applicable。

@@ -28,8 +28,8 @@ lint-js:
 format-js:
     pnpm exec biome check --write .
 
-# 综合质量门禁：依次执行 lint、typecheck、test
-check: lint typecheck test
+# 综合质量门禁：lint、typecheck、test 加契约兼容性与漂移校验
+check: lint typecheck test contract-compat contract-drift
 
 # 静态类型检查 (mypy)
 typecheck:
@@ -39,16 +39,24 @@ typecheck:
 test:
     uv run pytest
 
-# 生成机器契约（由 Task 3 提供脚本）
+# 生成机器契约（registry 驱动，Python + TypeScript）
 contract: generate-contracts
 
-# 生成机器契约（由 Task 3 提供脚本）
+# 生成机器契约（由 scripts/generate_contracts.py 提供）
 generate-contracts:
     uv run python scripts/generate_contracts.py
 
-# 检测契约漂移（生成结果是否与源码一致）
+# 检测契约漂移（生成结果是否与 Contract Registry 一致，只读）
 contract-drift:
     uv run python scripts/generate_contracts.py --check
+
+# 检测 Breaking Contract Change（对照 contracts/registry-baseline.json）
+contract-compat:
+    uv run python scripts/check_contract_compat.py
+
+# 重建契约基线（必须表现为一次可见的提交差异）
+contract-baseline:
+    uv run python scripts/check_contract_compat.py --update-baseline
 
 # 校验冻结的仓库布局（docs/architecture/27 §3、§72）
 layout-check:

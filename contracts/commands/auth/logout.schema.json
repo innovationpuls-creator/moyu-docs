@@ -1,27 +1,21 @@
 {
 	"$schema": "https://json-schema.org/draft/2020-12/schema",
 	"$id": "https://contracts.dom.internal/commands/auth/logout.schema.json",
-	"title": "Logout",
-	"description": "FR-AUTH-020. Idempotent (BDD 'logout is idempotent'). The request carries no body; the session is resolved from the auth context. The response is representable even when the session was already invalid (sessionStatus = AlreadyLoggedOut).",
+	"title": "LogoutResponse",
+	"description": "Logout is a no-body Command (registry requestBody: none, doc 28 §8): the client sends no request body and OpenAPI declares no requestBody, so this file's root is the Response and no request schema exists. FR-AUTH-020; idempotent, so sessionStatus = AlreadyLoggedOut when the session was already invalid (BDD 'logout is idempotent').",
 	"type": "object",
 	"additionalProperties": false,
-	"properties": {},
-	"$defs": {
-		"LogoutResponse": {
-			"type": "object",
-			"additionalProperties": false,
-			"properties": {
-				"messageKey": {
-					"type": "string",
-					"minLength": 1
-				},
-				"sessionStatus": {
-					"$ref": "#/$defs/LogoutStatusValue"
-				}
-			},
-			"required": ["messageKey", "sessionStatus"],
-			"title": "LogoutResponse"
+	"properties": {
+		"messageKey": {
+			"type": "string",
+			"minLength": 1
 		},
+		"sessionStatus": {
+			"$ref": "#/$defs/LogoutStatusValue"
+		}
+	},
+	"required": ["messageKey", "sessionStatus"],
+	"$defs": {
 		"LogoutStatusValue": {
 			"type": "string",
 			"enum": ["LoggedOut", "AlreadyLoggedOut"],

@@ -1,41 +1,28 @@
-# Contract Schema Registry (doc 28 §8).
+# Contract Schema Registry (doc 28 §8)
 #
-# One entry per machine-readable contract. Per doc 28 §8/§16/§19 each Command/Query
-# entry carries requestRef + responseRef (machine-readable pointers into its canonical
-# JSON Schema), permissionCapability, idempotencyRequirement and errorCodes. Events
-# carry eventSubject in the doc 28 §25 format.
+# 本文件是代码生成的根输入：generator 遍历本文件注册的每一条 Contract，按其
+# schemaPath 读取 Canonical JSON Schema 并生成语言投影，不以 OpenAPI paths 是否
+# 引用某条 Contract 作为判据（doc 28 §2.1）。因此任何 kind 的 Contract 都必然
+# 存在正式投影，包括不承载 HTTP Route 的 Event。
 #
-# KIND VOCABULARY NOTE: doc 28 §8 lists Command/Query/Event/Stream/Task/Error/Stream...
-# (§1) and the registry field list (§8) only names Command/Query/Event. This registry
-# additionally registers `Error` (ErrorEnvelope) and `Identity` (IdentityIds) kinds.
-# §9 mandates ID-type registration and the plan fixes ErrorEnvelope as kind `Error`,
-# so the vocabulary is deliberately widened beyond §8's list. This is documented here
-# rather than silently; `kind` allowed values = Command, Query, Event, Error, Identity.
+# kind 取值：Command / Query / Event / Error / Identity。Error 与 Identity 与其余
+# 三类同级 —— 错误信封与 Canonical ID 类型同样是跨模块机器契约。
 #
-# OWNERMODULE CONTRADICTION RESOLUTION: the plan's draft registry.yaml placed
-# LoginWithEmail under packages/py/core/account, but the plan's Task 14 places the login
-# use case under packages/py/core/session. Per the task instructions we resolve this as
-# stated: session-lifecycle contracts (LoginWithPassword, Logout, Reauthenticate,
-# SessionReplaced, GetCurrentSession) -> packages/py/core/session; account-lifecycle
-# contracts (the rest) -> packages/py/core/account. Flagged in the task report.
+# permissionCapability 一律为 none：Auth 边界操作不受 doc 07 的 Resource /
+# Workspace Capability 管辖（doc 16 §66、Constitution §3.36-§3.37）。会话边界改由
+# authRequirement 表达：Public / Authenticated / RecentAuthentication
+# （doc 16 §104-§105、PRD FR-AUTH-034）。仅 Command / Query 适用。
 #
-# PERMISSION / AUTH-BOUNDARY NOTE (FIX-6): every auth contract sets
-# `permissionCapability: none`, i.e. "not gated by a doc 07 resource/workspace Capability
-# — this is an Auth-boundary operation". doc 07 (§66) defines NO Capability for an auth
-# entry point and Constitution §3.36-§3.37 keep Auth and Permission separate, so the
-# formerly-invented `account:self` value is removed. The companion `authRequirement`
-# field records the auth boundary each operation requires, derived from doc 16 §104-§105
-# and PRD FR-AUTH-034: `Public` (unauthenticated entry point), `Authenticated` (a valid
-# session is required), `RecentAuthentication` (re-auth within the 10-minute window,
-# PRD FR-AUTH-029/034). Event contracts are recorded as `Authenticated` because they are
-# emitted inside an authenticated session lifecycle.
+# requestBody 表达请求体存在性（doc 28 §8）：
+#   required -> schema 文件 root 为请求，响应位于 $defs.<LogicalName>Response
+#   none     -> 客户端不发送请求体，OpenAPI 不声明 requestBody，schema 文件 root
+#               即响应，因此生成物中只存在 Response 类型，不存在占位请求模型
 #
-# IDENTITY IDS NOTE (FIX-7): the `IdentityIds` registry entry is the single logical name
-# that covers BOTH the canonical ID types (doc 28 §9-§11) AND the shared cross-contract
-# value enums (AccountStatusValue / SessionStatusValue / SessionReplacementReason)
-# co-located in contracts/ids/ids.schema.json. doc 27 §52 freezes no directory for shared
-# enums, so co-location is a deliberate choice; the registry name therefore spans both
-# groups and is not renamed.
+# logicalName 与 docs/architecture/16-Account-Auth-Session-Design.md §84-§85 的
+# Canonical Command / Query 名单一一对应。
+#
+# ownerModule：account 拥有 Account 生命周期，session 拥有 Session 生命周期
+# （doc 27 §26）。
 
 version: "1.0.0"
 
@@ -47,6 +34,7 @@ contracts:
     schemaPath: contracts/commands/auth/register-with-email.schema.json
     requestRef: contracts/commands/auth/register-with-email.schema.json
     responseRef: contracts/commands/auth/register-with-email.schema.json#/$defs/RegisterWithEmailResponse
+    requestBody: required
     permissionCapability: none
     authRequirement: Public
     idempotencyRequirement: required
@@ -62,6 +50,7 @@ contracts:
     schemaPath: contracts/commands/auth/verify-email.schema.json
     requestRef: contracts/commands/auth/verify-email.schema.json
     responseRef: contracts/commands/auth/verify-email.schema.json#/$defs/VerifyEmailResponse
+    requestBody: required
     permissionCapability: none
     authRequirement: Public
     idempotencyRequirement: none
@@ -77,6 +66,7 @@ contracts:
     schemaPath: contracts/commands/auth/resend-email-verification.schema.json
     requestRef: contracts/commands/auth/resend-email-verification.schema.json
     responseRef: contracts/commands/auth/resend-email-verification.schema.json#/$defs/ResendEmailVerificationResponse
+    requestBody: required
     permissionCapability: none
     authRequirement: Public
     idempotencyRequirement: none
@@ -92,6 +82,7 @@ contracts:
     schemaPath: contracts/commands/auth/login-with-password.schema.json
     requestRef: contracts/commands/auth/login-with-password.schema.json
     responseRef: contracts/commands/auth/login-with-password.schema.json#/$defs/LoginWithPasswordResponse
+    requestBody: required
     permissionCapability: none
     authRequirement: Public
     idempotencyRequirement: required
@@ -105,8 +96,9 @@ contracts:
     domain: auth
     version: "1.0.0"
     schemaPath: contracts/commands/auth/logout.schema.json
-    requestRef: contracts/commands/auth/logout.schema.json
-    responseRef: contracts/commands/auth/logout.schema.json#/$defs/LogoutResponse
+    requestRef: none
+    responseRef: contracts/commands/auth/logout.schema.json
+    requestBody: none
     permissionCapability: none
     authRequirement: Authenticated
     idempotencyRequirement: none
@@ -122,13 +114,10 @@ contracts:
     schemaPath: contracts/commands/auth/reauthenticate.schema.json
     requestRef: contracts/commands/auth/reauthenticate.schema.json
     responseRef: contracts/commands/auth/reauthenticate.schema.json#/$defs/ReauthenticateResponse
+    requestBody: required
     permissionCapability: none
     authRequirement: Authenticated
     idempotencyRequirement: none
-    # Reauthenticate IS the mechanism that satisfies recent authentication, so
-    # RECENT_AUTHENTICATION_REQUIRED is unreachable from it; the session-bound codes
-    # apply because the request is Authenticated, and RATE_LIMITED because PRD AC-034.3
-    # rate-limits repeated re-auth failures.
     errorCodes: [INVALID_CREDENTIALS, SESSION_EXPIRED, SESSION_REPLACED, ACCOUNT_DISABLED, RATE_LIMITED]
     ownerDocument: docs/architecture/16-Account-Auth-Session-Design.md
     ownerModule: packages/py/core/session
@@ -141,6 +130,7 @@ contracts:
     schemaPath: contracts/commands/auth/request-password-reset.schema.json
     requestRef: contracts/commands/auth/request-password-reset.schema.json
     responseRef: contracts/commands/auth/request-password-reset.schema.json#/$defs/RequestPasswordResetResponse
+    requestBody: required
     permissionCapability: none
     authRequirement: Public
     idempotencyRequirement: none
@@ -156,6 +146,7 @@ contracts:
     schemaPath: contracts/commands/auth/reset-password.schema.json
     requestRef: contracts/commands/auth/reset-password.schema.json
     responseRef: contracts/commands/auth/reset-password.schema.json#/$defs/ResetPasswordResponse
+    requestBody: required
     permissionCapability: none
     authRequirement: Public
     idempotencyRequirement: none
@@ -169,8 +160,9 @@ contracts:
     domain: auth
     version: "1.0.0"
     schemaPath: contracts/commands/auth/request-account-deletion.schema.json
-    requestRef: contracts/commands/auth/request-account-deletion.schema.json
-    responseRef: contracts/commands/auth/request-account-deletion.schema.json#/$defs/RequestAccountDeletionResponse
+    requestRef: none
+    responseRef: contracts/commands/auth/request-account-deletion.schema.json
+    requestBody: none
     permissionCapability: none
     authRequirement: RecentAuthentication
     idempotencyRequirement: required
@@ -184,8 +176,9 @@ contracts:
     domain: auth
     version: "1.0.0"
     schemaPath: contracts/commands/auth/cancel-account-deletion.schema.json
-    requestRef: contracts/commands/auth/cancel-account-deletion.schema.json
-    responseRef: contracts/commands/auth/cancel-account-deletion.schema.json#/$defs/CancelAccountDeletionResponse
+    requestRef: none
+    responseRef: contracts/commands/auth/cancel-account-deletion.schema.json
+    requestBody: none
     permissionCapability: none
     authRequirement: Authenticated
     idempotencyRequirement: none
@@ -199,8 +192,9 @@ contracts:
     domain: auth
     version: "1.0.0"
     schemaPath: contracts/queries/auth/get-current-account.schema.json
-    requestRef: contracts/queries/auth/get-current-account.schema.json
-    responseRef: contracts/queries/auth/get-current-account.schema.json#/$defs/GetCurrentAccountResponse
+    requestRef: none
+    responseRef: contracts/queries/auth/get-current-account.schema.json
+    requestBody: none
     permissionCapability: none
     authRequirement: Authenticated
     idempotencyRequirement: none
@@ -214,8 +208,9 @@ contracts:
     domain: auth
     version: "1.0.0"
     schemaPath: contracts/queries/auth/get-current-session.schema.json
-    requestRef: contracts/queries/auth/get-current-session.schema.json
-    responseRef: contracts/queries/auth/get-current-session.schema.json#/$defs/GetCurrentSessionResponse
+    requestRef: none
+    responseRef: contracts/queries/auth/get-current-session.schema.json
+    requestBody: none
     permissionCapability: none
     authRequirement: Authenticated
     idempotencyRequirement: none
@@ -229,8 +224,9 @@ contracts:
     domain: auth
     version: "1.0.0"
     schemaPath: contracts/queries/auth/get-account-status.schema.json
-    requestRef: contracts/queries/auth/get-account-status.schema.json
-    responseRef: contracts/queries/auth/get-account-status.schema.json#/$defs/GetAccountStatusResponse
+    requestRef: none
+    responseRef: contracts/queries/auth/get-account-status.schema.json
+    requestBody: none
     permissionCapability: none
     authRequirement: Authenticated
     idempotencyRequirement: none
@@ -246,7 +242,6 @@ contracts:
     schemaPath: contracts/events/auth/session-replaced.schema.json
     eventSubject: event.auth.session-replaced.v1
     permissionCapability: none
-    authRequirement: Authenticated
     ownerDocument: docs/architecture/16-Account-Auth-Session-Design.md
     ownerModule: packages/py/core/session
     status: active

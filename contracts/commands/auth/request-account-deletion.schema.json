@@ -1,43 +1,35 @@
 {
 	"$schema": "https://json-schema.org/draft/2020-12/schema",
 	"$id": "https://contracts.dom.internal/commands/auth/request-account-deletion.schema.json",
-	"title": "RequestAccountDeletion",
-	"description": "FR-AUTH-029/030/034. The recent-authentication requirement (10-minute window) is satisfied by the session's lastStrongAuthAt, not by a field here; the request payload must NOT carry workspace-transfer data. Response exposes the 30-day grace window (deletionRequestedAt, gracePeriodDaysRemaining, executeAfter = scheduled final deletion).",
+	"title": "RequestAccountDeletionResponse",
+	"description": "RequestAccountDeletion is a no-body Command (registry requestBody: none, doc 28 §8): the client sends no request body and OpenAPI declares no requestBody, so this file's root is the Response and no request schema exists. The recent-authentication requirement (10-minute window, FR-AUTH-034) is satisfied by the session's lastStrongAuthAt, never by a request field. FR-AUTH-029/030; the response exposes the 30-day grace window (executeAfter = scheduled final deletion).",
 	"type": "object",
 	"additionalProperties": false,
-	"properties": {},
-	"$defs": {
-		"RequestAccountDeletionResponse": {
-			"type": "object",
-			"additionalProperties": false,
-			"properties": {
-				"messageKey": {
-					"type": "string",
-					"minLength": 1
-				},
-				"accountStatus": {
-					"$ref": "../../ids/ids.schema.json#/$defs/AccountStatusValue"
-				},
-				"deletionRequestedAt": {
-					"type": "string",
-					"format": "date-time"
-				},
-				"gracePeriodDaysRemaining": {
-					"type": "integer"
-				},
-				"executeAfter": {
-					"type": "string",
-					"format": "date-time"
-				}
-			},
-			"required": [
-				"messageKey",
-				"accountStatus",
-				"deletionRequestedAt",
-				"gracePeriodDaysRemaining",
-				"executeAfter"
-			],
-			"title": "RequestAccountDeletionResponse"
+	"properties": {
+		"messageKey": {
+			"type": "string",
+			"minLength": 1
+		},
+		"accountStatus": {
+			"$ref": "../../ids/ids.schema.json#/$defs/AccountStatusValue"
+		},
+		"deletionRequestedAt": {
+			"type": "string",
+			"format": "date-time"
+		},
+		"gracePeriodDaysRemaining": {
+			"type": "integer"
+		},
+		"executeAfter": {
+			"type": "string",
+			"format": "date-time"
 		}
-	}
+	},
+	"required": [
+		"messageKey",
+		"accountStatus",
+		"deletionRequestedAt",
+		"gracePeriodDaysRemaining",
+		"executeAfter"
+	]
 }

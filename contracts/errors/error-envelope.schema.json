@@ -53,6 +53,7 @@
 		"details": {
 			"type": "object",
 			"additionalProperties": true,
+			"title": "ErrorDetails",
 			"description": "Safe, structured business detail only. Must never contain stack traces, SQL, internal hosts, secrets or provider tokens (doc 28 §31)."
 		}
 	},

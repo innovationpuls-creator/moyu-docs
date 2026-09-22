@@ -145,58 +145,88 @@ def test_registry_entry_vocabulary() -> None:
 
 
 def test_command_query_request_response_pointers() -> None:
+    """requestRef / responseRef / requestBody 三者必须互相自洽（doc 28 §8）。
+
+    requestBody: required -> 请求是文件 root，响应在 $defs.<LogicalName>Response
+    requestBody: none     -> requestRef 记为 none，文件 root 即响应，生成物中
+                             只存在 Response 类型
+    """
     reg = _registry()
     id_index = build_id_index()
+    base_file = REPO_ROOT / "registry.yaml"
     for entry in reg["contracts"]:
-        if entry["kind"] not in ("Command", "Query"):
-            assert "eventSubject" not in entry or entry["kind"] == "Event"
-            if entry["kind"] == "Event":
-                continue
-            # Error / Identity carry neither request/response pointers.
-            assert "requestRef" not in entry and "responseRef" not in entry, (
-                f"{entry['logicalName']}: unexpected request/response pointers"
-            )
+        kind = entry["kind"]
+        if kind not in ("Command", "Query"):
+            if kind == "Error" or kind == "Identity":
+                assert "requestRef" not in entry and "responseRef" not in entry, (
+                    f"{entry['logicalName']}: unexpected request/response pointers"
+                )
             continue
-        req_ref = entry["requestRef"]
-        resp_ref = entry["responseRef"]
-        # requestRef/responseRef are stored relative to the repo root
-        # (same as schemaPath), so resolve them against the repo root.
-        base_file = REPO_ROOT / "registry.yaml"
-        # request pointer resolves (root of the schema file).
-        req_doc = resolve_ref(req_ref, base_file, id_index)
-        assert isinstance(req_doc, dict), (
-            f"{entry['logicalName']}: requestRef unresolved"
+        name = entry["logicalName"]
+        expected_title = f"{name}Response"
+        assert entry.get("requestBody") in ("required", "none"), (
+            f"{name}: requestBody must be required or none"
         )
-        # response pointer resolves and its target title equals <LogicalName>Response.
-        resp_doc = resolve_ref(resp_ref, base_file, id_index)
-        expected_title = f"{entry['logicalName']}Response"
-        assert isinstance(resp_doc, dict), (
-            f"{entry['logicalName']}: responseRef unresolved"
-        )
+        resp_doc = resolve_ref(entry["responseRef"], base_file, id_index)
+        assert isinstance(resp_doc, dict), f"{name}: responseRef unresolved"
         assert resp_doc.get("title") == expected_title, (
-            f"{entry['logicalName']}: response target title is "
-            f"{resp_doc.get('title')!r}, expected {expected_title!r}"
+            f"{name}: response target title is {resp_doc.get('title')!r}, "
+            f"expected {expected_title!r}"
         )
+        if entry["requestBody"] == "required":
+            assert entry["requestRef"] != "none", (
+                f"{name}: required body needs requestRef"
+            )
+            req_doc = resolve_ref(entry["requestRef"], base_file, id_index)
+            assert isinstance(req_doc, dict), f"{name}: requestRef unresolved"
+            assert req_doc.get("title") == name, (
+                f"{name}: request target title is {req_doc.get('title')!r}, "
+                f"expected {name!r}"
+            )
+            assert entry["responseRef"] != entry["schemaPath"], (
+                f"{name}: a body-carrying contract cannot have its response at root"
+            )
+        else:
+            assert entry["requestRef"] == "none", (
+                f"{name}: no-body contract must record requestRef: none"
+            )
+            assert entry["responseRef"] == entry["schemaPath"], (
+                f"{name}: no-body contract's response IS the schema root"
+            )
 
 
-# FIX-6: auth contracts must not invent doc-07 resource/workspace Capability
-# vocabulary; instead they declare permissionCapability=none (Auth-boundary op) and an
-# authRequirement drawn from the three-value vocabulary.
 AUTH_REQUIREMENT_VALUES = frozenset({"Public", "Authenticated", "RecentAuthentication"})
 NON_AUTH_KINDS = frozenset({"Error", "Identity"})
 
 
 def test_auth_contracts_use_permission_none_and_valid_auth_requirement() -> None:
+    """Auth 边界操作不受 doc 07 的 Capability 管辖；边界由 authRequirement 表达。"""
     reg = _registry()
     for entry in reg["contracts"]:
-        if entry["kind"] in NON_AUTH_KINDS:
-            # Error / Identity are not auth-boundary ops; the rule does not apply.
-            continue
-        assert entry.get("permissionCapability") == "none", (
-            f"{entry['logicalName']}: permissionCapability must be 'none' for an "
-            f"auth contract, got {entry.get('permissionCapability')!r}"
-        )
-        assert entry.get("authRequirement") in AUTH_REQUIREMENT_VALUES, (
-            f"{entry['logicalName']}: authRequirement must be one of "
-            f"{sorted(AUTH_REQUIREMENT_VALUES)}, got {entry.get('authRequirement')!r}"
-        )
+        kind = entry["kind"]
+        name = entry["logicalName"]
+        if kind in ("Command", "Query"):
+            assert entry.get("permissionCapability") == "none", (
+                f"{name}: permissionCapability must be 'none', got "
+                f"{entry.get('permissionCapability')!r}"
+            )
+            assert entry.get("authRequirement") in AUTH_REQUIREMENT_VALUES, (
+                f"{name}: authRequirement must be one of "
+                f"{sorted(AUTH_REQUIREMENT_VALUES)}, "
+                f"got {entry.get('authRequirement')!r}"
+            )
+        elif kind == "Event":
+            assert entry.get("permissionCapability") == "none", (
+                f"{name}: permissionCapability must be 'none'"
+            )
+            assert "authRequirement" not in entry, (
+                f"{name}: authRequirement applies to Command/Query only"
+            )
+        else:
+            # Error / Identity 不是 Auth 边界操作，不参与该词汇。
+            assert "permissionCapability" not in entry, (
+                f"{name}: {kind} 不应声明 permissionCapability"
+            )
+            assert "authRequirement" not in entry, (
+                f"{name}: {kind} 不应声明 authRequirement"
+            )

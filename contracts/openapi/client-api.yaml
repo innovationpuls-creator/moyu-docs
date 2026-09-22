@@ -4,9 +4,11 @@ info:
   version: 1.0.0
   description: >
     Official client HTTP contract for Account / Auth / Session (doc 28 §40).
-    Schema shapes are referenced from the canonical JSON Schemas under
-    /contracts (by their canonical https://contracts.dom.internal/... $id);
-    fields are never restated inline (doc 28 §4).
+    This document describes only the HTTP surface: routes, operationId, headers and
+    error-response assembly. Payload shapes are referenced from the canonical JSON
+    Schemas under /contracts by relative path and are never restated inline
+    (doc 28 §4); code generation is driven by contracts/registry.yaml, not by this
+    document's paths (doc 28 §2.1).
 servers:
   - url: https://api.dom.internal
     description: Production
@@ -141,7 +143,7 @@ paths:
   /v1/auth/logout:
     post:
       operationId: Logout
-      summary: Logout current device session (FR-AUTH-020)
+      summary: Logout current device session (FR-AUTH-020, no request body)
       tags: [auth]
       responses:
         "200":
@@ -149,7 +151,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "../commands/auth/logout.schema.json#/$defs/LogoutResponse"
+                $ref: "../commands/auth/logout.schema.json"
         "401":
           $ref: "#/components/responses/ErrorEnvelopeResponse"
 
@@ -164,7 +166,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "../queries/auth/get-current-account.schema.json#/$defs/GetCurrentAccountResponse"
+                $ref: "../queries/auth/get-current-account.schema.json"
         "401":
           $ref: "#/components/responses/ErrorEnvelopeResponse"
 
@@ -179,7 +181,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "../queries/auth/get-current-session.schema.json#/$defs/GetCurrentSessionResponse"
+                $ref: "../queries/auth/get-current-session.schema.json"
         "401":
           $ref: "#/components/responses/ErrorEnvelopeResponse"
 
@@ -255,7 +257,7 @@ paths:
   /v1/auth/delete-account:
     post:
       operationId: RequestAccountDeletion
-      summary: Request account deletion (FR-AUTH-029/030)
+      summary: Request account deletion (FR-AUTH-029/030, no request body)
       tags: [auth]
       responses:
         "200":
@@ -263,7 +265,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "../commands/auth/request-account-deletion.schema.json#/$defs/RequestAccountDeletionResponse"
+                $ref: "../commands/auth/request-account-deletion.schema.json"
         "401":
           $ref: "#/components/responses/ErrorEnvelopeResponse"
         "409":
@@ -274,7 +276,7 @@ paths:
   /v1/auth/cancel-delete-account:
     post:
       operationId: CancelAccountDeletion
-      summary: Cancel a pending account deletion (FR-AUTH-031)
+      summary: Cancel a pending account deletion (FR-AUTH-031, no request body)
       tags: [auth]
       responses:
         "200":
@@ -282,8 +284,28 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "../commands/auth/cancel-account-deletion.schema.json#/$defs/CancelAccountDeletionResponse"
+                $ref: "../commands/auth/cancel-account-deletion.schema.json"
         "401":
           $ref: "#/components/responses/ErrorEnvelopeResponse"
         "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/auth/status:
+    get:
+      operationId: GetAccountStatus
+      summary: Get the actor's account lifecycle status and deletion window (FR-AUTH-030/032)
+      description: >
+        Client Query of the Account Recovery Mode view (deletion state, remaining grace
+        period, scheduled final deletion). Registered in contracts/registry.yaml and
+        projected in both language contract packages; the route described here is the
+        HTTP surface for the existing Client Query.
+      tags: [auth]
+      responses:
+        "200":
+          description: Account status
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/auth/get-account-status.schema.json"
+        "401":
           $ref: "#/components/responses/ErrorEnvelopeResponse"

@@ -2,7 +2,77 @@
 	"$schema": "https://json-schema.org/draft/2020-12/schema",
 	"$id": "https://contracts.dom.internal/ids/ids.schema.json",
 	"title": "IdentityIds",
-	"description": "Canonical ID types plus shared cross-contract value enums (doc 28 §9-§11). The ID types (UserId, WorkspaceId, ProjectId, FolderId, ResourceId, NodeId, TaskId, AttemptId, CommentId, ThreadId, AssetId, EventId, RequestId, OperationId, SessionId, SubscriptionId, DeliveryId, IdempotencyKey, NodeRef) use UUIDv7. The shared value enums AccountStatusValue, SessionStatusValue and SessionReplacementReason are co-located here (doc 27 §52 freezes no directory for shared enums) so their generated class names stay globally unique across the contract tree — one canonical definition, referenced everywhere via $ref. The registry logical name IdentityIds therefore covers both the ID types and these shared value enums.",
+	"description": "Canonical ID types plus shared cross-contract value enums (doc 28 §9-§11). The ID types (UserId, WorkspaceId, ProjectId, FolderId, ResourceId, NodeId, TaskId, AttemptId, CommentId, ThreadId, AssetId, EventId, RequestId, OperationId, SessionId, SubscriptionId, DeliveryId, IdempotencyKey, NodeRef) use UUIDv7. The shared value enums AccountStatusValue, SessionStatusValue and SessionReplacementReason are co-located here (doc 27 §52 freezes no directory for shared enums) so their generated class names stay globally unique across the contract tree — one canonical definition, referenced everywhere via $ref. The registry logical name IdentityIds therefore covers both the ID types and these shared value enums. The root is the identity surface manifest: one property per canonical ID type, declared so that every ID type is projected in every target language (doc 28 §42/§46). It is not a transport payload and no field is required.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"userId": {
+			"$ref": "#/$defs/UserId"
+		},
+		"workspaceId": {
+			"$ref": "#/$defs/WorkspaceId"
+		},
+		"projectId": {
+			"$ref": "#/$defs/ProjectId"
+		},
+		"folderId": {
+			"$ref": "#/$defs/FolderId"
+		},
+		"resourceId": {
+			"$ref": "#/$defs/ResourceId"
+		},
+		"nodeId": {
+			"$ref": "#/$defs/NodeId"
+		},
+		"taskId": {
+			"$ref": "#/$defs/TaskId"
+		},
+		"attemptId": {
+			"$ref": "#/$defs/AttemptId"
+		},
+		"commentId": {
+			"$ref": "#/$defs/CommentId"
+		},
+		"threadId": {
+			"$ref": "#/$defs/ThreadId"
+		},
+		"assetId": {
+			"$ref": "#/$defs/AssetId"
+		},
+		"eventId": {
+			"$ref": "#/$defs/EventId"
+		},
+		"requestId": {
+			"$ref": "#/$defs/RequestId"
+		},
+		"operationId": {
+			"$ref": "#/$defs/OperationId"
+		},
+		"sessionId": {
+			"$ref": "#/$defs/SessionId"
+		},
+		"subscriptionId": {
+			"$ref": "#/$defs/SubscriptionId"
+		},
+		"deliveryId": {
+			"$ref": "#/$defs/DeliveryId"
+		},
+		"idempotencyKey": {
+			"$ref": "#/$defs/IdempotencyKey"
+		},
+		"accountStatusValue": {
+			"$ref": "#/$defs/AccountStatusValue"
+		},
+		"sessionStatusValue": {
+			"$ref": "#/$defs/SessionStatusValue"
+		},
+		"sessionReplacementReason": {
+			"$ref": "#/$defs/SessionReplacementReason"
+		},
+		"nodeRef": {
+			"$ref": "#/$defs/NodeRef"
+		}
+	},
 	"$defs": {
 		"UserId": {
 			"type": "string",

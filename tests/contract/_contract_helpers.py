@@ -61,11 +61,25 @@ ROUTED_LOGICAL_NAMES: frozenset[str] = frozenset(
         "Logout",
         "GetCurrentAccount",
         "GetCurrentSession",
+        "GetAccountStatus",
         "RequestPasswordReset",
         "ResetPassword",
         "Reauthenticate",
         "RequestAccountDeletion",
         "CancelAccountDeletion",
+    }
+)
+
+# registry requestBody: none —— 客户端不发请求体，OpenAPI 不声明 requestBody，
+# Canonical Schema 以 Response 为 root（doc 28 §8）
+NO_BODY_LOGICAL_NAMES: frozenset[str] = frozenset(
+    {
+        "Logout",
+        "RequestAccountDeletion",
+        "CancelAccountDeletion",
+        "GetCurrentAccount",
+        "GetCurrentSession",
+        "GetAccountStatus",
     }
 )
 
@@ -90,7 +104,7 @@ def schema_files() -> list[Path]:
 
 
 def build_id_index() -> dict[str, Path]:
-    """Map every schema ``$id`` to its on-disk path."""
+    """Map every schema ``$id`` to its on-disk path (canonical identity, doc 28 §10)."""
     index: dict[str, Path] = {}
     for path in schema_files():
         doc = load_yaml(path)
@@ -122,22 +136,28 @@ def resolve_ref(
     *,
     _seen: frozenset[str] | None = None,
 ) -> Any:
-    """Resolve a ``$ref`` string to the referenced schema object."""
+    """Resolve a ``$ref`` string to the referenced schema object.
+
+    Cross-file references are relative file paths so that every toolchain
+    (Ajv, datamodel-codegen, openapi-typescript) resolves them offline.
+    """
     seen = _seen if _seen is not None else frozenset()
     if ref in seen:
         raise RecursionError(f"ref cycle: {ref}")
     if "://" in ref:
-        base_uri, _, frag = ref.partition("#")
-        if base_uri not in id_index:
-            raise KeyError(f"unknown absolute $id base: {base_uri!r} (ref {ref!r})")
-        target_doc = load_yaml(id_index[base_uri])
+        raise ValueError(
+            f"absolute-URI $ref is not allowed (breaks offline resolvers): {ref!r}"
+        )
+    base_uri, _, frag = ref.partition("#")
+    if base_uri == "":
+        target_doc = load_yaml(base_file)
     else:
-        base_uri, _, frag = ref.partition("#")
-        if base_uri == "":
-            target_doc = load_yaml(base_file)
-        else:
-            target_path = (base_file.parent / base_uri).resolve()
-            target_doc = load_yaml(target_path)
+        target_path = (base_file.parent / base_uri).resolve()
+        if not target_path.is_file():
+            raise FileNotFoundError(
+                f"ref target does not exist: {ref!r} -> {target_path}"
+            )
+        target_doc = load_yaml(target_path)
     return _navigate(target_doc, "#" + frag if frag else "#")
 
 

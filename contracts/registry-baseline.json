@@ -1,0 +1,725 @@
+{
+	"version": "1.0.0",
+	"source": "contracts/registry.yaml",
+	"contracts": {
+		"RegisterWithEmail": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/email": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/password": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/RegisterWithEmailResponse": {
+					"type": "object"
+				},
+				"#/$defs/RegisterWithEmailResponse/properties/messageKey": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/RegisterWithEmailResponse/properties/email": {
+					"type": "string",
+					"required": true
+				}
+			}
+		},
+		"VerifyEmail": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/token": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/VerifyEmailResponse": {
+					"type": "object"
+				},
+				"#/$defs/VerifyEmailResponse/properties/messageKey": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/VerifyEmailResponse/properties/accountStatus": {
+					"ref": "../../ids/ids.schema.json#/$defs/AccountStatusValue",
+					"required": true
+				}
+			}
+		},
+		"ResendEmailVerification": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/email": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/ResendEmailVerificationResponse": {
+					"type": "object"
+				},
+				"#/$defs/ResendEmailVerificationResponse/properties/messageKey": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/ResendEmailVerificationResponse/properties/nextAllowedAt": {
+					"type": "string",
+					"required": true
+				}
+			}
+		},
+		"LoginWithPassword": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/email": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/password": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/LoginWithPasswordResponse": {
+					"type": "object"
+				},
+				"#/$defs/LoginWithPasswordResponse/properties/accountId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				},
+				"#/$defs/LoginWithPasswordResponse/properties/accountStatus": {
+					"ref": "../../ids/ids.schema.json#/$defs/AccountStatusValue",
+					"required": true
+				},
+				"#/$defs/LoginWithPasswordResponse/properties/session": {
+					"ref": "#/$defs/SessionSummary",
+					"required": true
+				},
+				"#/$defs/LoginWithPasswordResponse/properties/recoveryModeRequired": {
+					"type": "boolean",
+					"required": true
+				},
+				"#/$defs/SessionSummary": {
+					"type": "object"
+				},
+				"#/$defs/SessionSummary/properties/sessionId": {
+					"ref": "../../ids/ids.schema.json#/$defs/SessionId",
+					"required": true
+				},
+				"#/$defs/SessionSummary/properties/createdAt": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/SessionSummary/properties/lastSeenAt": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/SessionSummary/properties/expiresAt": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/SessionSummary/properties/currentDevice": {
+					"type": "boolean",
+					"required": true
+				},
+				"#/$defs/SessionSummary/properties/status": {
+					"ref": "../../ids/ids.schema.json#/$defs/SessionStatusValue",
+					"required": true
+				},
+				"#/$defs/SessionSummary/properties/lastStrongAuthAt": {
+					"type": ["string", "null"]
+				}
+			}
+		},
+		"Logout": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/messageKey": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/sessionStatus": {
+					"ref": "#/$defs/LogoutStatusValue",
+					"required": true
+				},
+				"#/$defs/LogoutStatusValue": {
+					"type": "string",
+					"enum": ["LoggedOut", "AlreadyLoggedOut"]
+				}
+			}
+		},
+		"Reauthenticate": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/password": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/ReauthenticateResponse": {
+					"type": "object"
+				},
+				"#/$defs/ReauthenticateResponse/properties/messageKey": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/ReauthenticateResponse/properties/reauthenticatedAt": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/ReauthenticateResponse/properties/validUntil": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/ReauthenticateResponse/properties/windowSeconds": {
+					"type": "integer",
+					"required": true
+				}
+			}
+		},
+		"RequestPasswordReset": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/email": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/RequestPasswordResetResponse": {
+					"type": "object"
+				},
+				"#/$defs/RequestPasswordResetResponse/properties/messageKey": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/RequestPasswordResetResponse/properties/nextAllowedAt": {
+					"type": "string",
+					"required": true
+				}
+			}
+		},
+		"ResetPassword": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/token": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/newPassword": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/ResetPasswordResponse": {
+					"type": "object"
+				},
+				"#/$defs/ResetPasswordResponse/properties/messageKey": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/ResetPasswordResponse/properties/accountStatus": {
+					"ref": "../../ids/ids.schema.json#/$defs/AccountStatusValue",
+					"required": true
+				}
+			}
+		},
+		"RequestAccountDeletion": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/messageKey": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/accountStatus": {
+					"ref": "../../ids/ids.schema.json#/$defs/AccountStatusValue",
+					"required": true
+				},
+				"#/properties/deletionRequestedAt": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/gracePeriodDaysRemaining": {
+					"type": "integer",
+					"required": true
+				},
+				"#/properties/executeAfter": {
+					"type": "string",
+					"required": true
+				}
+			}
+		},
+		"CancelAccountDeletion": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/messageKey": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/accountStatus": {
+					"ref": "../../ids/ids.schema.json#/$defs/AccountStatusValue",
+					"required": true
+				},
+				"#/properties/restoredAt": {
+					"type": "string",
+					"required": true
+				}
+			}
+		},
+		"GetCurrentAccount": {
+			"kind": "Query",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/accountId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				},
+				"#/properties/primaryEmail": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/accountStatus": {
+					"ref": "../../ids/ids.schema.json#/$defs/AccountStatusValue",
+					"required": true
+				},
+				"#/properties/emailVerifiedAt": {
+					"type": ["string", "null"],
+					"required": true
+				},
+				"#/properties/createdAt": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/canCreateWorkspace": {
+					"type": "boolean",
+					"required": true
+				},
+				"#/properties/inAccountRecoveryMode": {
+					"type": "boolean",
+					"required": true
+				}
+			}
+		},
+		"GetCurrentSession": {
+			"kind": "Query",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/sessionId": {
+					"ref": "../../ids/ids.schema.json#/$defs/SessionId",
+					"required": true
+				},
+				"#/properties/createdAt": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/lastSeenAt": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/expiresAt": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/currentDevice": {
+					"type": "boolean",
+					"required": true
+				},
+				"#/properties/status": {
+					"ref": "../../ids/ids.schema.json#/$defs/SessionStatusValue",
+					"required": true
+				},
+				"#/properties/lastStrongAuthAt": {
+					"type": ["string", "null"]
+				}
+			}
+		},
+		"GetAccountStatus": {
+			"kind": "Query",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/accountStatus": {
+					"ref": "../../ids/ids.schema.json#/$defs/AccountStatusValue",
+					"required": true
+				},
+				"#/properties/inAccountRecoveryMode": {
+					"type": "boolean",
+					"required": true
+				},
+				"#/properties/deletionRequestedAt": {
+					"type": ["string", "null"],
+					"required": true
+				},
+				"#/properties/gracePeriodDaysRemaining": {
+					"type": ["integer", "null"],
+					"required": true
+				},
+				"#/properties/executeAfter": {
+					"type": ["string", "null"],
+					"required": true
+				},
+				"#/properties/canCancelDeletion": {
+					"type": "boolean",
+					"required": true
+				}
+			}
+		},
+		"SessionReplaced": {
+			"kind": "Event",
+			"eventSubject": "event.auth.session-replaced.v1",
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/eventId": {
+					"ref": "../../ids/ids.schema.json#/$defs/EventId",
+					"required": true
+				},
+				"#/properties/eventType": {
+					"required": true
+				},
+				"#/properties/schemaVersion": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/occurredAt": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/producer": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/traceId": {
+					"type": "string"
+				},
+				"#/properties/actorRef": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId"
+				},
+				"#/properties/workspaceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/WorkspaceId"
+				},
+				"#/properties/resourceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/ResourceId"
+				},
+				"#/properties/payload": {
+					"ref": "#/$defs/SessionReplacedPayload",
+					"required": true
+				},
+				"#/$defs/SessionReplacedPayload": {
+					"type": "object"
+				},
+				"#/$defs/SessionReplacedPayload/properties/userId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				},
+				"#/$defs/SessionReplacedPayload/properties/replacedSessionId": {
+					"ref": "../../ids/ids.schema.json#/$defs/SessionId",
+					"required": true
+				},
+				"#/$defs/SessionReplacedPayload/properties/replacedBySessionId": {
+					"ref": "../../ids/ids.schema.json#/$defs/SessionId",
+					"required": true
+				},
+				"#/$defs/SessionReplacedPayload/properties/invalidationReason": {
+					"ref": "../../ids/ids.schema.json#/$defs/SessionReplacementReason",
+					"required": true
+				},
+				"#/$defs/SessionReplacedPayload/properties/replacedAt": {
+					"type": "string",
+					"required": true
+				}
+			}
+		},
+		"ErrorEnvelope": {
+			"kind": "Error",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/category": {
+					"type": "string",
+					"enum": [
+						"Validation",
+						"Authentication",
+						"Permission",
+						"NotFound",
+						"Conflict",
+						"RateLimit",
+						"Timeout",
+						"DependencyFailure",
+						"Unavailable",
+						"Internal"
+					],
+					"required": true
+				},
+				"#/properties/errorCode": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/messageKey": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/message": {
+					"type": "string"
+				},
+				"#/properties/requestId": {
+					"ref": "../ids/ids.schema.json#/$defs/RequestId",
+					"required": true
+				},
+				"#/properties/retryable": {
+					"type": "boolean",
+					"required": true
+				},
+				"#/properties/fieldErrors": {
+					"type": "array"
+				},
+				"#/properties/fieldErrors/items": {
+					"ref": "#/$defs/FieldError"
+				},
+				"#/properties/details": {
+					"type": "object"
+				},
+				"#/$defs/FieldError": {
+					"type": "object"
+				},
+				"#/$defs/FieldError/properties/field": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/FieldError/properties/code": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/FieldError/properties/message": {
+					"type": "string",
+					"required": true
+				}
+			}
+		},
+		"IdentityIds": {
+			"kind": "Identity",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/userId": {
+					"ref": "#/$defs/UserId"
+				},
+				"#/properties/workspaceId": {
+					"ref": "#/$defs/WorkspaceId"
+				},
+				"#/properties/projectId": {
+					"ref": "#/$defs/ProjectId"
+				},
+				"#/properties/folderId": {
+					"ref": "#/$defs/FolderId"
+				},
+				"#/properties/resourceId": {
+					"ref": "#/$defs/ResourceId"
+				},
+				"#/properties/nodeId": {
+					"ref": "#/$defs/NodeId"
+				},
+				"#/properties/taskId": {
+					"ref": "#/$defs/TaskId"
+				},
+				"#/properties/attemptId": {
+					"ref": "#/$defs/AttemptId"
+				},
+				"#/properties/commentId": {
+					"ref": "#/$defs/CommentId"
+				},
+				"#/properties/threadId": {
+					"ref": "#/$defs/ThreadId"
+				},
+				"#/properties/assetId": {
+					"ref": "#/$defs/AssetId"
+				},
+				"#/properties/eventId": {
+					"ref": "#/$defs/EventId"
+				},
+				"#/properties/requestId": {
+					"ref": "#/$defs/RequestId"
+				},
+				"#/properties/operationId": {
+					"ref": "#/$defs/OperationId"
+				},
+				"#/properties/sessionId": {
+					"ref": "#/$defs/SessionId"
+				},
+				"#/properties/subscriptionId": {
+					"ref": "#/$defs/SubscriptionId"
+				},
+				"#/properties/deliveryId": {
+					"ref": "#/$defs/DeliveryId"
+				},
+				"#/properties/idempotencyKey": {
+					"ref": "#/$defs/IdempotencyKey"
+				},
+				"#/properties/accountStatusValue": {
+					"ref": "#/$defs/AccountStatusValue"
+				},
+				"#/properties/sessionStatusValue": {
+					"ref": "#/$defs/SessionStatusValue"
+				},
+				"#/properties/sessionReplacementReason": {
+					"ref": "#/$defs/SessionReplacementReason"
+				},
+				"#/properties/nodeRef": {
+					"ref": "#/$defs/NodeRef"
+				},
+				"#/$defs/UserId": {
+					"type": "string"
+				},
+				"#/$defs/WorkspaceId": {
+					"type": "string"
+				},
+				"#/$defs/ProjectId": {
+					"type": "string"
+				},
+				"#/$defs/FolderId": {
+					"type": "string"
+				},
+				"#/$defs/ResourceId": {
+					"type": "string"
+				},
+				"#/$defs/NodeId": {
+					"type": "string"
+				},
+				"#/$defs/TaskId": {
+					"type": "string"
+				},
+				"#/$defs/AttemptId": {
+					"type": "string"
+				},
+				"#/$defs/CommentId": {
+					"type": "string"
+				},
+				"#/$defs/ThreadId": {
+					"type": "string"
+				},
+				"#/$defs/AssetId": {
+					"type": "string"
+				},
+				"#/$defs/EventId": {
+					"type": "string"
+				},
+				"#/$defs/RequestId": {
+					"type": "string"
+				},
+				"#/$defs/OperationId": {
+					"type": "string"
+				},
+				"#/$defs/SessionId": {
+					"type": "string"
+				},
+				"#/$defs/SubscriptionId": {
+					"type": "string"
+				},
+				"#/$defs/DeliveryId": {
+					"type": "string"
+				},
+				"#/$defs/IdempotencyKey": {
+					"type": "string"
+				},
+				"#/$defs/NodeRef": {
+					"type": "object"
+				},
+				"#/$defs/NodeRef/properties/resourceId": {
+					"ref": "#/$defs/ResourceId",
+					"required": true
+				},
+				"#/$defs/NodeRef/properties/nodeId": {
+					"ref": "#/$defs/NodeId",
+					"required": true
+				},
+				"#/$defs/AccountStatusValue": {
+					"type": "string",
+					"enum": [
+						"PendingVerification",
+						"Active",
+						"Disabled",
+						"DeletionPending",
+						"Deleted"
+					]
+				},
+				"#/$defs/SessionStatusValue": {
+					"type": "string",
+					"enum": ["Active", "Replaced", "LoggedOut", "Expired", "Revoked"]
+				},
+				"#/$defs/SessionReplacementReason": {
+					"type": "string",
+					"enum": [
+						"NewDeviceLogin",
+						"UserLogout",
+						"PasswordReset",
+						"AccountDisabled",
+						"Expired",
+						"SecurityRevoke"
+					]
+				}
+			}
+		}
+	}
+}
