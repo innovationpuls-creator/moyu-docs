@@ -1,0 +1,51 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/auth/get-current-account.schema.json",
+	"title": "GetCurrentAccount",
+	"description": "FR-AUTH-022. Only the actor's own account facts. Per doc 16 §66 the Auth module must NOT answer Permission questions, so no capability enumeration is included (capability answers belong to doc 07); canCreateWorkspace is a status-derived product boolean, not a Permission capability set.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {},
+	"$defs": {
+		"GetCurrentAccountResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"accountId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/UserId"
+				},
+				"primaryEmail": {
+					"type": "string",
+					"format": "email"
+				},
+				"accountStatus": {
+					"$ref": "../../ids/ids.schema.json#/$defs/AccountStatusValue"
+				},
+				"emailVerifiedAt": {
+					"type": ["string", "null"],
+					"format": "date-time"
+				},
+				"createdAt": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"canCreateWorkspace": {
+					"type": "boolean"
+				},
+				"inAccountRecoveryMode": {
+					"type": "boolean"
+				}
+			},
+			"required": [
+				"accountId",
+				"primaryEmail",
+				"accountStatus",
+				"emailVerifiedAt",
+				"createdAt",
+				"canCreateWorkspace",
+				"inAccountRecoveryMode"
+			],
+			"title": "GetCurrentAccountResponse"
+		}
+	}
+}

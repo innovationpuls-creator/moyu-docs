@@ -1,0 +1,30 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/auth/cancel-account-deletion.schema.json",
+	"title": "CancelAccountDeletion",
+	"description": "FR-AUTH-031. Restore to pre-deletion status (Active or PendingVerification), userId unchanged. The request payload must NOT carry workspace-transfer data. Reachable only while the account is DeletionPending; otherwise the AccountNotInDeletion error applies.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {},
+	"$defs": {
+		"CancelAccountDeletionResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"messageKey": {
+					"type": "string",
+					"minLength": 1
+				},
+				"accountStatus": {
+					"$ref": "../../ids/ids.schema.json#/$defs/AccountStatusValue"
+				},
+				"restoredAt": {
+					"type": "string",
+					"format": "date-time"
+				}
+			},
+			"required": ["messageKey", "accountStatus", "restoredAt"],
+			"title": "CancelAccountDeletionResponse"
+		}
+	}
+}

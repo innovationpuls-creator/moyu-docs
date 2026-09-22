@@ -1,0 +1,51 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/auth/get-current-session.schema.json",
+	"title": "GetCurrentSession",
+	"description": "FR-AUTH-022. Must identify 'this is the current device' (BDD FR-AUTH-022: creation time + current device marker). currentDevice is always true for this endpoint since it returns the caller's own active session.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {},
+	"$defs": {
+		"GetCurrentSessionResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"sessionId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/SessionId"
+				},
+				"createdAt": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"lastSeenAt": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"expiresAt": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"currentDevice": {
+					"type": "boolean"
+				},
+				"status": {
+					"$ref": "../../ids/ids.schema.json#/$defs/SessionStatusValue"
+				},
+				"lastStrongAuthAt": {
+					"type": ["string", "null"],
+					"format": "date-time"
+				}
+			},
+			"required": [
+				"sessionId",
+				"createdAt",
+				"lastSeenAt",
+				"expiresAt",
+				"currentDevice",
+				"status"
+			],
+			"title": "GetCurrentSessionResponse"
+		}
+	}
+}

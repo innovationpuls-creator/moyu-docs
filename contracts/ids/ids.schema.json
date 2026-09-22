@@ -1,0 +1,158 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/ids/ids.schema.json",
+	"title": "IdentityIds",
+	"description": "Canonical ID types plus shared cross-contract value enums (doc 28 §9-§11). The ID types (UserId, WorkspaceId, ProjectId, FolderId, ResourceId, NodeId, TaskId, AttemptId, CommentId, ThreadId, AssetId, EventId, RequestId, OperationId, SessionId, SubscriptionId, DeliveryId, IdempotencyKey, NodeRef) use UUIDv7. The shared value enums AccountStatusValue, SessionStatusValue and SessionReplacementReason are co-located here (doc 27 §52 freezes no directory for shared enums) so their generated class names stay globally unique across the contract tree — one canonical definition, referenced everywhere via $ref. The registry logical name IdentityIds therefore covers both the ID types and these shared value enums.",
+	"$defs": {
+		"UserId": {
+			"type": "string",
+			"format": "uuid",
+			"x-uuid-version": 7,
+			"title": "UserId"
+		},
+		"WorkspaceId": {
+			"type": "string",
+			"format": "uuid",
+			"x-uuid-version": 7,
+			"title": "WorkspaceId"
+		},
+		"ProjectId": {
+			"type": "string",
+			"format": "uuid",
+			"x-uuid-version": 7,
+			"title": "ProjectId"
+		},
+		"FolderId": {
+			"type": "string",
+			"format": "uuid",
+			"x-uuid-version": 7,
+			"title": "FolderId"
+		},
+		"ResourceId": {
+			"type": "string",
+			"format": "uuid",
+			"x-uuid-version": 7,
+			"title": "ResourceId"
+		},
+		"NodeId": {
+			"type": "string",
+			"format": "uuid",
+			"x-uuid-version": 7,
+			"title": "NodeId"
+		},
+		"TaskId": {
+			"type": "string",
+			"format": "uuid",
+			"x-uuid-version": 7,
+			"title": "TaskId"
+		},
+		"AttemptId": {
+			"type": "string",
+			"format": "uuid",
+			"x-uuid-version": 7,
+			"title": "AttemptId"
+		},
+		"CommentId": {
+			"type": "string",
+			"format": "uuid",
+			"x-uuid-version": 7,
+			"title": "CommentId"
+		},
+		"ThreadId": {
+			"type": "string",
+			"format": "uuid",
+			"x-uuid-version": 7,
+			"title": "ThreadId"
+		},
+		"AssetId": {
+			"type": "string",
+			"format": "uuid",
+			"x-uuid-version": 7,
+			"title": "AssetId"
+		},
+		"EventId": {
+			"type": "string",
+			"format": "uuid",
+			"x-uuid-version": 7,
+			"title": "EventId"
+		},
+		"RequestId": {
+			"type": "string",
+			"format": "uuid",
+			"x-uuid-version": 7,
+			"title": "RequestId"
+		},
+		"OperationId": {
+			"type": "string",
+			"format": "uuid",
+			"x-uuid-version": 7,
+			"title": "OperationId"
+		},
+		"SessionId": {
+			"type": "string",
+			"format": "uuid",
+			"x-uuid-version": 7,
+			"title": "SessionId"
+		},
+		"SubscriptionId": {
+			"type": "string",
+			"format": "uuid",
+			"x-uuid-version": 7,
+			"title": "SubscriptionId"
+		},
+		"DeliveryId": {
+			"type": "string",
+			"format": "uuid",
+			"x-uuid-version": 7,
+			"title": "DeliveryId"
+		},
+		"IdempotencyKey": {
+			"type": "string",
+			"format": "uuid",
+			"x-uuid-version": 7,
+			"title": "IdempotencyKey"
+		},
+		"NodeRef": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"resourceId": {
+					"$ref": "#/$defs/ResourceId"
+				},
+				"nodeId": {
+					"$ref": "#/$defs/NodeId"
+				}
+			},
+			"required": ["resourceId", "nodeId"],
+			"title": "NodeRef"
+		},
+		"AccountStatusValue": {
+			"type": "string",
+			"enum": [
+				"PendingVerification",
+				"Active",
+				"Disabled",
+				"DeletionPending",
+				"Deleted"
+			],
+			"title": "AccountStatusValue"
+		},
+		"SessionStatusValue": {
+			"type": "string",
+			"enum": ["Active", "Replaced", "LoggedOut", "Expired", "Revoked"],
+			"title": "SessionStatusValue"
+		},
+		"SessionReplacementReason": {
+			"type": "string",
+			"enum": [
+				"NewDeviceLogin",
+				"UserLogout",
+				"PasswordReset",
+				"AccountDisabled",
+				"Expired",
+				"SecurityRevoke"
+			],
+			"title": "SessionReplacementReason"
+		}
+	}
+}

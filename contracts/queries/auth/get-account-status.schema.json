@@ -1,0 +1,46 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/auth/get-account-status.schema.json",
+	"title": "GetAccountStatus",
+	"description": "FR-AUTH-030 AC-030.2 / FR-AUTH-032 AC-032.2. The deletion / recovery-mode view: deletionRequestedAt, gracePeriodDaysRemaining and executeAfter (scheduled final deletion) are null unless the account is DeletionPending. NOTE: this query has NO HTTP route in this phase (see report) - it is registered but not in client-api.yaml's 12 operations.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {},
+	"$defs": {
+		"GetAccountStatusResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"accountStatus": {
+					"$ref": "../../ids/ids.schema.json#/$defs/AccountStatusValue"
+				},
+				"inAccountRecoveryMode": {
+					"type": "boolean"
+				},
+				"deletionRequestedAt": {
+					"type": ["string", "null"],
+					"format": "date-time"
+				},
+				"gracePeriodDaysRemaining": {
+					"type": ["integer", "null"]
+				},
+				"executeAfter": {
+					"type": ["string", "null"],
+					"format": "date-time"
+				},
+				"canCancelDeletion": {
+					"type": "boolean"
+				}
+			},
+			"required": [
+				"accountStatus",
+				"inAccountRecoveryMode",
+				"deletionRequestedAt",
+				"gracePeriodDaysRemaining",
+				"executeAfter",
+				"canCancelDeletion"
+			],
+			"title": "GetAccountStatusResponse"
+		}
+	}
+}

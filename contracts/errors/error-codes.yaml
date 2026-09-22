@@ -1,0 +1,82 @@
+# Canonical error-code catalog (doc 28 §28 / §55).
+#
+# Makes doc 28 §55's "errorCode uniqueness" check real and §28's
+# "errorCode 稳定且唯一" enforceable. Each code is reachable from at least one
+# registered contract in registry.yaml (verified by tests/contract). Every key is
+# SCREAMING_SNAKE_CASE; category is one of the ten canonical categories from
+# doc 04 §23 / Constitution §3.19.
+#
+# Scope note: this PRD (docs/product/features/account-auth-session.md §7) excludes
+# WeChat/Feishu provider login, Provider binding, and anonymous Share Links. Therefore
+# the doc 16 §64 codes SHARE_LINK_INVALID / SHARE_LINK_EXPIRED / SHARE_LINK_REVOKED and
+# PROVIDER_ERROR / PROVIDER_IDENTITY_CONFLICT are intentionally NOT registered here -
+# registering them now would be speculative. EMAIL_NOT_VERIFIED is likewise omitted
+# because this PRD permits PendingVerification accounts to log in (PRD AC-006.2), so no
+# command surfaces an "email not verified" error; adding it would be unreachable.
+version: "1.0.0"
+codes:
+  INVALID_CREDENTIALS:
+    category: Authentication
+    messageKey: "auth.error.invalidCredential"
+    retryable: false
+    description: "邮箱或密码不正确（登录/重认证统一返回，防枚举，PRD FR-AUTH-007）"
+  PASSWORD_TOO_WEAK:
+    category: Validation
+    messageKey: "auth.error.passwordTooWeak"
+    retryable: false
+    description: "密码不符合强度要求（长度 12-128 或常见/已泄露密码，PRD FR-AUTH-001）"
+  EMAIL_INVALID:
+    category: Validation
+    messageKey: "auth.error.emailInvalid"
+    retryable: false
+    description: "邮箱格式不合法"
+  SESSION_EXPIRED:
+    category: Authentication
+    messageKey: "auth.error.sessionExpired"
+    retryable: false
+    description: "会话已过期（Idle 30 天 / Absolute 90 天，PRD FR-AUTH-009）"
+  SESSION_REPLACED:
+    category: Authentication
+    messageKey: "auth.error.sessionReplaced"
+    retryable: false
+    description: "会话已被另一台设备替换（PRD FR-AUTH-015，区分于过期）"
+  ACCOUNT_DISABLED:
+    category: Authentication
+    messageKey: "auth.error.accountDisabled"
+    retryable: false
+    description: "账号已被禁用，所有会话立即失效（PRD FR-AUTH-006 / §39）"
+  PASSWORD_RESET_TOKEN_INVALID:
+    category: Authentication
+    messageKey: "auth.error.passwordResetTokenInvalid"
+    retryable: false
+    description: "密码重置凭据无效/已过期（15 分钟）/已使用（PRD FR-AUTH-025/028）"
+  EMAIL_VERIFICATION_TOKEN_INVALID:
+    category: Authentication
+    messageKey: "auth.error.emailVerificationTokenInvalid"
+    retryable: false
+    description: "邮箱验证凭据无效/已过期（24 小时）/已使用（PRD FR-AUTH-002）"
+  RATE_LIMITED:
+    category: RateLimit
+    messageKey: "auth.error.rateLimited"
+    retryable: true
+    description: "请求过于频繁，进入冷却（注册/登录/重发验证/找回密码，PRD FR-AUTH-004/035）"
+  ACCOUNT_DELETION_SOLE_OWNER:
+    category: Conflict
+    messageKey: "auth.error.accountDeletionSoleOwner"
+    retryable: false
+    description: "账号是某未删除工作区的唯一所有者，无法删除（PRD FR-AUTH-029）"
+  RECENT_AUTHENTICATION_REQUIRED:
+    category: Authentication
+    messageKey: "auth.error.recentAuthenticationRequired"
+    retryable: false
+    description: "高风险操作需 10 分钟内重新认证（PRD FR-AUTH-034）"
+  ACCOUNT_NOT_IN_DELETION:
+    category: Conflict
+    messageKey: "auth.error.accountNotInDeletion"
+    retryable: false
+    description: "账号当前不处于待删除状态，无法取消删除（PRD FR-AUTH-031）"
+  IDEMPOTENCY_KEY_CONFLICT:
+    category: Conflict
+    messageKey: "auth.error.idempotencyKeyConflict"
+    retryable: false
+    description: "相同幂等键但请求内容不一致（PRD AC-001.4/006.4/029.5）"

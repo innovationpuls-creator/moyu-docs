@@ -1,0 +1,32 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/auth/verify-email.schema.json",
+	"title": "VerifyEmail",
+	"description": "FR-AUTH-002. Single-use, 24h verification token in the request body, marked x-sensitive (doc 28 §57). Token is never echoed in the response (doc 28 §58).",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"token": {
+			"type": "string",
+			"x-sensitive": true
+		}
+	},
+	"required": ["token"],
+	"$defs": {
+		"VerifyEmailResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"messageKey": {
+					"type": "string",
+					"minLength": 1
+				},
+				"accountStatus": {
+					"$ref": "../../ids/ids.schema.json#/$defs/AccountStatusValue"
+				}
+			},
+			"required": ["messageKey", "accountStatus"],
+			"title": "VerifyEmailResponse"
+		}
+	}
+}

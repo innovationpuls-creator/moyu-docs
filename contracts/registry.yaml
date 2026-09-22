@@ -1,0 +1,270 @@
+# Contract Schema Registry (doc 28 §8).
+#
+# One entry per machine-readable contract. Per doc 28 §8/§16/§19 each Command/Query
+# entry carries requestRef + responseRef (machine-readable pointers into its canonical
+# JSON Schema), permissionCapability, idempotencyRequirement and errorCodes. Events
+# carry eventSubject in the doc 28 §25 format.
+#
+# KIND VOCABULARY NOTE: doc 28 §8 lists Command/Query/Event/Stream/Task/Error/Stream...
+# (§1) and the registry field list (§8) only names Command/Query/Event. This registry
+# additionally registers `Error` (ErrorEnvelope) and `Identity` (IdentityIds) kinds.
+# §9 mandates ID-type registration and the plan fixes ErrorEnvelope as kind `Error`,
+# so the vocabulary is deliberately widened beyond §8's list. This is documented here
+# rather than silently; `kind` allowed values = Command, Query, Event, Error, Identity.
+#
+# OWNERMODULE CONTRADICTION RESOLUTION: the plan's draft registry.yaml placed
+# LoginWithEmail under packages/py/core/account, but the plan's Task 14 places the login
+# use case under packages/py/core/session. Per the task instructions we resolve this as
+# stated: session-lifecycle contracts (LoginWithPassword, Logout, Reauthenticate,
+# SessionReplaced, GetCurrentSession) -> packages/py/core/session; account-lifecycle
+# contracts (the rest) -> packages/py/core/account. Flagged in the task report.
+#
+# PERMISSION / AUTH-BOUNDARY NOTE (FIX-6): every auth contract sets
+# `permissionCapability: none`, i.e. "not gated by a doc 07 resource/workspace Capability
+# — this is an Auth-boundary operation". doc 07 (§66) defines NO Capability for an auth
+# entry point and Constitution §3.36-§3.37 keep Auth and Permission separate, so the
+# formerly-invented `account:self` value is removed. The companion `authRequirement`
+# field records the auth boundary each operation requires, derived from doc 16 §104-§105
+# and PRD FR-AUTH-034: `Public` (unauthenticated entry point), `Authenticated` (a valid
+# session is required), `RecentAuthentication` (re-auth within the 10-minute window,
+# PRD FR-AUTH-029/034). Event contracts are recorded as `Authenticated` because they are
+# emitted inside an authenticated session lifecycle.
+#
+# IDENTITY IDS NOTE (FIX-7): the `IdentityIds` registry entry is the single logical name
+# that covers BOTH the canonical ID types (doc 28 §9-§11) AND the shared cross-contract
+# value enums (AccountStatusValue / SessionStatusValue / SessionReplacementReason)
+# co-located in contracts/ids/ids.schema.json. doc 27 §52 freezes no directory for shared
+# enums, so co-location is a deliberate choice; the registry name therefore spans both
+# groups and is not renamed.
+
+version: "1.0.0"
+
+contracts:
+  - logicalName: RegisterWithEmail
+    kind: Command
+    domain: auth
+    version: "1.0.0"
+    schemaPath: contracts/commands/auth/register-with-email.schema.json
+    requestRef: contracts/commands/auth/register-with-email.schema.json
+    responseRef: contracts/commands/auth/register-with-email.schema.json#/$defs/RegisterWithEmailResponse
+    permissionCapability: none
+    authRequirement: Public
+    idempotencyRequirement: required
+    errorCodes: [PASSWORD_TOO_WEAK, EMAIL_INVALID, RATE_LIMITED, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/16-Account-Auth-Session-Design.md
+    ownerModule: packages/py/core/account
+    status: active
+
+  - logicalName: VerifyEmail
+    kind: Command
+    domain: auth
+    version: "1.0.0"
+    schemaPath: contracts/commands/auth/verify-email.schema.json
+    requestRef: contracts/commands/auth/verify-email.schema.json
+    responseRef: contracts/commands/auth/verify-email.schema.json#/$defs/VerifyEmailResponse
+    permissionCapability: none
+    authRequirement: Public
+    idempotencyRequirement: none
+    errorCodes: [EMAIL_VERIFICATION_TOKEN_INVALID, ACCOUNT_DISABLED]
+    ownerDocument: docs/architecture/16-Account-Auth-Session-Design.md
+    ownerModule: packages/py/core/account
+    status: active
+
+  - logicalName: ResendEmailVerification
+    kind: Command
+    domain: auth
+    version: "1.0.0"
+    schemaPath: contracts/commands/auth/resend-email-verification.schema.json
+    requestRef: contracts/commands/auth/resend-email-verification.schema.json
+    responseRef: contracts/commands/auth/resend-email-verification.schema.json#/$defs/ResendEmailVerificationResponse
+    permissionCapability: none
+    authRequirement: Public
+    idempotencyRequirement: none
+    errorCodes: [RATE_LIMITED, EMAIL_INVALID]
+    ownerDocument: docs/architecture/16-Account-Auth-Session-Design.md
+    ownerModule: packages/py/core/account
+    status: active
+
+  - logicalName: LoginWithPassword
+    kind: Command
+    domain: auth
+    version: "1.0.0"
+    schemaPath: contracts/commands/auth/login-with-password.schema.json
+    requestRef: contracts/commands/auth/login-with-password.schema.json
+    responseRef: contracts/commands/auth/login-with-password.schema.json#/$defs/LoginWithPasswordResponse
+    permissionCapability: none
+    authRequirement: Public
+    idempotencyRequirement: required
+    errorCodes: [INVALID_CREDENTIALS, ACCOUNT_DISABLED, RATE_LIMITED, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/16-Account-Auth-Session-Design.md
+    ownerModule: packages/py/core/session
+    status: active
+
+  - logicalName: Logout
+    kind: Command
+    domain: auth
+    version: "1.0.0"
+    schemaPath: contracts/commands/auth/logout.schema.json
+    requestRef: contracts/commands/auth/logout.schema.json
+    responseRef: contracts/commands/auth/logout.schema.json#/$defs/LogoutResponse
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [SESSION_EXPIRED, SESSION_REPLACED, ACCOUNT_DISABLED]
+    ownerDocument: docs/architecture/16-Account-Auth-Session-Design.md
+    ownerModule: packages/py/core/session
+    status: active
+
+  - logicalName: Reauthenticate
+    kind: Command
+    domain: auth
+    version: "1.0.0"
+    schemaPath: contracts/commands/auth/reauthenticate.schema.json
+    requestRef: contracts/commands/auth/reauthenticate.schema.json
+    responseRef: contracts/commands/auth/reauthenticate.schema.json#/$defs/ReauthenticateResponse
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    # Reauthenticate IS the mechanism that satisfies recent authentication, so
+    # RECENT_AUTHENTICATION_REQUIRED is unreachable from it; the session-bound codes
+    # apply because the request is Authenticated, and RATE_LIMITED because PRD AC-034.3
+    # rate-limits repeated re-auth failures.
+    errorCodes: [INVALID_CREDENTIALS, SESSION_EXPIRED, SESSION_REPLACED, ACCOUNT_DISABLED, RATE_LIMITED]
+    ownerDocument: docs/architecture/16-Account-Auth-Session-Design.md
+    ownerModule: packages/py/core/session
+    status: active
+
+  - logicalName: RequestPasswordReset
+    kind: Command
+    domain: auth
+    version: "1.0.0"
+    schemaPath: contracts/commands/auth/request-password-reset.schema.json
+    requestRef: contracts/commands/auth/request-password-reset.schema.json
+    responseRef: contracts/commands/auth/request-password-reset.schema.json#/$defs/RequestPasswordResetResponse
+    permissionCapability: none
+    authRequirement: Public
+    idempotencyRequirement: none
+    errorCodes: [RATE_LIMITED, EMAIL_INVALID]
+    ownerDocument: docs/architecture/16-Account-Auth-Session-Design.md
+    ownerModule: packages/py/core/account
+    status: active
+
+  - logicalName: ResetPassword
+    kind: Command
+    domain: auth
+    version: "1.0.0"
+    schemaPath: contracts/commands/auth/reset-password.schema.json
+    requestRef: contracts/commands/auth/reset-password.schema.json
+    responseRef: contracts/commands/auth/reset-password.schema.json#/$defs/ResetPasswordResponse
+    permissionCapability: none
+    authRequirement: Public
+    idempotencyRequirement: none
+    errorCodes: [PASSWORD_RESET_TOKEN_INVALID, PASSWORD_TOO_WEAK, ACCOUNT_DISABLED]
+    ownerDocument: docs/architecture/16-Account-Auth-Session-Design.md
+    ownerModule: packages/py/core/account
+    status: active
+
+  - logicalName: RequestAccountDeletion
+    kind: Command
+    domain: auth
+    version: "1.0.0"
+    schemaPath: contracts/commands/auth/request-account-deletion.schema.json
+    requestRef: contracts/commands/auth/request-account-deletion.schema.json
+    responseRef: contracts/commands/auth/request-account-deletion.schema.json#/$defs/RequestAccountDeletionResponse
+    permissionCapability: none
+    authRequirement: RecentAuthentication
+    idempotencyRequirement: required
+    errorCodes: [RECENT_AUTHENTICATION_REQUIRED, ACCOUNT_DELETION_SOLE_OWNER, SESSION_EXPIRED, SESSION_REPLACED, ACCOUNT_DISABLED, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/16-Account-Auth-Session-Design.md
+    ownerModule: packages/py/core/account
+    status: active
+
+  - logicalName: CancelAccountDeletion
+    kind: Command
+    domain: auth
+    version: "1.0.0"
+    schemaPath: contracts/commands/auth/cancel-account-deletion.schema.json
+    requestRef: contracts/commands/auth/cancel-account-deletion.schema.json
+    responseRef: contracts/commands/auth/cancel-account-deletion.schema.json#/$defs/CancelAccountDeletionResponse
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [ACCOUNT_NOT_IN_DELETION, SESSION_EXPIRED, SESSION_REPLACED, ACCOUNT_DISABLED]
+    ownerDocument: docs/architecture/16-Account-Auth-Session-Design.md
+    ownerModule: packages/py/core/account
+    status: active
+
+  - logicalName: GetCurrentAccount
+    kind: Query
+    domain: auth
+    version: "1.0.0"
+    schemaPath: contracts/queries/auth/get-current-account.schema.json
+    requestRef: contracts/queries/auth/get-current-account.schema.json
+    responseRef: contracts/queries/auth/get-current-account.schema.json#/$defs/GetCurrentAccountResponse
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [SESSION_EXPIRED, SESSION_REPLACED, ACCOUNT_DISABLED]
+    ownerDocument: docs/architecture/16-Account-Auth-Session-Design.md
+    ownerModule: packages/py/core/account
+    status: active
+
+  - logicalName: GetCurrentSession
+    kind: Query
+    domain: auth
+    version: "1.0.0"
+    schemaPath: contracts/queries/auth/get-current-session.schema.json
+    requestRef: contracts/queries/auth/get-current-session.schema.json
+    responseRef: contracts/queries/auth/get-current-session.schema.json#/$defs/GetCurrentSessionResponse
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [SESSION_EXPIRED, SESSION_REPLACED, ACCOUNT_DISABLED]
+    ownerDocument: docs/architecture/16-Account-Auth-Session-Design.md
+    ownerModule: packages/py/core/session
+    status: active
+
+  - logicalName: GetAccountStatus
+    kind: Query
+    domain: auth
+    version: "1.0.0"
+    schemaPath: contracts/queries/auth/get-account-status.schema.json
+    requestRef: contracts/queries/auth/get-account-status.schema.json
+    responseRef: contracts/queries/auth/get-account-status.schema.json#/$defs/GetAccountStatusResponse
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [SESSION_EXPIRED, SESSION_REPLACED, ACCOUNT_DISABLED]
+    ownerDocument: docs/architecture/16-Account-Auth-Session-Design.md
+    ownerModule: packages/py/core/account
+    status: active
+
+  - logicalName: SessionReplaced
+    kind: Event
+    domain: auth
+    version: "1.0.0"
+    schemaPath: contracts/events/auth/session-replaced.schema.json
+    eventSubject: event.auth.session-replaced.v1
+    permissionCapability: none
+    authRequirement: Authenticated
+    ownerDocument: docs/architecture/16-Account-Auth-Session-Design.md
+    ownerModule: packages/py/core/session
+    status: active
+
+  - logicalName: ErrorEnvelope
+    kind: Error
+    domain: common
+    version: "1.0.0"
+    schemaPath: contracts/errors/error-envelope.schema.json
+    ownerDocument: docs/architecture/04-Unified-Module-Communication-Design.md
+    ownerModule: packages/py/contracts
+    status: active
+
+  - logicalName: IdentityIds
+    kind: Identity
+    domain: common
+    version: "1.0.0"
+    schemaPath: contracts/ids/ids.schema.json
+    ownerDocument: docs/architecture/28-Contract-Schema-Registry-Design.md
+    ownerModule: packages/py/contracts
+    status: active

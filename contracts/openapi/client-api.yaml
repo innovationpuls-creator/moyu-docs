@@ -1,0 +1,289 @@
+openapi: 3.1.0
+info:
+  title: DOM Client API
+  version: 1.0.0
+  description: >
+    Official client HTTP contract for Account / Auth / Session (doc 28 §40).
+    Schema shapes are referenced from the canonical JSON Schemas under
+    /contracts (by their canonical https://contracts.dom.internal/... $id);
+    fields are never restated inline (doc 28 §4).
+servers:
+  - url: https://api.dom.internal
+    description: Production
+components:
+  responses:
+    ErrorEnvelopeResponse:
+      description: Canonical error envelope (doc 28 §29)
+      content:
+        application/json:
+          schema:
+            $ref: "../errors/error-envelope.schema.json"
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: Stable key for safe retry of a logical mutating command (doc 28 §13)
+      schema:
+        type: string
+        format: uuid
+paths:
+  /v1/auth/register:
+    post:
+      operationId: RegisterWithEmail
+      summary: Register a new account with email + password (FR-AUTH-001)
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/auth/register-with-email.schema.json"
+      responses:
+        "200":
+          description: Account created (anti-enumeration uniform payload)
+          headers:
+            Set-Cookie:
+              description: Secure; HttpOnly session cookie for the auto-established session
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/auth/register-with-email.schema.json#/$defs/RegisterWithEmailResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "429":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+
+  /v1/auth/verify-email:
+    post:
+      operationId: VerifyEmail
+      summary: Verify email via single-use token (FR-AUTH-002)
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/auth/verify-email.schema.json"
+      responses:
+        "200":
+          description: Email verified
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/auth/verify-email.schema.json#/$defs/VerifyEmailResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/auth/resend-verification:
+    post:
+      operationId: ResendEmailVerification
+      summary: Resend email verification (FR-AUTH-004)
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/auth/resend-email-verification.schema.json"
+      responses:
+        "200":
+          description: Resend accepted (uniform, no account-existence leak)
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/auth/resend-email-verification.schema.json#/$defs/ResendEmailVerificationResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "429":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/auth/login:
+    post:
+      operationId: LoginWithPassword
+      summary: Login with email + password (FR-AUTH-006)
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/auth/login-with-password.schema.json"
+      responses:
+        "200":
+          description: Login succeeded; session summary returned
+          headers:
+            Set-Cookie:
+              description: Secure; HttpOnly session cookie
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/auth/login-with-password.schema.json#/$defs/LoginWithPasswordResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "429":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+
+  /v1/auth/logout:
+    post:
+      operationId: Logout
+      summary: Logout current device session (FR-AUTH-020)
+      tags: [auth]
+      responses:
+        "200":
+          description: Logged out (idempotent)
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/auth/logout.schema.json#/$defs/LogoutResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/auth/me:
+    get:
+      operationId: GetCurrentAccount
+      summary: Get the actor's own account (FR-AUTH-022)
+      tags: [auth]
+      responses:
+        "200":
+          description: Current account facts
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/auth/get-current-account.schema.json#/$defs/GetCurrentAccountResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/auth/session:
+    get:
+      operationId: GetCurrentSession
+      summary: Get the current device session (FR-AUTH-022)
+      tags: [auth]
+      responses:
+        "200":
+          description: Current session facts
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/auth/get-current-session.schema.json#/$defs/GetCurrentSessionResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/auth/forgot-password:
+    post:
+      operationId: RequestPasswordReset
+      summary: Request password reset (FR-AUTH-024)
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/auth/request-password-reset.schema.json"
+      responses:
+        "200":
+          description: Reset request accepted (uniform, no account-existence leak)
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/auth/request-password-reset.schema.json#/$defs/RequestPasswordResetResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "429":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/auth/reset-password:
+    post:
+      operationId: ResetPassword
+      summary: Reset password with single-use token (FR-AUTH-025)
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/auth/reset-password.schema.json"
+      responses:
+        "200":
+          description: Password reset succeeded
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/auth/reset-password.schema.json#/$defs/ResetPasswordResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/auth/reauthenticate:
+    post:
+      operationId: Reauthenticate
+      summary: Re-verify password for recent authentication (FR-AUTH-034)
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/auth/reauthenticate.schema.json"
+      responses:
+        "200":
+          description: Re-authentication window established
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/auth/reauthenticate.schema.json#/$defs/ReauthenticateResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/auth/delete-account:
+    post:
+      operationId: RequestAccountDeletion
+      summary: Request account deletion (FR-AUTH-029/030)
+      tags: [auth]
+      responses:
+        "200":
+          description: Deletion requested; 30-day grace period started
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/auth/request-account-deletion.schema.json#/$defs/RequestAccountDeletionResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+
+  /v1/auth/cancel-delete-account:
+    post:
+      operationId: CancelAccountDeletion
+      summary: Cancel a pending account deletion (FR-AUTH-031)
+      tags: [auth]
+      responses:
+        "200":
+          description: Deletion cancelled; status restored
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/auth/cancel-account-deletion.schema.json#/$defs/CancelAccountDeletionResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"

@@ -1,0 +1,82 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/events/auth/session-replaced.schema.json",
+	"title": "SessionReplaced",
+	"description": "doc 28 §22 EventEnvelope shape + replacement facts. eventSubject = event.auth.session-replaced.v1 (doc 28 §25). The root IS the envelope; the payload carries the replacement facts. Secrets/credentials are never present (doc 28 §58).",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"eventId": {
+			"$ref": "../../ids/ids.schema.json#/$defs/EventId"
+		},
+		"eventType": {
+			"const": "SessionReplaced"
+		},
+		"schemaVersion": {
+			"type": "string",
+			"pattern": "^\\d+\\.\\d+\\.\\d+$"
+		},
+		"occurredAt": {
+			"type": "string",
+			"format": "date-time"
+		},
+		"producer": {
+			"type": "string"
+		},
+		"traceId": {
+			"type": "string"
+		},
+		"actorRef": {
+			"$ref": "../../ids/ids.schema.json#/$defs/UserId"
+		},
+		"workspaceId": {
+			"$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId"
+		},
+		"resourceId": {
+			"$ref": "../../ids/ids.schema.json#/$defs/ResourceId"
+		},
+		"payload": {
+			"$ref": "#/$defs/SessionReplacedPayload"
+		}
+	},
+	"required": [
+		"eventId",
+		"eventType",
+		"schemaVersion",
+		"occurredAt",
+		"producer",
+		"payload"
+	],
+	"$defs": {
+		"SessionReplacedPayload": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"userId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/UserId"
+				},
+				"replacedSessionId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/SessionId"
+				},
+				"replacedBySessionId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/SessionId"
+				},
+				"invalidationReason": {
+					"$ref": "../../ids/ids.schema.json#/$defs/SessionReplacementReason"
+				},
+				"replacedAt": {
+					"type": "string",
+					"format": "date-time"
+				}
+			},
+			"required": [
+				"userId",
+				"replacedSessionId",
+				"replacedBySessionId",
+				"invalidationReason",
+				"replacedAt"
+			],
+			"title": "SessionReplacedPayload"
+		}
+	}
+}

@@ -1,0 +1,82 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/errors/error-envelope.schema.json",
+	"title": "ErrorEnvelope",
+	"description": "Canonical error envelope (doc 28 §29). The root object IS the envelope; it is referenced directly by OpenAPI error responses. category is one of the ten canonical categories from doc 04 §23 / Constitution §3.19; errorCode matches ^[A-Z0-9_]+$; requestId is a UUIDv7; fieldErrors carries field-level validation detail.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"category": {
+			"type": "string",
+			"enum": [
+				"Validation",
+				"Authentication",
+				"Permission",
+				"NotFound",
+				"Conflict",
+				"RateLimit",
+				"Timeout",
+				"DependencyFailure",
+				"Unavailable",
+				"Internal"
+			],
+			"title": "AuthErrorCategory"
+		},
+		"errorCode": {
+			"type": "string",
+			"pattern": "^[A-Z0-9_]+$",
+			"title": "ErrorCode"
+		},
+		"messageKey": {
+			"type": "string",
+			"minLength": 1,
+			"title": "MessageKey"
+		},
+		"message": {
+			"type": "string",
+			"title": "ErrorMessage"
+		},
+		"requestId": {
+			"$ref": "../ids/ids.schema.json#/$defs/RequestId"
+		},
+		"retryable": {
+			"type": "boolean",
+			"title": "Retryable"
+		},
+		"fieldErrors": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/FieldError"
+			},
+			"title": "FieldErrors"
+		},
+		"details": {
+			"type": "object",
+			"additionalProperties": true,
+			"description": "Safe, structured business detail only. Must never contain stack traces, SQL, internal hosts, secrets or provider tokens (doc 28 §31)."
+		}
+	},
+	"required": ["category", "errorCode", "messageKey", "requestId", "retryable"],
+	"$defs": {
+		"FieldError": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"field": {
+					"type": "string",
+					"title": "FieldName"
+				},
+				"code": {
+					"type": "string",
+					"title": "FieldErrorCode"
+				},
+				"message": {
+					"type": "string",
+					"title": "FieldMessage"
+				}
+			},
+			"required": ["field", "code", "message"],
+			"title": "FieldError"
+		}
+	}
+}

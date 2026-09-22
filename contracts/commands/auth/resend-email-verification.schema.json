@@ -1,0 +1,33 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/auth/resend-email-verification.schema.json",
+	"title": "ResendEmailVerification",
+	"description": "FR-AUTH-004. Rate-limited (60s cooldown, max 5 per 24h). The response exposes nextAllowedAt so the client can show the 60s countdown (BDD AC-004.3) without leaking account existence: the same payload is returned whether or not the email is registered.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"email": {
+			"type": "string",
+			"format": "email"
+		}
+	},
+	"required": ["email"],
+	"$defs": {
+		"ResendEmailVerificationResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"messageKey": {
+					"type": "string",
+					"minLength": 1
+				},
+				"nextAllowedAt": {
+					"type": "string",
+					"format": "date-time"
+				}
+			},
+			"required": ["messageKey", "nextAllowedAt"],
+			"title": "ResendEmailVerificationResponse"
+		}
+	}
+}

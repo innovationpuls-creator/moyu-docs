@@ -1,0 +1,39 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/auth/register-with-email.schema.json",
+	"title": "RegisterWithEmail",
+	"description": "FR-AUTH-001. Request root = email + password. Password length 12-128 per PRD FR-AUTH-001 / OQ-3 (reject common/leaked passwords at the application layer). Response is the anti-enumeration uniform payload (PRD FR-AUTH-005/007, BDD 'two requests get identical external hint'); the auto-established session (BDD FR-AUTH-001, PRD AC-001.1) is delivered as a Secure/HttpOnly Set-Cookie, modeled in OpenAPI, NOT in this body.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"email": {
+			"type": "string",
+			"format": "email"
+		},
+		"password": {
+			"type": "string",
+			"minLength": 12,
+			"maxLength": 128,
+			"x-sensitive": true
+		}
+	},
+	"required": ["email", "password"],
+	"$defs": {
+		"RegisterWithEmailResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"messageKey": {
+					"type": "string",
+					"minLength": 1
+				},
+				"email": {
+					"type": "string",
+					"format": "email"
+				}
+			},
+			"required": ["messageKey", "email"],
+			"title": "RegisterWithEmailResponse"
+		}
+	}
+}

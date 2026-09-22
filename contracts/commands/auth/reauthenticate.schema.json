@@ -1,0 +1,45 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/auth/reauthenticate.schema.json",
+	"title": "Reauthenticate",
+	"description": "FR-AUTH-034 / doc 16 §104-§105. Re-verify the password before high-risk operations (10-minute recent-auth window). Request = password (x-sensitive). Response expresses the window: reauthenticatedAt and validUntil (= reauthenticatedAt + 10m).",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"password": {
+			"type": "string",
+			"x-sensitive": true
+		}
+	},
+	"required": ["password"],
+	"$defs": {
+		"ReauthenticateResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"messageKey": {
+					"type": "string",
+					"minLength": 1
+				},
+				"reauthenticatedAt": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"validUntil": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"windowSeconds": {
+					"type": "integer"
+				}
+			},
+			"required": [
+				"messageKey",
+				"reauthenticatedAt",
+				"validUntil",
+				"windowSeconds"
+			],
+			"title": "ReauthenticateResponse"
+		}
+	}
+}
