@@ -17,13 +17,20 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
 from app_core.account.domain.timing_shield import UNIFORM_AUTH_MESSAGES
-from app_core.session.domain.session import Session
+from app_core.common.exceptions import AuthenticationError
+from app_core.session.domain.session import Session, SessionStatus
+from app_core.session.ports.session_cache import (
+    SessionCachedData,
+    SessionCachePort,
+)
 from app_infra.postgres.engine import get_db_session as engine_get_db_session
+from app_infra.postgres.session_repository import PostgresSessionRepository
 from app_infra.valkey.rate_limiter import (
     RESEND_COOLDOWN_SECONDS,
     RateLimiter,
 )
-from fastapi import Request, Response
+from app_infra.valkey.session_cache import ValkeySessionCache
+from fastapi import Depends, Request, Response
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -42,6 +49,15 @@ REGISTER_SUCCESS_KEY = "REGISTER_SUCCESS"
 FORGOT_PASSWORD_SUCCESS_KEY = "FORGOT_PASSWORD_SUCCESS"
 EMAIL_VERIFIED_KEY = "EMAIL_VERIFIED"
 VERIFICATION_EMAIL_RESENT_KEY = "VERIFICATION_EMAIL_RESENT"
+# Non-anti-enumeration success keys (single-source messageKey for the generated
+# response DTOs of the session / password / deletion command routes). These are
+# API-layer keys, not anti-enumeration copy, so they are NOT part of
+# UNIFORM_AUTH_MESSAGES.
+LOGOUT_SUCCESS_KEY = "LOGOUT_SUCCESS"
+PASSWORD_RESET_SUCCESS_KEY = "PASSWORD_RESET_SUCCESS"
+REAUTHENTICATED_KEY = "REAUTHENTICATED"
+DELETION_REQUESTED_KEY = "DELETION_REQUESTED"
+DELETION_CANCELLED_KEY = "DELETION_CANCELLED"
 
 # Drift guard: the messageKey constants above must stay aligned with the
 # canonical UNIFORM_AUTH_MESSAGES names (single source, FR-AUTH-007).
@@ -132,3 +148,110 @@ def resend_quota_key(email: str) -> UUID:
 
 def resend_next_allowed_at(now: datetime) -> datetime:
     return now + timedelta(seconds=RESEND_COOLDOWN_SECONDS)
+
+
+# ---------------------------------------------------------------------------
+# Current-session resolution (plan Task 22 §2)
+# ---------------------------------------------------------------------------
+#
+# get_current_session is the shared authenticated-actor dependency for the
+# protected auth routes. Fast path: Valkey session cache (5s TTL) rejects a
+# REPLACED / EXPIRED snapshot without a Postgres round-trip (FR-AUTH-015 <=5s
+# convergence; doc 16 §80, §125-126). PostgreSQL stays the authority (doc 16
+# §79): on cache miss OR cache-actively-valid the authoritative row is loaded
+# and re-validated with is_active(now) — the cache is disposable, never the
+# source of truth (doc 16 §125).
+
+
+def _invalid_session_error() -> AuthenticationError:
+    # Registry has SESSION_EXPIRED / SESSION_REPLACED but no plain
+    # "session not found" code; missing/invalid sessions reuse the registered
+    # INVALID_CREDENTIALS (reported for Phase 9 registry alignment).
+    return AuthenticationError(
+        UNIFORM_AUTH_MESSAGES["INVALID_CREDENTIALS_EN"], "INVALID_CREDENTIALS"
+    )
+
+
+def _rejected_cache_state(
+    cached: SessionCachedData, now: datetime
+) -> AuthenticationError | None:
+    """Map a cache snapshot that cannot authenticate (REPLACED / EXPIRED /
+    logged-out / revoked) to its stable error, or None if the snapshot is a
+    plausible active session (authoritative Postgres check still follows)."""
+    if cached.status is SessionStatus.REPLACED:
+        return AuthenticationError(
+            "The session has been replaced by another device.", "SESSION_REPLACED"
+        )
+    if cached.status is SessionStatus.EXPIRED or cached.expires_at <= now:
+        return AuthenticationError("The session has expired.", "SESSION_EXPIRED")
+    if cached.status is not SessionStatus.ACTIVE:
+        return _invalid_session_error()
+    return None
+
+
+def _rejected_db_state(session: Session, now: datetime) -> AuthenticationError | None:
+    """Authoritative Postgres mapping: a replaced session is surfaced
+    distinctly from an expired one (FR-AUTH-015 vs FR-AUTH-009)."""
+    if session.status is SessionStatus.REPLACED:
+        return AuthenticationError(
+            "The session has been replaced by another device.", "SESSION_REPLACED"
+        )
+    session.expire_if_needed(now)
+    if session.status is SessionStatus.EXPIRED:
+        return AuthenticationError("The session has expired.", "SESSION_EXPIRED")
+    if session.status is not SessionStatus.ACTIVE:
+        return _invalid_session_error()
+    return None
+
+
+async def get_session_cache(request: Request) -> ValkeySessionCache:
+    client = await get_valkey(request)
+    return ValkeySessionCache(client)
+
+
+async def get_current_session(
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+    cache: SessionCachePort = Depends(get_session_cache),
+) -> Session:
+    session_id = _session_id_from_cookie(request)
+    if session_id is None:
+        raise _invalid_session_error()
+    now = utc_now()
+    cached = await cache.get_session(session_id)
+    if cached is not None:
+        rejected = _rejected_cache_state(cached, now)
+        if rejected is not None:
+            raise rejected
+    # Cache miss or cache-actively-valid -> authoritative Postgres row.
+    record = await PostgresSessionRepository(session).find_by_id(session_id)
+    if record is None:
+        raise _invalid_session_error()
+    rejected = _rejected_db_state(record, now)
+    if rejected is not None:
+        raise rejected
+    return record
+
+
+async def get_optional_current_session(
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+    cache: SessionCachePort = Depends(get_session_cache),
+) -> Session | None:
+    """Non-raising twin for the recovery-mode guard: an invalid/missing session
+    does not 401 by itself — the guarded endpoint decides (block only known
+    recovery-mode accounts)."""
+    try:
+        return await get_current_session(request, session, cache)
+    except AuthenticationError:
+        return None
+
+
+def _session_id_from_cookie(request: Request) -> UUID | None:
+    raw = request.cookies.get(SESSION_COOKIE)
+    if not raw:
+        return None
+    try:
+        return UUID(raw)
+    except ValueError:
+        return None
