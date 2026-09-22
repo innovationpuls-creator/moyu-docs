@@ -9,6 +9,7 @@ from uuid import UUID
 
 from app_core.account.domain.account import Account, AccountStatus
 from app_core.account.domain.password_policy import PasswordHasher, PasswordPolicy
+from app_core.account.domain.timing_shield import UNIFORM_AUTH_MESSAGES, TimingShield
 from app_core.account.domain.token import OneTimeToken, OneTimeTokenType
 from app_core.account.ports.idempotency_repository import (
     IdempotencyRecord,
@@ -53,10 +54,12 @@ class RegisterAccount:
         *,
         now=lambda: datetime.now(timezone.utc),
         idempotency=None,
+        shield: TimingShield | None = None,
     ):
         self._accounts, self._sessions, self._tokens = accounts, sessions, tokens
         self._audit, self._mailer, self._now = audit, mailer, now
         self._idempotency = idempotency
+        self._shield = shield or TimingShield()
 
     async def execute(  # noqa: C901
         self,
@@ -131,15 +134,20 @@ class RegisterAccount:
                 metadata={"delivery": "failed"},
             )
         result = RegistrationResult(
-            True, account, session, secret, failed, _ANTI_ENUMERATION_MESSAGE
+            True, account, session, secret, failed, _REGISTER_SUCCESS_MESSAGE
         )
         if idempotency_key and self._idempotency:
             await _store_result(self._idempotency, idempotency_key, result)
         return result
 
     async def _existing_result(self, account: Account) -> RegistrationResult:
+        # A new registration hashes the password before saving; equalize the
+        # duration of the existing-email path with constant Argon2id work so
+        # the endpoint does not reveal whether the email is registered
+        # (FR-AUTH-007).
+        self._shield.perform_dummy_hash()
         return RegistrationResult(
-            True, account, None, None, False, _ANTI_ENUMERATION_MESSAGE
+            True, account, None, None, False, _REGISTER_SUCCESS_MESSAGE
         )
 
 
@@ -292,6 +300,4 @@ def _result_from_payload(payload: dict[str, object]) -> RegistrationResult:
     )
 
 
-_ANTI_ENUMERATION_MESSAGE = (
-    "If this email can continue registration, check your email for next steps."
-)
+_REGISTER_SUCCESS_MESSAGE = UNIFORM_AUTH_MESSAGES["REGISTER_SUCCESS_EN"]

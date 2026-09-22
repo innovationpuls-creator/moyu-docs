@@ -9,6 +9,7 @@ from uuid import UUID
 
 from app_core.account.domain.account import Account, AccountStatus
 from app_core.account.domain.password_policy import PasswordHasher
+from app_core.account.domain.timing_shield import UNIFORM_AUTH_MESSAGES, TimingShield
 from app_core.account.ports.account_repository import AccountRepositoryPort
 from app_core.account.ports.idempotency_repository import (
     IdempotencyRecord,
@@ -22,12 +23,6 @@ from app_core.session.ports.session_repository import SessionRepositoryPort
 
 class PasswordVerifier(Protocol):
     def verify(self, password: str, password_hash: str) -> bool: ...
-
-
-_DUMMY_PASSWORD_HASH = (
-    "$argon2id$v=19$m=65536,t=3,p=4$7wv+qcbPV5fHr85wVAChTQ$"
-    "rK6WIg72INo6B4VZLThbfVZHNSlfmgHV24ilJEdurrw"
-)
 
 
 @dataclass(frozen=True)
@@ -68,7 +63,9 @@ class LoginWithPassword:
                 return prior
         record = await self._accounts.find_by_email(email.strip().casefold())
         password_hash = (
-            record.password_hash if record is not None else _DUMMY_PASSWORD_HASH
+            record.password_hash
+            if record is not None
+            else TimingShield.DUMMY_PASSWORD_HASH
         )
         password_is_valid = self._verifier.verify(password, password_hash)
         if record is None or not record.account.can_login() or not password_is_valid:
@@ -153,7 +150,9 @@ class Reauthenticate:
 
 
 def _invalid_credentials() -> AuthenticationError:
-    return AuthenticationError("Invalid credentials.", "INVALID_CREDENTIALS")
+    return AuthenticationError(
+        UNIFORM_AUTH_MESSAGES["INVALID_CREDENTIALS_EN"], "INVALID_CREDENTIALS"
+    )
 
 
 def _session_payload(session: Session) -> dict[str, str]:

@@ -5,10 +5,11 @@ from datetime import datetime
 
 from app_core.account.application.registration import MailDeliveryError
 from app_core.account.domain.password_policy import PasswordHasher, PasswordPolicy
+from app_core.account.domain.timing_shield import UNIFORM_AUTH_MESSAGES, TimingShield
 from app_core.account.domain.token import OneTimeToken, OneTimeTokenType
 from app_core.common.exceptions import AuthenticationError
 
-_PUBLIC_MESSAGE = "If this email is registered, a reset email has been sent."
+_RESET_SUCCESS_MESSAGE = UNIFORM_AUTH_MESSAGES["FORGOT_PASSWORD_SUCCESS_EN"]
 
 
 class PasswordResetMailer:
@@ -17,7 +18,14 @@ class PasswordResetMailer:
 
 class RequestPasswordReset:
     def __init__(
-        self, accounts, tokens, audit, mailer, *, now: Callable[[], datetime]
+        self,
+        accounts,
+        tokens,
+        audit,
+        mailer,
+        *,
+        now: Callable[[], datetime],
+        shield: TimingShield | None = None,
     ) -> None:
         self._accounts, self._tokens, self._audit, self._mailer, self._now = (
             accounts,
@@ -26,11 +34,17 @@ class RequestPasswordReset:
             mailer,
             now,
         )
+        self._shield = shield or TimingShield()
 
     async def execute(self, email: str):
         record = await self._accounts.find_by_email(email)
         if record is None:
-            return type("Result", (), {"public_message": _PUBLIC_MESSAGE})()
+            # An existing account goes through token invalidation + issue +
+            # mailer; equalize the missing-email path with constant Argon2id
+            # work so the endpoint does not reveal email existence
+            # (FR-AUTH-007).
+            self._shield.perform_dummy_hash()
+            return type("Result", (), {"public_message": _RESET_SUCCESS_MESSAGE})()
         now = self._now()
         await self._tokens.invalidate_pending(
             record.account.account_id, OneTimeTokenType.PASSWORD_RESET, now
@@ -50,7 +64,7 @@ class RequestPasswordReset:
                 action="PasswordResetDeliveryFailed",
                 metadata={"delivery": "failed"},
             )
-        return type("Result", (), {"public_message": _PUBLIC_MESSAGE})()
+        return type("Result", (), {"public_message": _RESET_SUCCESS_MESSAGE})()
 
 
 class ResetPassword:
