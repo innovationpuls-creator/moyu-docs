@@ -12,6 +12,8 @@ dev = [
     "app-contracts",
     "app-core",
     "app-infrastructure",
+    # API 边界（Task 20/21 产出）：services/api 的测试与类型检查需要其可导入。
+    "api-service",
     "ruff>=0.9.0",
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
@@ -31,6 +33,7 @@ dev = [
 # 仅保留当前可解析的成员；packages/py/* 在 Task 3 会纳入 packages/py/contracts
 members = [
     "packages/py/*",
+    "services/api",
 ]
 
 [tool.uv.sources]
@@ -38,6 +41,7 @@ members = [
 app-contracts = { workspace = true }
 app-core = { workspace = true }
 app-infrastructure = { workspace = true }
+api-service = { workspace = true }
 
 [tool.pytest.ini_options]
 minversion = "8.0"
@@ -46,6 +50,7 @@ asyncio_mode = "auto"
 testpaths = [
     "tests",
     "packages/py",
+    "services/api",
 ]
 
 [tool.mypy]
@@ -56,6 +61,7 @@ python_version = "3.12"
 files = [
     "scripts",
     "tests",
+    "services/api/src",
 ]
 # 生成物（Task 3 产出）为机器生成代码，禁止手改，mypy 跳过
 exclude = [
