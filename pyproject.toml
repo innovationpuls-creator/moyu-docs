@@ -10,6 +10,7 @@ dependencies = []
 dev = [
     # 生成物（Task 3 产出）：契约的 Python 投影，测试与 lint 依赖其强类型（doc 27 §17/§53）。
     "app-contracts",
+    "app-infrastructure",
     "ruff>=0.9.0",
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
@@ -20,6 +21,9 @@ dev = [
     "mypy>=1.10",
     "openapi-spec-validator>=0.7",
     "datamodel-code-generator>=0.25",
+    "alembic>=1.13",
+    "sqlalchemy[asyncio]>=2.0.30",
+    "psycopg[binary]>=3.1.18",
 ]
 
 [tool.uv.workspace]
@@ -31,6 +35,7 @@ members = [
 [tool.uv.sources]
 # app-contracts 是 workspace 成员，dev 依赖引用需显式声明来源（uv 要求）
 app-contracts = { workspace = true }
+app-infrastructure = { workspace = true }
 
 [tool.pytest.ini_options]
 minversion = "8.0"

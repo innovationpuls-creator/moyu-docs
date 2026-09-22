@@ -259,7 +259,12 @@ def generated_files(root: Path, keep: set[str]) -> dict[str, bytes]:
     """枚举生成物：相对路径 -> 内容。keep 中的文件名豁免。"""
     files: dict[str, bytes] = {}
     for path in sorted(root.rglob("*")):
-        if path.is_file() and path.name not in keep:
+        if (
+            path.is_file()
+            and path.name not in keep
+            and "__pycache__" not in path.parts
+            and path.suffix not in {".pyc", ".pyo"}
+        ):
             files[path.relative_to(root).as_posix()] = path.read_bytes()
     return files
 

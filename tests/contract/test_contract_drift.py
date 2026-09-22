@@ -233,6 +233,24 @@ def test_generated_artifacts_are_marked_and_collision_free() -> None:
         assert not collisions, f"{path.name}: 类名冲突 {collisions}"
 
 
+def test_drift_comparator_ignores_python_runtime_artifacts() -> None:
+    """运行时 Python 缓存不是生成契约，不能触发漂移。"""
+    generator = _load_generator()
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        committed = root / "committed"
+        generated = root / "generated"
+        committed.mkdir()
+        (committed / "a.py").write_bytes(b"class A:\n    pass\n")
+        generated.mkdir()
+        (generated / "a.py").write_bytes(b"class A:\n    pass\n")
+        cache = generated / "__pycache__"
+        cache.mkdir()
+        (cache / "a.cpython-312.pyc").write_bytes(b"runtime cache")
+
+        assert generator.compare_generated(committed, generated) == []
+
+
 def test_drift_comparator_reports_real_drift() -> None:
     """反向守卫：比对函数必须真的能报出漂移，不能永远返回空。"""
     generator = _load_generator()
