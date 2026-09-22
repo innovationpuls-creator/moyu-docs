@@ -10,6 +10,7 @@ resolution-markers = [
 [manifest]
 members = [
     "app-contracts",
+    "app-core",
     "app-infrastructure",
     "dom",
 ]
@@ -50,6 +51,21 @@ dependencies = [
 requires-dist = [
     { name = "email-validator" },
     { name = "pydantic", specifier = ">=2" },
+]
+
+[[package]]
+name = "app-core"
+version = "0.1.0"
+source = { editable = "packages/py/core" }
+dependencies = [
+    { name = "app-contracts" },
+    { name = "argon2-cffi" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "app-contracts", editable = "packages/py/contracts" },
+    { name = "argon2-cffi", specifier = ">=23.1.0" },
 ]
 
 [[package]]
@@ -383,6 +399,7 @@ source = { virtual = "." }
 dev = [
     { name = "alembic" },
     { name = "app-contracts" },
+    { name = "app-core" },
     { name = "app-infrastructure" },
     { name = "datamodel-code-generator" },
     { name = "jsonschema" },
@@ -404,6 +421,7 @@ dev = [
 dev = [
     { name = "alembic", specifier = ">=1.13" },
     { name = "app-contracts", editable = "packages/py/contracts" },
+    { name = "app-core", editable = "packages/py/core" },
     { name = "app-infrastructure", editable = "packages/py/infrastructure" },
     { name = "datamodel-code-generator", specifier = ">=0.25" },
     { name = "jsonschema", specifier = ">=4.21" },
