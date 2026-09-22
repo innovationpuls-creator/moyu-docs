@@ -8,6 +8,8 @@ dependencies = []
 
 [dependency-groups]
 dev = [
+    # 生成物（Task 3 产出）：契约的 Python 投影，测试与 lint 依赖其强类型（doc 27 §17/§53）。
+    "app-contracts",
     "ruff>=0.9.0",
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
@@ -25,6 +27,10 @@ dev = [
 members = [
     "packages/py/*",
 ]
+
+[tool.uv.sources]
+# app-contracts 是 workspace 成员，dev 依赖引用需显式声明来源（uv 要求）
+app-contracts = { workspace = true }
 
 [tool.pytest.ini_options]
 minversion = "8.0"
@@ -72,3 +78,9 @@ select = ["E", "W", "F", "I", "C90"]
 # 允许自动修复所有可安全修复的规则项
 fixable = ["ALL"]
 unfixable = []
+
+# 生成物（Task 3 产出）为机器生成代码，禁止手改；其长字符串字面量（如
+# error-envelope 的 details 描述，doc 28 §31）触发 E501 且 ruff format 无法折行，
+# 故对该目录仅忽略 E501，与 [tool.mypy] 的 exclude 保持一致。
+[tool.ruff.lint.per-file-ignores]
+"packages/py/contracts/src/app_contracts/**" = ["E501"]

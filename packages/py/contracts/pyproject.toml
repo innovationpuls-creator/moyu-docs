@@ -1,0 +1,16 @@
+[project]
+name = "app-contracts"
+version = "0.1.0"
+description = "Python projection of /contracts (doc 27 §17/§25/§53, doc 28 §46). Generated, do not edit."
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2",
+    "email-validator",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/app_contracts"]
