@@ -1,0 +1,22 @@
+{
+	"name": "@dom/realtime",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Realtime WebSocket gateway: session-authenticated connections + SessionReplaced invalidation dispatch (plan Tasks 25-26, Phase 8).",
+	"type": "module",
+	"scripts": {
+		"test": "vitest run",
+		"typecheck": "tsc --noEmit",
+		"lint": "biome check src tests"
+	},
+	"dependencies": {
+		"ioredis": "^5.8.1",
+		"ws": "^8.18.0"
+	},
+	"devDependencies": {
+		"@types/node": "^24.0.0",
+		"@types/ws": "^8.5.0",
+		"typescript": "^5.9.3",
+		"vitest": "^3.2.0"
+	}
+}

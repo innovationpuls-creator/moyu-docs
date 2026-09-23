@@ -44,6 +44,11 @@ test:
 test-db:
     uv run pytest tests/migration tests/integration
 
+# 运行 Realtime WebSocket 测试与类型检查 (@dom/realtime; vitest, 真实 Valkey db 15)
+test-realtime:
+    pnpm --filter @dom/realtime test
+    pnpm --filter @dom/realtime typecheck
+
 # 生成机器契约（registry 驱动，Python + TypeScript）
 contract: generate-contracts
 
