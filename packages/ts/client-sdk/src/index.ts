@@ -14,22 +14,14 @@
  * round-trips (and multi-tab shares it automatically through the cookie jar).
  */
 
+import type { LoginWithPassword } from "@dom/contracts/commands/auth/login-with-password";
 import type { LoginWithPasswordResponse } from "@dom/contracts/commands/auth/login-with-password-response";
 import type { LogoutResponse } from "@dom/contracts/commands/auth/logout";
+import type { RegisterWithEmail } from "@dom/contracts/commands/auth/register-with-email";
 import type { RegisterWithEmailResponse } from "@dom/contracts/commands/auth/register-with-email-response";
 import type { AuthErrorCategory } from "@dom/contracts/errors/error-envelope";
 import type { GetCurrentAccountResponse } from "@dom/contracts/queries/auth/get-current-account";
 import type { GetCurrentSessionResponse } from "@dom/contracts/queries/auth/get-current-session";
-
-export interface RegisterWithEmailBody {
-	email: string;
-	password: string;
-}
-
-export interface LoginWithPasswordBody {
-	email: string;
-	password: string;
-}
 
 /** Stable per-origin device id key (mirrored to the dom_device cookie). */
 export const DEVICE_ID_STORAGE_KEY = "dom:device-id";
@@ -121,13 +113,11 @@ export class DomClient {
 		this.deviceId = options.deviceId ?? ensureDeviceId();
 	}
 
-	async register(
-		body: RegisterWithEmailBody,
-	): Promise<RegisterWithEmailResponse> {
+	async register(body: RegisterWithEmail): Promise<RegisterWithEmailResponse> {
 		return this.request("/auth/register", { method: "POST", body });
 	}
 
-	async login(body: LoginWithPasswordBody): Promise<LoginWithPasswordResponse> {
+	async login(body: LoginWithPassword): Promise<LoginWithPasswordResponse> {
 		return this.request("/auth/login", { method: "POST", body });
 	}
 

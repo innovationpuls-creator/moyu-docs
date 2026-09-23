@@ -18,6 +18,7 @@
  * unsubscribes and disconnects it.
  */
 
+import type { SessionReplacementReason } from "@dom/contracts/events/auth/session-replaced";
 import type { Redis } from "ioredis";
 import { WebSocket } from "ws";
 
@@ -29,18 +30,12 @@ export const SESSION_REPLACED_MESSAGE = "当前账号已在另一台设备登录
  * Client-facing SessionReplaced frame (BDD FR-AUTH-016/017). The full domain
  * envelope lives in the generated contracts (packages/ts/contracts/src/events/
  * auth/session-replaced.d.ts, doc 28 §22 + §25); the wire frame is a
- * lightweight projection: type + reason + user-facing message. ``reason``
- * mirrors the generated ``SessionReplacementReason`` union — @dom/contracts has
- * no exports/types map yet, so the union is mirrored here until Phase 9 wires
- * a typed import.
+ * lightweight projection: type + reason + user-facing message. ``reason`` is
+ * the generated ``SessionReplacementReason`` union, imported from
+ * @dom/contracts (re-exported here so the module's public surface is
+ * unchanged for consumers that imported the name).
  */
-export type SessionReplacementReason =
-	| "NewDeviceLogin"
-	| "UserLogout"
-	| "PasswordReset"
-	| "AccountDisabled"
-	| "Expired"
-	| "SecurityRevoke";
+export type { SessionReplacementReason } from "@dom/contracts/events/auth/session-replaced";
 
 export const SESSION_REPLACEMENT_REASONS: readonly SessionReplacementReason[] =
 	[

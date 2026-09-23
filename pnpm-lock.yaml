@@ -228,6 +228,9 @@ importers:
 
   services/realtime:
     dependencies:
+      '@dom/contracts':
+        specifier: workspace:*
+        version: link:../../packages/ts/contracts
       ioredis:
         specifier: ^5.8.1
         version: 5.11.1(supports-color@10.2.2)

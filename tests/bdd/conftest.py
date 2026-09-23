@@ -272,7 +272,18 @@ def bdd_context(
 def pytest_collection_modifyitems(config, items) -> None:  # type: ignore[no-untyped-def]
     """pytest-bdd >= 8 routes tag filtering through pytest markers; emulate the
     pre-8 ``filter_="not browser"`` selection by deselecting the 9 browser-
-    semantic scenarios from this suite (they run under Playwright, Task 30)."""
+    semantic scenarios from this suite (they run under Playwright, Task 30).
+
+    Limitation note (pytest-bdd 8.x): the keyword-based deselection mechanism
+    from pytest-bdd < 8 (``filter_`` on the scenario decorator) was removed,
+    and pytest-bdd scenario items cannot be deselected through a marker
+    keyword expression (``-m "not browser"``) — tags compile to markers at
+    collection, but the BDD item hook does not re-run the mark expression the
+    way plain pytest tests do. ``add_marker(skip)`` would leave 9 skipped
+    items in the collection instead of truly deselecting them. Filtering the
+    ``items`` list here is therefore the honest mechanism: removed items are
+    never collected, keeping ``pytest tests/bdd`` at exactly 55 executed.
+    """
     kept = [
         item
         for item in items
@@ -282,4 +293,8 @@ def pytest_collection_modifyitems(config, items) -> None:  # type: ignore[no-unt
         )
     ]
     if len(kept) != len(items):
+        # pytest-bdd 8.x limitation: `item.items[:] = kept` (removing the
+        # browser scenarios) is the only reliable deselection for BDD items —
+        # see the docstring above. Replacing it with marker-based selection is
+        # not possible for pytest-bdd scenario items.
         items[:] = kept
