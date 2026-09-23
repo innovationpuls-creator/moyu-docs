@@ -27,6 +27,7 @@ dev = [
     "alembic>=1.13",
     "sqlalchemy[asyncio]>=2.0.30",
     "psycopg[binary]>=3.1.18",
+    "pytest-bdd>=8.1.0",
 ]
 
 [tool.uv.workspace]
@@ -52,6 +53,51 @@ testpaths = [
     "packages/py",
     "services/api",
 ]
+# pytest-bdd 8.x maps Gherkin feature tags to pytest markers; --strict-markers
+# requires every tag used by the tests/bdd feature file to be registered.
+# `browser` routes the 9 browser-semantic scenarios (FR-AUTH-013/016/017/019/
+# 021) to the Playwright suite (plan Task 30); tests/bdd/conftest.py deselects
+# them so plain `pytest tests/bdd/...` runs the 55 backend scenarios.
+markers = [
+    "browser: 9 browser-semantic scenarios (multi-tab device session, WS disconnect, SessionReplaced UI, local-unsynced protection x3, refresh/restart recovery x2) — Playwright, plan Task 30",
+    "FR-AUTH-001: BDD scenario tag (registration validation)",
+    "FR-AUTH-002: BDD scenario tag (email verification)",
+    "FR-AUTH-003: BDD scenario tag (PendingVerification workspace capability)",
+    "FR-AUTH-004: BDD scenario tag (verification resend rate limiting)",
+    "FR-AUTH-005: BDD scenario tag (registration uniqueness / anti-enumeration)",
+    "FR-AUTH-006: BDD scenario tag (email+password login)",
+    "FR-AUTH-007: BDD scenario tag (auth entry-point anti-enumeration)",
+    "FR-AUTH-008: BDD scenario tag (session credential rotation)",
+    "FR-AUTH-009: BDD scenario tag (idle / absolute session expiry)",
+    "FR-AUTH-010: BDD scenario tag (server-side session revocation)",
+    "FR-AUTH-011: BDD scenario tag (two-device session quota)",
+    "FR-AUTH-012: BDD scenario tag (third-device replacement by createdAt)",
+    "FR-AUTH-013: BDD scenario tag (multi-tab shared device session)",
+    "FR-AUTH-014: BDD scenario tag (concurrent login convergence)",
+    "FR-AUTH-015: BDD scenario tag (replaced session rejection)",
+    "FR-AUTH-016: BDD scenario tag (realtime disconnect on replacement)",
+    "FR-AUTH-017: BDD scenario tag (SessionReplaced user-visible UI)",
+    "FR-AUTH-018: BDD scenario tag (newer device unaffected by replacement)",
+    "FR-AUTH-019: BDD scenario tag (local unsynced content protection)",
+    "FR-AUTH-020: BDD scenario tag (logout semantics / idempotency)",
+    "FR-AUTH-021: BDD scenario tag (refresh / restart session recovery)",
+    "FR-AUTH-022: BDD scenario tag (current account/session queries)",
+    "FR-AUTH-023: BDD scenario tag (server-authoritative capability checks)",
+    "FR-AUTH-024: BDD scenario tag (forgot-password anti-enumeration)",
+    "FR-AUTH-025: BDD scenario tag (password reset tokens)",
+    "FR-AUTH-026: BDD scenario tag (reset revokes sessions)",
+    "FR-AUTH-027: BDD scenario tag (reset does not create a session)",
+    "FR-AUTH-028: BDD scenario tag (reset token replay rejection)",
+    "FR-AUTH-029: BDD scenario tag (account deletion request)",
+    "FR-AUTH-030: BDD scenario tag (deletion grace period / purge)",
+    "FR-AUTH-031: BDD scenario tag (cancel deletion restore)",
+    "FR-AUTH-032: BDD scenario tag (Account Recovery Mode)",
+    "FR-AUTH-033: BDD scenario tag (deleted account resources preserved)",
+    "FR-AUTH-034: BDD scenario tag (recent reauthentication window)",
+    "FR-AUTH-035: BDD scenario tag (login lockout)",
+    "FR-AUTH-036: BDD scenario tag (session replacement security notice)",
+    "FR-AUTH-037: BDD scenario tag (audit logging)",
+]
 
 [tool.mypy]
 python_version = "3.12"
@@ -72,6 +118,13 @@ exclude = [
     # 惯例排除 conftest 本身，保留对测试用例文件的检查。
     "tests/security/conftest.py",
     "tests/integration/conftest.py",
+    # tests/bdd 的 conftest.py 同理直接 import 无 py.typed 的 api 服务
+    "tests/bdd/conftest.py",
+    # tests/bdd 其余文件是 pytest-bdd 测试脚手架（step 注册约定使 pytest 以
+    # 顶层模块与 tests.bdd.step_defs 包路径双名导入步骤文件，触发 mypy 同名
+    # 模块冲突；步骤大量索引 Optional 响应体）。按上述 conftest 惯例，整个
+    # tests/bdd 目录排除在 mypy 之外。
+    "tests/bdd",
 ]
 check_untyped_defs = true
 no_implicit_optional = true
