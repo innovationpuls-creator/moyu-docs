@@ -166,7 +166,7 @@ contracts:
     permissionCapability: none
     authRequirement: RecentAuthentication
     idempotencyRequirement: required
-    errorCodes: [RECENT_AUTHENTICATION_REQUIRED, ACCOUNT_DELETION_SOLE_OWNER, SESSION_EXPIRED, SESSION_REPLACED, ACCOUNT_DISABLED, IDEMPOTENCY_KEY_CONFLICT]
+    errorCodes: [RECENT_AUTHENTICATION_REQUIRED, ACCOUNT_DELETION_SOLE_OWNER, SESSION_EXPIRED, SESSION_REPLACED, ACCOUNT_DISABLED, IDEMPOTENCY_KEY_CONFLICT, ACCOUNT_IN_RECOVERY_MODE, ACCOUNT_NOT_FOUND, SESSION_NOT_AUTHORIZED]
     ownerDocument: docs/architecture/16-Account-Auth-Session-Design.md
     ownerModule: packages/py/core/account
     status: active
@@ -182,7 +182,7 @@ contracts:
     permissionCapability: none
     authRequirement: Authenticated
     idempotencyRequirement: none
-    errorCodes: [ACCOUNT_NOT_IN_DELETION, SESSION_EXPIRED, SESSION_REPLACED, ACCOUNT_DISABLED]
+    errorCodes: [ACCOUNT_NOT_IN_DELETION, SESSION_EXPIRED, SESSION_REPLACED, ACCOUNT_DISABLED, ACCOUNT_NOT_FOUND]
     ownerDocument: docs/architecture/16-Account-Auth-Session-Design.md
     ownerModule: packages/py/core/account
     status: active
@@ -198,7 +198,7 @@ contracts:
     permissionCapability: none
     authRequirement: Authenticated
     idempotencyRequirement: none
-    errorCodes: [SESSION_EXPIRED, SESSION_REPLACED, ACCOUNT_DISABLED]
+    errorCodes: [SESSION_EXPIRED, SESSION_REPLACED, ACCOUNT_DISABLED, ACCOUNT_IN_RECOVERY_MODE]
     ownerDocument: docs/architecture/16-Account-Auth-Session-Design.md
     ownerModule: packages/py/core/account
     status: active
@@ -214,7 +214,7 @@ contracts:
     permissionCapability: none
     authRequirement: Authenticated
     idempotencyRequirement: none
-    errorCodes: [SESSION_EXPIRED, SESSION_REPLACED, ACCOUNT_DISABLED]
+    errorCodes: [SESSION_EXPIRED, SESSION_REPLACED, ACCOUNT_DISABLED, ACCOUNT_IN_RECOVERY_MODE]
     ownerDocument: docs/architecture/16-Account-Auth-Session-Design.md
     ownerModule: packages/py/core/session
     status: active
@@ -230,7 +230,7 @@ contracts:
     permissionCapability: none
     authRequirement: Authenticated
     idempotencyRequirement: none
-    errorCodes: [SESSION_EXPIRED, SESSION_REPLACED, ACCOUNT_DISABLED]
+    errorCodes: [SESSION_EXPIRED, SESSION_REPLACED, ACCOUNT_DISABLED, ACCOUNT_NOT_FOUND]
     ownerDocument: docs/architecture/16-Account-Auth-Session-Design.md
     ownerModule: packages/py/core/account
     status: active

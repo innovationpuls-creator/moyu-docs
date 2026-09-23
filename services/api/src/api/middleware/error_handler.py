@@ -2,11 +2,15 @@
 
 Every external error response is the generated ``ErrorEnvelope`` projection
 (category / errorCode / messageKey / message / requestId / retryable +
-optional fieldErrors / details). messageKey and retryable are taken from the
-canonical ``contracts/errors/error-codes.yaml`` registry where the errorCode is
-registered; unregistered API-layer codes fall back to ``messageKey ==
-errorCode`` and ``retryable = False`` (surfaced codes are reported for Phase 9
-registry alignment).
+optional fieldErrors / details). messageKey, category and retryable are taken
+from the canonical ``contracts/errors/error-codes.yaml`` registry wherever the
+errorCode is registered (the catalog is authoritative, doc 28 §28); the
+remaining envelope-level codes emitted here — request-validation 422, HTTP
+status mappings and the generic 500 — are documented API-layer codes
+(REQUEST_VALIDATION_ERROR / NOT_FOUND / METHOD_NOT_ALLOWED / BAD_REQUEST /
+UNAUTHENTICATED / FORBIDDEN / CONFLICT / INTERNAL_ERROR) that fall back to
+``messageKey == errorCode`` and ``retryable = False`` and are tracked by
+tests/contract/test_contract_schemas.py as documented envelope codes.
 
 HTTP status mapping (Constitution §3.19 categories):
   Validation -> 422, Authentication -> 401, Permission -> 403,
@@ -90,9 +94,14 @@ def _build_envelope(
     request_id: uuid.UUID | None = None,
 ) -> ErrorEnvelope:
     meta = _error_code_catalog().get(error_code)
-    message_key = str(meta["messageKey"]) if meta else error_code
     if meta is not None:
+        # Registered errorCodes are canonical (doc 28 §28): the catalog's
+        # category is authoritative even if the raising code path used a
+        # broader exception class (e.g. a defensive ConflictError that means
+        # NotFound); unregistered codes keep the exception's own category.
+        category = str(meta["category"])
         retryable = bool(meta["retryable"])
+    message_key = str(meta["messageKey"]) if meta else error_code
     return ErrorEnvelope(
         category=AuthErrorCategory(category),
         errorCode=error_code,

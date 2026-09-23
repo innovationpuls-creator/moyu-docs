@@ -15,9 +15,9 @@ operations + pre-auth entry points):
 - public pre-auth endpoints (register / verify-email / resend-verification /
   forgot-password / reset-password) and /healthz
 
-Error mapping (new API-layer code, reported for Phase 9 registry alignment):
-Permission / 403 / ``ACCOUNT_IN_RECOVERY_MODE`` (not yet in
-contracts/errors/error-codes.yaml; messageKey falls back to the errorCode).
+Error mapping: Permission / 403 / ``ACCOUNT_IN_RECOVERY_MODE`` (registered in
+contracts/errors/error-codes.yaml, messageKey auth.error.accountInRecoveryMode;
+the error handler resolves category/messageKey from the catalog).
 
 Boundary note: the guard resolves the actor through the SAME DI graph as the
 routes (get_db_session / valkey overrides), so tests see the same session state
