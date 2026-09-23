@@ -3,3 +3,5 @@ packages:
   - "services/*"
   - "workers/*"
   - "packages/ts/*"
+allowBuilds:
+  esbuild: true

@@ -1,0 +1,20 @@
+{
+	"name": "@dom/realtime-client",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"description": "Minimal WebSocket client for the DOM realtime gateway (doc 27 §17). The ONLY place WebSocket connections are created on the frontend; dispatches 'sessionreplaced' on close code 4001 (FR-AUTH-016/017).",
+	"types": "./src/index.ts",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@dom/contracts": "workspace:*"
+	},
+	"devDependencies": {
+		"typescript": "^5.9.3"
+	}
+}

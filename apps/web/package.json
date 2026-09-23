@@ -1,0 +1,24 @@
+{
+	"name": "@dom/web",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"description": "DOM web app shell: minimal functional auth surface for the Phase 9 browser E2E suite (UI/UX neutral).",
+	"scripts": {
+		"dev": "vite",
+		"build": "vite build",
+		"typecheck": "tsc --noEmit",
+		"test": "playwright test"
+	},
+	"dependencies": {
+		"@dom/client-sdk": "workspace:*",
+		"@dom/contracts": "workspace:*",
+		"@dom/realtime-client": "workspace:*"
+	},
+	"devDependencies": {
+		"@playwright/test": "^1.54.0",
+		"@types/node": "^24.0.0",
+		"typescript": "^5.9.3",
+		"vite": "^7.3.6"
+	}
+}

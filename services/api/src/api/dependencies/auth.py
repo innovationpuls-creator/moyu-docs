@@ -246,6 +246,14 @@ async def get_current_session(
     rejected = _rejected_db_state(record, now)
     if rejected is not None:
         raise rejected
+    # Write-through: the realtime gateway authenticates WS handshakes from the
+    # cache ONLY (services/realtime src/auth/session_authenticator.ts), so the
+    # authoritative validation refreshes the 5s fast-path entry here. This
+    # keeps a session connectable long after login without extending the TTL
+    # (doc 16 §125-126: cache is disposable; the recheck stays authoritative —
+    # a replaced/expired session is rejected BEFORE this point, so the cache is
+    # never re-warmed for a dead session).
+    await cache.set_session(record)
     return record
 
 

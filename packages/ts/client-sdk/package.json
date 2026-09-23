@@ -1,0 +1,20 @@
+{
+	"name": "@dom/client-sdk",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"description": "Minimal typed API client for the DOM auth surface (doc 27 §17). The ONLY place fetch() lives (arch-direction: apps/web -> client-sdk -> contracts).",
+	"types": "./src/index.ts",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@dom/contracts": "workspace:*"
+	},
+	"devDependencies": {
+		"typescript": "^5.9.3"
+	}
+}

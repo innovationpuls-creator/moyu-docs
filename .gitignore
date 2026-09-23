@@ -76,6 +76,8 @@ secrets/
 coverage/
 playwright-report/
 test-results/
+# Workspace-local Playwright browser installs (user-level caches unwritable)
+.playwright-browsers/
 
 # Operating System Files
 .DS_Store
