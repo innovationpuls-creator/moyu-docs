@@ -260,6 +260,40 @@ async def test_reset_password_invalid_secret_401(
     assert response.json()["errorCode"] == "PASSWORD_RESET_TOKEN_INVALID"
 
 
+async def test_reset_password_rejects_email_verification_secret(
+    db_session: AsyncSession,
+    valkey_client: Redis,
+) -> None:
+    """Minor M-alignment: reset-password must not accept an
+    EMAIL_VERIFICATION secret (token_type guard at the route, mirroring
+    verify-email). The verification secret stays usable for verify-email —
+    the guard rejects without consuming it."""
+    mailer = CapturingMailer()
+    async with _client(db_session, valkey_client, mailer=mailer) as client:
+        await _register(client, "cross-type@example.com")
+        assert any(
+            kind == "verify" and to == "cross-type@example.com"
+            for kind, to, _ in mailer.sent
+        ), "registration must have captured a verification secret"
+        verify_secret = next(
+            secret for kind, to, secret in mailer.sent if kind == "verify"
+        )
+
+        misuse = await client.post(
+            "/v1/auth/reset-password",
+            json={"token": verify_secret, "newPassword": NEW_PASSWORD},
+        )
+        still_valid = await client.post(
+            "/v1/auth/verify-email", json={"token": verify_secret}
+        )
+
+    assert misuse.status_code == 401
+    assert misuse.json()["errorCode"] == "PASSWORD_RESET_TOKEN_INVALID"
+    # Not consumed by the guard: the same secret still verifies the email.
+    assert still_valid.status_code == 200
+    assert still_valid.json()["messageKey"] == "EMAIL_VERIFIED"
+
+
 # ---------------------------------------------------------------------------
 # POST /v1/auth/reauthenticate
 # ---------------------------------------------------------------------------

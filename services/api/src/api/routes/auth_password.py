@@ -40,6 +40,7 @@ from app_core.account.application.password_reset import (
 from app_core.account.application.password_reset import (
     ResetPassword as ResetPasswordUseCase,
 )
+from app_core.account.domain.token import OneTimeTokenType
 from app_core.common.exceptions import AuthenticationError
 from app_core.session.application.authentication import (
     Reauthenticate as ReauthenticateUseCase,
@@ -119,8 +120,12 @@ async def reset_password(
     tokens = PostgresTokenRepository(session)
     # Resolve the owning account for the response DTO WITHOUT consuming the
     # secret; the use case performs the authoritative consume + validation.
+    # Explicit token_type guard (review item 4.3, mirrors verify-email): a
+    # secret of the wrong type (e.g. an EMAIL_VERIFICATION token) is rejected
+    # here and never consumed — the same-401 result as the use case, without
+    # relying solely on the consume filter.
     token = await tokens.find_by_hash(_hash_token_secret(body.token))
-    if token is None:
+    if token is None or token.token_type is not OneTimeTokenType.PASSWORD_RESET:
         raise AuthenticationError(
             "PASSWORD_RESET_TOKEN_INVALID", "PASSWORD_RESET_TOKEN_INVALID"
         )

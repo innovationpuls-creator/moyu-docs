@@ -47,6 +47,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.dependencies.auth import (
     LOGOUT_SUCCESS_KEY,
     clear_session_cookie,
+    composite_rate_identifier,
     get_current_session,
     get_db_session,
     get_device_id,
@@ -57,15 +58,6 @@ from api.dependencies.auth import (
 )
 
 router = APIRouter()
-
-
-def _login_rate_identifier(request: Request, device_id: str) -> str:
-    """Composite rate-limit identity (IP + device id, doc 16 §54 / FR-AUTH-035).
-    Absent client context falls back to 'unknown' so the limiter key stays
-    deterministic per device."""
-    client = request.client
-    host = client.host if client is not None else "unknown"
-    return f"{host}:{device_id}"
 
 
 @router.post("/login", response_model=LoginWithPasswordResponse)
@@ -79,7 +71,7 @@ async def login(
     cache: SessionCachePort = Depends(get_session_cache),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> LoginWithPasswordResponse:
-    identifier = _login_rate_identifier(request, device_id)
+    identifier = composite_rate_identifier(request, device_id)
     await rate_limiter.check_login_rate(identifier)
     use_case = build_login_use_case(session, now=utc_now)
     try:

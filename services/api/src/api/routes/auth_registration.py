@@ -5,11 +5,14 @@ Boundary discipline (doc 27 §16/§17, doc 28 §48): the request/response bodies
 are the GENERATED app-contracts DTOs; use-case results (RegistrationResult,
 Account) are mapped to them at the boundary. No domain SQL lives here.
 
-Anti-enumeration (FR-AUTH-005/007): the register response is the identical
-uniform body for new and known emails (201 vs 200), a session cookie is issued
-ONLY for a newly created account, and resend-verification returns the same
-payload whether or not the email is registered (Valkey quota keyed on
-account_id for known accounts, deterministic email-derived id otherwise).
+Anti-enumeration (FR-AUTH-005/007) after the USER RULING (2026-09-23): register
+returns 201 for BOTH new and existing emails with an IDENTICAL body; a session
+cookie is issued ONLY for a newly created account. The residual email-existence
+oracle via Set-Cookie absence is an ACCEPTED product risk, mitigated by (a) the
+register rate limiter below and (b) the TimingShield latency equalization —
+both mitigations are MANDATORY. Resend-verification returns the same payload
+whether or not the email is registered (Valkey quota keyed on account_id for
+known accounts, deterministic email-derived id otherwise).
 """
 
 from __future__ import annotations
@@ -46,13 +49,14 @@ from app_infra.postgres.registration_composition import (
 )
 from app_infra.postgres.token_repository import PostgresTokenRepository
 from app_infra.valkey.rate_limiter import RateLimiter
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.dependencies.auth import (
     EMAIL_VERIFIED_KEY,
     REGISTER_SUCCESS_KEY,
     VERIFICATION_EMAIL_RESENT_KEY,
+    composite_rate_identifier,
     get_db_session,
     get_device_id,
     get_mailer,
@@ -74,21 +78,28 @@ def _hash_token_secret(secret: str) -> str:
 @router.post("/register", status_code=201, response_model=RegisterWithEmailResponse)
 async def register(
     body: RegisterWithEmail,
+    request: Request,
     response: Response,
     session: AsyncSession = Depends(get_db_session),
     device_id: str = Depends(get_device_id),
     mailer: VerificationMailer = Depends(get_mailer),
+    rate_limiter: RateLimiter = Depends(get_rate_limiter),
 ) -> RegisterWithEmailResponse:
+    # Register rate limiting (USER RULING mitigation (a), MANDATORY): checked
+    # BEFORE the credential/email branch so known and unknown emails are
+    # throttled identically (PRD §534 / FR-AUTH-004/035 spirit). Every valid
+    # request counts toward the per-IP+device 5-per-15-minute window.
+    identifier = composite_rate_identifier(request, device_id)
+    await rate_limiter.check_register_rate(identifier)
     use_case = build_registration_use_case(session, mailer, now=utc_now)
     result = await use_case.execute(body.email, body.password, device_id)
-    # result.session is None exactly when the email already existed; that path
-    # NEVER issues a session (FR-AUTH-005, task-1 fix). Both paths return the
-    # identical uniform body; 201 vs 200 distinguishes nothing about existence.
+    await rate_limiter.record_register_attempt(identifier)
+    # 201 for BOTH new and existing emails (USER RULING): the HTTP status and
+    # body are identical; the dom_session cookie is issued ONLY for a newly
+    # created account (result.session is None exactly when the email already
+    # existed — that path NEVER mints a session, FR-AUTH-005 / task-1 fix).
     if result.session is not None:
         set_session_cookie(response, result.session)
-        response.status_code = 201
-    else:
-        response.status_code = 200
     return RegisterWithEmailResponse(
         messageKey=REGISTER_SUCCESS_KEY,
         email=result.account.primary_email,

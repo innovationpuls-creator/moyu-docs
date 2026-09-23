@@ -20,13 +20,18 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
+import pytest
 from api.dependencies.auth import get_db_session, get_valkey
 from api.dependencies.workspace_ownership import (
     WorkspaceOwnershipQueryPort,
     get_workspace_ownership,
 )
 from api.main import create_app
+from api.routes.auth_deletion import _deletion_pending_response
+from app_core.account.domain.account import Account, AccountStatus
+from app_core.common.exceptions import NotFoundError
 from app_infra.postgres.account_repository import PostgresAccountRepository
+from app_infra.postgres.idempotency_repository import PostgresIdempotencyRepository
 from httpx import ASGITransport, AsyncClient
 from redis.asyncio import Redis
 from sqlalchemy import text
@@ -164,6 +169,163 @@ async def test_delete_account_requires_recent_authentication(
     body = response.json()
     assert body["errorCode"] == "RECENT_AUTHENTICATION_REQUIRED"
     assert body["messageKey"] == "auth.error.recentAuthenticationRequired"
+
+
+# ---------------------------------------------------------------------------
+# Idempotency (registry idempotencyRequirement: required) + invariant handling
+# ---------------------------------------------------------------------------
+
+
+def test_deletion_response_without_requested_at_raises_not_found() -> None:
+    """Item 4 (minor): the production `assert account.deletion_requested_at is
+    not None` is replaced by an explicit NotFoundError so the route never
+    crashes under -O nor emits a DTO with a null AwareDatetime."""
+    account = Account(
+        account_id=UUID("00000000-0000-0000-0000-000000000001"),
+        primary_email="ghost@example.com",
+        normalized_email="ghost@example.com",
+        status=AccountStatus.DELETION_PENDING,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+        deletion_requested_at=None,
+    )
+    with pytest.raises(NotFoundError) as excinfo:
+        _deletion_pending_response(account, datetime.now(timezone.utc))
+    assert excinfo.value.error_code == "ACCOUNT_NOT_FOUND"
+    assert excinfo.value.category == "NotFound"
+
+
+async def test_delete_account_same_idempotency_key_replays_same_response(
+    db_session: AsyncSession,
+    valkey_client: Redis,
+) -> None:
+    """Idempotency-Key replay: a completed key returns the ORIGINAL success
+    response; the account is not double-processed (still one deletion request
+    row, FR-AUTH-030 AC-030.5)."""
+    async with _client(db_session, valkey_client) as client:
+        await _register(client, "idem@example.com")
+        await _make_active(db_session, "idem@example.com")
+
+        headers = {"Idempotency-Key": "delete-v1"}
+        first = await client.post("/v1/auth/delete-account", headers=headers)
+        second = await client.post("/v1/auth/delete-account", headers=headers)
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json() == second.json()  # byte-identical replay
+    row_count = await db_session.scalar(
+        text(
+            "SELECT count(*) FROM auth.account_deletion_requests WHERE account_id = :id"
+        ),
+        {"id": await _account_id(db_session, "idem@example.com")},
+    )
+    assert int(row_count or 0) == 1
+
+
+async def test_delete_account_same_key_after_cancel_replays_original(
+    db_session: AsyncSession,
+    valkey_client: Redis,
+) -> None:
+    """Documented choice (per review I2): a COMPLETED key always replays the
+    original success response — even after the deletion was cancelled — because
+    the key identifies the original request (Stripe-style idempotency). The
+    replay is a pure response replay: no new deletion row, account stays Active."""
+    async with _client(db_session, valkey_client) as client:
+        await _register(client, "idem-cancel@example.com")
+        await _make_active(db_session, "idem-cancel@example.com")
+
+        headers = {"Idempotency-Key": "delete-cancel-v1"}
+        original = await client.post("/v1/auth/delete-account", headers=headers)
+        assert original.status_code == 200
+        cancelled = await client.post("/v1/auth/cancel-delete-account")
+        assert cancelled.status_code == 200
+
+        replay = await client.post("/v1/auth/delete-account", headers=headers)
+
+    assert replay.status_code == 200
+    assert replay.json() == original.json()  # original DeletionPending response
+    row_count = await db_session.scalar(
+        text(
+            "SELECT count(*) FROM auth.account_deletion_requests WHERE account_id = :id"
+        ),
+        {"id": await _account_id(db_session, "idem-cancel@example.com")},
+    )
+    assert int(row_count or 0) == 1  # cancelled row, never a second one
+    assert (
+        await _account_status(
+            db_session, await _account_id(db_session, "idem-cancel@example.com")
+        )
+        == "Active"
+    )  # pure replay: the account itself is untouched
+
+
+async def test_delete_account_in_flight_idempotency_key_409(
+    db_session: AsyncSession,
+    valkey_client: Redis,
+) -> None:
+    """A claimed-but-incomplete key (a concurrent in-flight request) maps to
+    409 IDEMPOTENCY_KEY_CONFLICT (registered in error-codes.yaml)."""
+    async with _client(db_session, valkey_client) as client:
+        await _register(client, "inflight@example.com")
+        account_id = await _make_active(db_session, "inflight@example.com")
+        # Pre-claim the key directly through the store, simulating a concurrent
+        # request that has claimed but not yet completed.
+        store = PostgresIdempotencyRepository(db_session)
+        claimed = await store.claim(f"delete-account:{account_id}:concurrent")
+        assert claimed is True
+
+        response = await client.post(
+            "/v1/auth/delete-account", headers={"Idempotency-Key": "concurrent"}
+        )
+
+    assert response.status_code == 409
+    body = response.json()
+    assert body["category"] == "Conflict"
+    assert body["errorCode"] == "IDEMPOTENCY_KEY_CONFLICT"
+    assert body["messageKey"] == "auth.error.idempotencyKeyConflict"
+
+
+async def test_delete_account_failed_attempt_releases_idempotency_key(
+    db_session: AsyncSession,
+    valkey_client: Redis,
+) -> None:
+    """A failed attempt (e.g. 401 RECENT_AUTHENTICATION_REQUIRED) releases the
+    claim, so a later retry with the SAME key executes fresh instead of being
+    permanently poisoned by the stale in-flight record."""
+    async with _client(db_session, valkey_client) as client:
+        await _register(client, "retry@example.com")
+        await _make_active(db_session, "retry@example.com")
+        await db_session.execute(
+            text(
+                "UPDATE auth.sessions SET last_strong_auth_at = :at "
+                "WHERE status = 'Active'"
+            ),
+            {"at": datetime.now(timezone.utc) - timedelta(minutes=11)},
+        )
+        await db_session.flush()
+
+        headers = {"Idempotency-Key": "retry-v1"}
+        blocked = await client.post("/v1/auth/delete-account", headers=headers)
+        assert blocked.status_code == 401  # RECENT_AUTHENTICATION_REQUIRED
+
+        reauth = await client.post(
+            "/v1/auth/reauthenticate", json={"password": VALID_PASSWORD}
+        )
+        assert reauth.status_code == 200
+
+        retry = await client.post("/v1/auth/delete-account", headers=headers)
+
+    assert retry.status_code == 200  # released claim -> fresh execution
+    assert retry.json()["accountStatus"] == "DeletionPending"
+
+
+async def _account_id(db_session: AsyncSession, email: str) -> UUID:
+    value = await db_session.scalar(
+        text("SELECT account_id FROM auth.accounts WHERE normalized_email = :email"),
+        {"email": email.casefold()},
+    )
+    assert value is not None
+    return value
 
 
 # ---------------------------------------------------------------------------

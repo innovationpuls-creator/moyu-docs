@@ -91,6 +91,22 @@ async def get_rate_limiter(request: Request) -> RateLimiter:
     return RateLimiter(client)
 
 
+def composite_rate_identifier(request: Request, device_id: str) -> str:
+    """Composite rate-limit identity (IP + device id, doc 16 §54 / FR-AUTH-035).
+    Absent client context falls back to 'unknown' so the limiter key stays
+    deterministic per device (used by the login and register limiters)."""
+    client = request.client
+    host = client.host if client is not None else "unknown"
+    return f"{host}:{device_id}"
+
+
+def deletion_idempotency_key(account_id: UUID, header_key: str) -> str:
+    """Account-scoped idempotency key for POST /v1/auth/delete-account
+    (registry idempotencyRequirement: required). The Idempotency-Key header
+    value is client-chosen, so it must never collide across accounts."""
+    return f"delete-account:{account_id}:{header_key}"
+
+
 def _cookie_secure() -> bool:
     return not settings.debug
 

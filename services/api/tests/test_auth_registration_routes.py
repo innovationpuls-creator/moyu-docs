@@ -164,10 +164,14 @@ async def test_register_new_email_returns_201_uniform_body_and_session_cookie(
     assert _cookie_attribute(headers, "samesite=lax")
 
 
-async def test_register_known_email_returns_identical_body_without_session_cookie(
+async def test_register_known_email_returns_201_identical_body_without_session_cookie(
     api_client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
+    """USER RULING (2026-09-23): register returns 201 for BOTH new and existing
+    emails with an IDENTICAL body; the existing-email response carries NO
+    dom_session cookie and creates no new session/account (the cookie absence
+    oracle is ACCEPTED, mitigated by register rate limiting + timing shield)."""
     first_status, first_body, first_headers = await _register(
         api_client, "existing@example.com"
     )
@@ -176,12 +180,77 @@ async def test_register_known_email_returns_identical_body_without_session_cooki
     )
 
     assert first_status == 201
-    assert second_status == 200
+    assert second_status == 201  # identical STATUS for known emails (C1 fix)
     assert first_body == second_body  # 防枚举：两个请求收到完全一致的外部提示
     assert "dom_session" in _cookie_names(first_headers)
     assert "dom_session" not in _cookie_names(second_headers)
     assert await _account_count(db_session, "existing@example.com") == 1
     assert await _active_session_count(db_session) == 1
+
+
+def _assert_rate_limited_envelope(body: dict[str, Any]) -> None:
+    """Canonical 429 RATE_LIMITED envelope shape (error-codes.yaml)."""
+    assert body["category"] == "RateLimit"
+    assert body["errorCode"] == "RATE_LIMITED"
+    assert body["messageKey"] == "auth.error.rateLimited"
+    assert body["retryable"] is True
+
+
+async def test_register_rate_limited_after_five_attempts_known_email(
+    db_session: AsyncSession,
+    valkey_client: Redis,
+) -> None:
+    """FR-AUTH-004/035: the register endpoint is throttled per IP+device after
+    5 attempts in the 15-minute window — for an email that already exists the
+    6th attempt is 429 (attempts 2-5 are the identical existing-email 201s)."""
+    async with _client(db_session, valkey_client) as client:
+        for _ in range(5):
+            status, _, _ = await _register(client, "burst-known@example.com")
+            assert status == 201  # 1 new + 4 existing: all identical 201
+        sixth_status, sixth_body, _ = await _register(client, "burst-known@example.com")
+
+    assert sixth_status == 429
+    _assert_rate_limited_envelope(sixth_body)
+
+
+async def test_register_rate_limited_after_five_attempts_unknown_email(
+    db_session: AsyncSession,
+    valkey_client: Redis,
+) -> None:
+    """Same throttle for emails the service has never seen: because the check
+    runs BEFORE the email branch, the 6th attempt is 429 exactly like the
+    known-email case (anti-enumeration, FR-AUTH-007)."""
+    async with _client(db_session, valkey_client) as client:
+        for i in range(5):
+            status, _, _ = await _register(client, f"burst-unknown-{i}@example.com")
+            assert status == 201
+        sixth_status, sixth_body, _ = await _register(
+            client, "burst-unknown-5@example.com"
+        )
+
+    assert sixth_status == 429
+    _assert_rate_limited_envelope(sixth_body)
+
+
+async def test_register_rate_limit_envelope_identical_for_known_and_unknown(
+    db_session: AsyncSession,
+    valkey_client: Redis,
+) -> None:
+    """The 429 payload must be byte-identical for known vs unknown emails so
+    throttling itself never leaks email existence."""
+    async with _client(db_session, valkey_client) as known_client:
+        for _ in range(5):
+            await _register(known_client, "env-known@example.com")
+        _, known_429, _ = await _register(known_client, "env-known@example.com")
+    async with _client(db_session, valkey_client) as unknown_client:
+        for i in range(5):
+            await _register(unknown_client, f"env-unknown-{i}@example.com")
+        _, unknown_429, _ = await _register(unknown_client, "env-unknown-5@example.com")
+
+    assert known_429["category"] == unknown_429["category"] == "RateLimit"
+    assert known_429["errorCode"] == unknown_429["errorCode"] == "RATE_LIMITED"
+    assert known_429["messageKey"] == unknown_429["messageKey"]
+    assert known_429["retryable"] == unknown_429["retryable"] is True
 
 
 async def test_register_leaked_password_returns_422_password_too_weak_envelope(

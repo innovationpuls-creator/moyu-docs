@@ -56,3 +56,14 @@ class PostgresIdempotencyRepository:
             ),
             {"key": key, "response": response.decode()},
         )
+
+    async def delete(self, key: str) -> None:
+        """Release a claim WITHOUT a stored response (a failed attempt): the
+        key becomes free so the caller can retry instead of being permanently
+        poisoned by an in-flight record."""
+        await self._session.execute(
+            text(
+                "DELETE FROM integration.idempotency_records WHERE idempotency_key=:key"
+            ),
+            {"key": key},
+        )
