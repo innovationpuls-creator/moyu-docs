@@ -18,6 +18,8 @@ import { fileURLToPath } from "node:url";
 
 import { defineConfig, devices } from "@playwright/test";
 
+const globalSetup = "./tests/e2e/global-setup.ts";
+
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "..", "..");
 
@@ -34,6 +36,7 @@ const apiEnv = {
 };
 
 export default defineConfig({
+	globalSetup,
 	testDir: "./tests/e2e",
 	fullyParallel: false,
 	workers: 1,

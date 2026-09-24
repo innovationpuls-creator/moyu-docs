@@ -16,13 +16,37 @@ from typing import Any
 from fastapi import Depends, FastAPI
 
 from api.config import settings
+from api.logging import configure_logging
 from api.middleware.error_handler import register_error_handlers
+from api.middleware.metrics_middleware import MetricsMiddleware
 from api.middleware.recovery_mode_guard import get_recovery_guard
+from api.middleware.request_context import RequestContextMiddleware
 from api.middleware.security_headers import SecurityHeadersMiddleware
+from api.routes.ai_changesets import router as ai_changesets_router
+from api.routes.assets import router as assets_router
 from api.routes.auth_deletion import router as auth_deletion_router
 from api.routes.auth_password import router as auth_password_router
 from api.routes.auth_registration import router as auth_registration_router
 from api.routes.auth_session import router as auth_session_router
+from api.routes.comments import router as comments_router
+from api.routes.diagnostics import router as diagnostics_router
+from api.routes.history import router as history_router
+from api.routes.importexport import router as importexport_router
+from api.routes.integrations import router as integrations_router
+from api.routes.member_suggestions import router as member_suggestions_router
+from api.routes.notifications import router as notifications_router
+from api.routes.ops import router as ops_router
+from api.routes.project_listing import router as project_listing_router
+from api.routes.public_api import router as public_api_router
+from api.routes.resource_diff import router as resource_diff_router
+from api.routes.resource_listing import router as resource_listing_router
+from api.routes.resource_open import router as resource_open_router
+from api.routes.resource_write import router as resource_write_router
+from api.routes.search import router as search_router
+from api.routes.webhooks import router as webhooks_router
+from api.routes.workspace import router as workspace_router
+from api.routes.workspace_listing import router as workspace_listing_router
+from api.routes.workspace_ownership import router as workspace_ownership_router
 
 
 def create_app(
@@ -39,13 +63,40 @@ def create_app(
         # DeletionPending accounts; allowed paths short-circuit inside.
         dependencies=[Depends(get_recovery_guard)],
     )
+    if debug:
+        # Structured correlation + access logging (arch 23); worker/prod runs
+        # configure this via api.logging.configure_logging at boot.
+        configure_logging()
+        app.add_middleware(RequestContextMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(MetricsMiddleware)
     register_error_handlers(app)
 
     app.include_router(auth_registration_router, prefix="/v1/auth")
     app.include_router(auth_session_router, prefix="/v1/auth")
     app.include_router(auth_password_router, prefix="/v1/auth")
     app.include_router(auth_deletion_router, prefix="/v1/auth")
+    app.include_router(workspace_ownership_router, prefix="/v1/auth")
+    app.include_router(workspace_router, prefix="/v1")
+    app.include_router(workspace_listing_router, prefix="/v1")
+    app.include_router(resource_open_router, prefix="/v1")
+    app.include_router(resource_write_router, prefix="/v1")
+    app.include_router(diagnostics_router, prefix="/v1")
+    app.include_router(comments_router, prefix="/v1")
+    app.include_router(member_suggestions_router, prefix="/v1")
+    app.include_router(search_router, prefix="/v1")
+    app.include_router(webhooks_router, prefix="/v1")
+    app.include_router(importexport_router, prefix="/v1")
+    app.include_router(assets_router, prefix="/v1")
+    app.include_router(ai_changesets_router, prefix="/v1")
+    app.include_router(integrations_router, prefix="/v1")
+    app.include_router(history_router, prefix="/v1")
+    app.include_router(notifications_router, prefix="/v1")
+    app.include_router(ops_router, prefix="/v1")
+    app.include_router(public_api_router, prefix="/v1")
+    app.include_router(resource_diff_router, prefix="/v1")
+    app.include_router(project_listing_router, prefix="/v1")
+    app.include_router(resource_listing_router, prefix="/v1")
 
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:

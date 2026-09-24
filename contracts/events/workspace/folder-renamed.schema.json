@@ -1,0 +1,49 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/events/workspace/folder-renamed.schema.json",
+	"title": "FolderRenamed",
+	"description": "FR-WRL-005. Fact that Folder display name changed without changing its stable identity.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"eventId": { "$ref": "../../ids/ids.schema.json#/$defs/EventId" },
+		"eventType": { "const": "FolderRenamed" },
+		"schemaVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+		"occurredAt": { "type": "string", "format": "date-time" },
+		"producer": { "type": "string", "minLength": 1 },
+		"payload": { "$ref": "#/$defs/FolderRenamedPayload" }
+	},
+	"required": [
+		"eventId",
+		"eventType",
+		"schemaVersion",
+		"occurredAt",
+		"producer",
+		"payload"
+	],
+	"$defs": {
+		"FolderRenamedPayload": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"workspaceId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId"
+				},
+				"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+				"folderId": { "$ref": "../../ids/ids.schema.json#/$defs/FolderId" },
+				"previousName": { "type": "string" },
+				"name": { "type": "string" },
+				"actorAccountId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" }
+			},
+			"required": [
+				"workspaceId",
+				"projectId",
+				"folderId",
+				"previousName",
+				"name",
+				"actorAccountId"
+			],
+			"title": "FolderRenamedPayload"
+		}
+	}
+}

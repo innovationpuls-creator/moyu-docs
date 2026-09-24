@@ -1,0 +1,27 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/workspace/get-workspace.schema.json",
+	"title": "GetWorkspaceResponse",
+	"description": "FR-WRL-001/002. Read one authorized Workspace metadata record by stable identity.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"workspaceId": { "$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId" },
+		"name": { "type": "string" },
+		"ownerAccountId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+		"lifecycle": {
+			"type": "string",
+			"enum": ["Active", "DeletionPending", "Deleted"]
+		},
+		"createdAt": { "type": "string", "format": "date-time" },
+		"updatedAt": { "type": "string", "format": "date-time" }
+	},
+	"required": [
+		"workspaceId",
+		"name",
+		"ownerAccountId",
+		"lifecycle",
+		"createdAt",
+		"updatedAt"
+	]
+}

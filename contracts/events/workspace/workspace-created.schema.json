@@ -1,0 +1,40 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/events/workspace/workspace-created.schema.json",
+	"title": "WorkspaceCreated",
+	"description": "FR-WRL-001. Fact that Workspace metadata was created; initial Owner membership is established through the Permission-owned atomic bootstrap boundary.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"eventId": { "$ref": "../../ids/ids.schema.json#/$defs/EventId" },
+		"eventType": { "const": "WorkspaceCreated" },
+		"schemaVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+		"occurredAt": { "type": "string", "format": "date-time" },
+		"producer": { "type": "string", "minLength": 1 },
+		"traceId": { "$ref": "../../ids/ids.schema.json#/$defs/RequestId" },
+		"payload": { "$ref": "#/$defs/WorkspaceCreatedPayload" }
+	},
+	"required": [
+		"eventId",
+		"eventType",
+		"schemaVersion",
+		"occurredAt",
+		"producer",
+		"payload"
+	],
+	"$defs": {
+		"WorkspaceCreatedPayload": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"workspaceId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId"
+				},
+				"actorAccountId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+				"name": { "type": "string" }
+			},
+			"required": ["workspaceId", "actorAccountId", "name"],
+			"title": "WorkspaceCreatedPayload"
+		}
+	}
+}

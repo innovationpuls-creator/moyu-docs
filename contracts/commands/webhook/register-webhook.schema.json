@@ -1,0 +1,28 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/webhook/register-webhook.schema.json",
+	"title": "RegisterWebhook",
+	"description": "FR-WEB-001. Register a workspace webhook delivery URL.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"url": {
+			"type": "string",
+			"maxLength": 2000
+		}
+	},
+	"required": ["url"],
+	"$defs": {
+		"RegisterWebhookResponse": {
+			"title": "RegisterWebhookResponse",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"subscriptionId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/UserId"
+				}
+			},
+			"required": ["subscriptionId"]
+		}
+	}
+}

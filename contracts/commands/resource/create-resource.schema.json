@@ -1,0 +1,49 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/resource/create-resource.schema.json",
+	"title": "CreateResource",
+	"description": "FR-RC-001. Create a Resource inside an authorized Project (the Project's Workspace Owner). Sibling names (normalized, incl. Trashed/Purged) are reserved.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId" },
+		"resourceType": {
+			"type": "string",
+			"enum": ["document", "code", "markdown", "text"]
+		},
+		"name": { "type": "string", "minLength": 1, "maxLength": 200 },
+		"idempotencyKey": {
+			"$ref": "../../ids/ids.schema.json#/$defs/IdempotencyKey"
+		}
+	},
+	"required": ["projectId", "resourceType", "name", "idempotencyKey"],
+	"$defs": {
+		"CreateResourceResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+				"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId" },
+				"resourceType": {
+					"type": "string",
+					"enum": ["document", "code", "markdown", "text"]
+				},
+				"name": { "type": "string" },
+				"lifecycle": {
+					"type": "string",
+					"enum": ["Active", "Trashed", "Purging", "Purged"]
+				},
+				"createdAt": { "type": "string", "format": "date-time" }
+			},
+			"required": [
+				"resourceId",
+				"projectId",
+				"resourceType",
+				"name",
+				"lifecycle",
+				"createdAt"
+			],
+			"title": "CreateResourceResponse"
+		}
+	}
+}

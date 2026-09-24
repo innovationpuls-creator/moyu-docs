@@ -1,0 +1,31 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/history/create-named-version.schema.json",
+	"title": "CreateNamedVersion",
+	"description": "FR-HS-003. Label a revision for later restore.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+		"label": { "type": "string", "minLength": 1, "maxLength": 120 },
+		"baseJournalSeq": { "type": "integer", "minimum": 1 },
+		"idempotencyKey": {
+			"$ref": "../../ids/ids.schema.json#/$defs/IdempotencyKey"
+		}
+	},
+	"required": ["resourceId", "label", "baseJournalSeq", "idempotencyKey"],
+	"$defs": {
+		"CreateNamedVersionResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+				"versionId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+				"label": { "type": "string" },
+				"baseJournalSeq": { "type": "integer" }
+			},
+			"required": ["resourceId", "versionId", "label", "baseJournalSeq"],
+			"title": "CreateNamedVersionResponse"
+		}
+	}
+}

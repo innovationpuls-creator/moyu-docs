@@ -199,13 +199,69 @@ AUTH_REQUIREMENT_VALUES = frozenset({"Public", "Authenticated", "RecentAuthentic
 NON_AUTH_KINDS = frozenset({"Error", "Identity"})
 
 
+def test_workspace_lifecycle_contract_inventory_and_permission_boundary() -> None:
+    """FR-WRL Commands/Queries are routable; Permission-owned data stays separate."""
+    registry = _registry()
+    entries = {
+        entry["logicalName"]: entry
+        for entry in registry["contracts"]
+        if entry.get("domain") == "workspace"
+    }
+    expected = {
+        "CreateWorkspace",
+        "ListWorkspaces",
+        "GetWorkspace",
+        "RenameWorkspace",
+        "CreateProject",
+        "ListProjects",
+        "GetProjectTree",
+        "ListFolderChildren",
+        "RenameProject",
+        "ArchiveProject",
+        "UnarchiveProject",
+        "TrashProject",
+        "RestoreProject",
+        "CreateFolder",
+        "RenameFolder",
+        "MoveFolder",
+        "TrashFolder",
+        "RestoreFolder",
+    }
+    assert expected <= set(entries)
+    for name in expected:
+        entry = entries[name]
+        assert entry["ownerModule"] == "packages/py/core/workspace"
+        if entry["kind"] in {"Command", "Query"}:
+            assert entry["permissionCapability"] == "none"
+            assert entry["authRequirement"] == "Authenticated"
+    permission_entries = {
+        entry["logicalName"]: entry
+        for entry in registry["contracts"]
+        if entry.get("domain") == "permission"
+    }
+    transfer = permission_entries["TransferWorkspaceOwner"]
+    assert transfer["kind"] == "Command"
+    assert transfer["ownerModule"] == "packages/py/core/permission"
+    assert transfer["permissionCapability"] == "none"
+    sole_owner = permission_entries["HasSoleWorkspaceOwnership"]
+    assert sole_owner["kind"] == "Query"
+    assert sole_owner["ownerModule"] == "packages/py/core/permission"
+    assert sole_owner["authRequirement"] == "Authenticated"
+
+
 def test_auth_contracts_use_permission_none_and_valid_auth_requirement() -> None:
     """Auth 边界操作不受 doc 07 的 Capability 管辖；边界由 authRequirement 表达。"""
     reg = _registry()
     for entry in reg["contracts"]:
+        if entry.get("domain") not in {"auth", "session"}:
+            continue
         kind = entry["kind"]
         name = entry["logicalName"]
         if kind in ("Command", "Query"):
+            if entry.get("domain") == "workspace":
+                assert entry.get("permissionCapability") == "none", (
+                    f"{name}: workspace permission capability must be none"
+                )
             assert entry.get("permissionCapability") == "none", (
                 f"{name}: permissionCapability must be 'none', got "
                 f"{entry.get('permissionCapability')!r}"

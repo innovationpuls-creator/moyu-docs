@@ -1,0 +1,59 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/events/workspace/folder-moved.schema.json",
+	"title": "FolderMoved",
+	"description": "FR-WRL-006. Fact that Folder parent changed within one Project; the parent must remain in that Project and the tree remains acyclic.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"eventId": { "$ref": "../../ids/ids.schema.json#/$defs/EventId" },
+		"eventType": { "const": "FolderMoved" },
+		"schemaVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+		"occurredAt": { "type": "string", "format": "date-time" },
+		"producer": { "type": "string", "minLength": 1 },
+		"payload": { "$ref": "#/$defs/FolderMovedPayload" }
+	},
+	"required": [
+		"eventId",
+		"eventType",
+		"schemaVersion",
+		"occurredAt",
+		"producer",
+		"payload"
+	],
+	"$defs": {
+		"FolderMovedPayload": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"workspaceId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId"
+				},
+				"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+				"folderId": { "$ref": "../../ids/ids.schema.json#/$defs/FolderId" },
+				"previousParentFolderId": {
+					"oneOf": [
+						{ "$ref": "../../ids/ids.schema.json#/$defs/FolderId" },
+						{ "type": "null" }
+					]
+				},
+				"parentFolderId": {
+					"oneOf": [
+						{ "$ref": "../../ids/ids.schema.json#/$defs/FolderId" },
+						{ "type": "null" }
+					]
+				},
+				"actorAccountId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" }
+			},
+			"required": [
+				"workspaceId",
+				"projectId",
+				"folderId",
+				"previousParentFolderId",
+				"parentFolderId",
+				"actorAccountId"
+			],
+			"title": "FolderMovedPayload"
+		}
+	}
+}

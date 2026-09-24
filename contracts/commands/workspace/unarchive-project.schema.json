@@ -1,0 +1,28 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/workspace/unarchive-project.schema.json",
+	"title": "UnarchiveProject",
+	"description": "FR-WRL-007. Restore an Archived Project to Active; current Permission determines subsequent capabilities.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+		"idempotencyKey": {
+			"$ref": "../../ids/ids.schema.json#/$defs/IdempotencyKey"
+		}
+	},
+	"required": ["projectId", "idempotencyKey"],
+	"$defs": {
+		"UnarchiveProjectResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+				"lifecycle": { "const": "Active" },
+				"updatedAt": { "type": "string", "format": "date-time" }
+			},
+			"required": ["projectId", "lifecycle", "updatedAt"],
+			"title": "UnarchiveProjectResponse"
+		}
+	}
+}

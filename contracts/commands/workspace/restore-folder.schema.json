@@ -1,0 +1,45 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/workspace/restore-folder.schema.json",
+	"title": "RestoreFolder",
+	"description": "FR-WRL-008. Restore Folder ancestor lifecycle and all descendant metadata state atomically. A missing/inaccessible old parent falls back to Project root; a sibling conflict generates `Name (restored N).ext`, lowest available positive N, preserving final extension. Current Permission is reevaluated; no Purge occurs.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"folderId": { "$ref": "../../ids/ids.schema.json#/$defs/FolderId" },
+		"idempotencyKey": {
+			"$ref": "../../ids/ids.schema.json#/$defs/IdempotencyKey"
+		}
+	},
+	"required": ["folderId", "idempotencyKey"],
+	"$defs": {
+		"RestoreFolderResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"folderId": { "$ref": "../../ids/ids.schema.json#/$defs/FolderId" },
+				"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+				"parentFolderId": {
+					"oneOf": [
+						{ "$ref": "../../ids/ids.schema.json#/$defs/FolderId" },
+						{ "type": "null" }
+					]
+				},
+				"name": { "type": "string" },
+				"lifecycle": { "const": "Active" },
+				"restoredDescendantCount": { "type": "integer", "minimum": 0 },
+				"restoredAt": { "type": "string", "format": "date-time" }
+			},
+			"required": [
+				"folderId",
+				"projectId",
+				"parentFolderId",
+				"name",
+				"lifecycle",
+				"restoredDescendantCount",
+				"restoredAt"
+			],
+			"title": "RestoreFolderResponse"
+		}
+	}
+}

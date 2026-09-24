@@ -1,0 +1,14 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/search/search-suggestions.schema.json",
+	"title": "SearchSuggestionsResponse",
+	"description": "FR-SRC-003. Corpus prefix suggestions within a workspace.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"workspaceId": { "$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId" },
+		"prefix": { "type": "string" },
+		"suggestions": { "type": "array", "items": { "type": "string" } }
+	},
+	"required": ["workspaceId", "prefix", "suggestions"]
+}

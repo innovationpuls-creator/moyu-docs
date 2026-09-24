@@ -1,0 +1,24 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/webhooks/requeue-deliveries.schema.json",
+	"title": "RequeueWebhookDeliveries",
+	"description": "Arch 10 dead-letter replay: requeue the newest Failed delivery as a fresh Queued task.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"webhookId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" }
+	},
+	"required": ["webhookId"],
+	"$defs": {
+		"RequeueWebhookDeliveriesResponse": {
+			"title": "RequeueWebhookDeliveriesResponse",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"requeued": { "type": "integer" },
+				"remainingFailed": { "type": "integer" }
+			},
+			"required": ["requeued", "remainingFailed"]
+		}
+	}
+}

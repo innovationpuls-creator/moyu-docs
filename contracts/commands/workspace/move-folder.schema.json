@@ -1,0 +1,40 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/workspace/move-folder.schema.json",
+	"title": "MoveFolder",
+	"description": "FR-WRL-006. Move Folder within the same Project only; reject cycles and cross-Project parents transactionally.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"folderId": { "$ref": "../../ids/ids.schema.json#/$defs/FolderId" },
+		"destinationParentFolderId": {
+			"oneOf": [
+				{ "$ref": "../../ids/ids.schema.json#/$defs/FolderId" },
+				{ "type": "null" }
+			]
+		},
+		"idempotencyKey": {
+			"$ref": "../../ids/ids.schema.json#/$defs/IdempotencyKey"
+		}
+	},
+	"required": ["folderId", "destinationParentFolderId", "idempotencyKey"],
+	"$defs": {
+		"MoveFolderResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"folderId": { "$ref": "../../ids/ids.schema.json#/$defs/FolderId" },
+				"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+				"parentFolderId": {
+					"oneOf": [
+						{ "$ref": "../../ids/ids.schema.json#/$defs/FolderId" },
+						{ "type": "null" }
+					]
+				},
+				"updatedAt": { "type": "string", "format": "date-time" }
+			},
+			"required": ["folderId", "projectId", "parentFolderId", "updatedAt"],
+			"title": "MoveFolderResponse"
+		}
+	}
+}

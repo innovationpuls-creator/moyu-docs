@@ -1,0 +1,36 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/webhook/list-webhooks.schema.json",
+	"title": "ListWebhooksResponse",
+	"description": "FR-WEB-002. Workspace webhook subscriptions, newest first (no body).",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"workspaceId": {
+			"$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId"
+		},
+		"items": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"subscriptionId": {
+						"$ref": "../../ids/ids.schema.json#/$defs/UserId"
+					},
+					"url": {
+						"type": "string"
+					},
+					"status": {
+						"type": "string"
+					},
+					"createdAt": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": ["subscriptionId", "url", "status", "createdAt"]
+			}
+		}
+	},
+	"required": ["workspaceId", "items"]
+}

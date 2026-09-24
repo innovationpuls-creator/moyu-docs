@@ -1,0 +1,54 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/events/workspace/folder-created.schema.json",
+	"title": "FolderCreated",
+	"description": "FR-WRL-005. Fact that Folder metadata was created in a Project tree.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"eventId": { "$ref": "../../ids/ids.schema.json#/$defs/EventId" },
+		"eventType": { "const": "FolderCreated" },
+		"schemaVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+		"occurredAt": { "type": "string", "format": "date-time" },
+		"producer": { "type": "string", "minLength": 1 },
+		"payload": { "$ref": "#/$defs/FolderCreatedPayload" }
+	},
+	"required": [
+		"eventId",
+		"eventType",
+		"schemaVersion",
+		"occurredAt",
+		"producer",
+		"payload"
+	],
+	"$defs": {
+		"FolderCreatedPayload": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"workspaceId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId"
+				},
+				"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+				"folderId": { "$ref": "../../ids/ids.schema.json#/$defs/FolderId" },
+				"parentFolderId": {
+					"oneOf": [
+						{ "$ref": "../../ids/ids.schema.json#/$defs/FolderId" },
+						{ "type": "null" }
+					]
+				},
+				"name": { "type": "string" },
+				"actorAccountId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" }
+			},
+			"required": [
+				"workspaceId",
+				"projectId",
+				"folderId",
+				"parentFolderId",
+				"name",
+				"actorAccountId"
+			],
+			"title": "FolderCreatedPayload"
+		}
+	}
+}

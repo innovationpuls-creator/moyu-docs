@@ -1,0 +1,28 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/workspace/archive-project.schema.json",
+	"title": "ArchiveProject",
+	"description": "FR-WRL-007. Archive is reversible and makes a Project read-only; it is not Trash.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+		"idempotencyKey": {
+			"$ref": "../../ids/ids.schema.json#/$defs/IdempotencyKey"
+		}
+	},
+	"required": ["projectId", "idempotencyKey"],
+	"$defs": {
+		"ArchiveProjectResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+				"lifecycle": { "const": "Archived" },
+				"updatedAt": { "type": "string", "format": "date-time" }
+			},
+			"required": ["projectId", "lifecycle", "updatedAt"],
+			"title": "ArchiveProjectResponse"
+		}
+	}
+}

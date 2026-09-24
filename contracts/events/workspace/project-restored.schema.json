@@ -1,0 +1,39 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/events/workspace/project-restored.schema.json",
+	"title": "ProjectRestored",
+	"description": "FR-WRL-008. Fact that Project ancestor lifecycle transitioned from Trashed to Active; descendants inherit restored state while retaining stable IDs.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"eventId": { "$ref": "../../ids/ids.schema.json#/$defs/EventId" },
+		"eventType": { "const": "ProjectRestored" },
+		"schemaVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+		"occurredAt": { "type": "string", "format": "date-time" },
+		"producer": { "type": "string", "minLength": 1 },
+		"payload": { "$ref": "#/$defs/ProjectRestoredPayload" }
+	},
+	"required": [
+		"eventId",
+		"eventType",
+		"schemaVersion",
+		"occurredAt",
+		"producer",
+		"payload"
+	],
+	"$defs": {
+		"ProjectRestoredPayload": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"workspaceId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId"
+				},
+				"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+				"actorAccountId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" }
+			},
+			"required": ["workspaceId", "projectId", "actorAccountId"],
+			"title": "ProjectRestoredPayload"
+		}
+	}
+}

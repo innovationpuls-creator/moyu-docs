@@ -1,20 +1,4 @@
-"""Workspace-ownership adapter seam (plan Task 12 / Task 24).
-
-The RequestAccountDeletion use case consults ``WorkspaceOwnershipQueryPort`` to
-block deleting an account that is the sole owner of a non-deleted workspace
-(FR-AUTH-029 / doc 16 §41). The Workspace module is a FUTURE feature and must
-not be prematurely coupled to this API (doc 27 §16): Phase 7 wires a no-owner
-adapter that always reports "no sole ownership", so the deletion flow operates
-with the workspace barrier disabled until the Workspace domain lands.
-
-Seam contract:
-- The PROTOCOL is ``app_core.account.ports.workspace_ownership_query_port``
-  (single source; the application use case imports it).
-- The IMPLEMENTATION here is the Phase 7 placeholder; the future Workspace
-  feature provides the real ownership query and replaces this adapter via the
-  same ``get_workspace_ownership`` dependency injection point (tests override
-  it with sole-owner adapters).
-"""
+"""Permission-owned Workspace ownership query adapters."""
 
 from __future__ import annotations
 
@@ -23,27 +7,43 @@ from uuid import UUID
 from app_core.account.ports.workspace_ownership_query_port import (
     WorkspaceOwnershipQueryPort,
 )
+from app_core.permission.ports.workspace_membership_repository import (
+    SoleOwnedWorkspaceProjection,
+)
+from app_infra.postgres.permission_workspace_repository import (
+    PostgresWorkspaceMembershipRepository,
+)
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from api.dependencies.auth import get_db_session
 
 __all__ = [
-    "NoOwnedWorkspacesQuery",
+    "PostgresWorkspaceOwnershipQuery",
     "WorkspaceOwnershipQueryPort",
     "get_workspace_ownership",
 ]
 
 
-class NoOwnedWorkspacesQuery(WorkspaceOwnershipQueryPort):
-    """Phase 7 placeholder: no account is the sole owner of any workspace.
+class PostgresWorkspaceOwnershipQuery(WorkspaceOwnershipQueryPort):
+    """Bridge Permission's authoritative ownership projection to Auth."""
 
-    TODO(workspaces): replace with the real Workspace ownership query when the
-    Workspace module lands (doc 16 §41, FR-AUTH-029). Deleting an account is
-    currently NEVER blocked on workspace-ownership grounds.
-    """
+    def __init__(self, session: AsyncSession) -> None:
+        self._membership_repository = PostgresWorkspaceMembershipRepository(session)
+
+    async def sole_owned_workspace(
+        self, account_id: UUID
+    ) -> SoleOwnedWorkspaceProjection:
+        return await self._membership_repository.sole_owned_workspace(account_id)
 
     async def has_sole_workspace_ownership(
         self, account_id: UUID
     ) -> tuple[bool, str | None]:
-        return False, None
+        is_sole, workspace_name, _ = await self.sole_owned_workspace(account_id)
+        return is_sole, workspace_name
 
 
-def get_workspace_ownership() -> WorkspaceOwnershipQueryPort:
-    return NoOwnedWorkspacesQuery()
+async def get_workspace_ownership(
+    session: AsyncSession = Depends(get_db_session),
+) -> PostgresWorkspaceOwnershipQuery:
+    return PostgresWorkspaceOwnershipQuery(session)

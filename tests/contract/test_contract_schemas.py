@@ -56,6 +56,32 @@ DOCUMENTED_ENVELOPE_CODES: frozenset[str] = frozenset(
 
 # Business codes surfaced by the Phase 7/8 API layer that must remain in the
 # canonical catalog (task-11 Part B regression guard).
+WORKSPACE_SCHEMA_PATHS = {
+    "CreateWorkspace": "contracts/commands/workspace/create-workspace.schema.json",
+    "ListWorkspaces": "contracts/queries/workspace/list-workspaces.schema.json",
+    "GetWorkspace": "contracts/queries/workspace/get-workspace.schema.json",
+    "RenameWorkspace": "contracts/commands/workspace/rename-workspace.schema.json",
+    "CreateProject": "contracts/commands/workspace/create-project.schema.json",
+    "ListProjects": "contracts/queries/workspace/list-projects.schema.json",
+    "GetProjectTree": "contracts/queries/workspace/get-project-tree.schema.json",
+    "ListFolderChildren": "contracts/"
+    "queries/workspace/list-folder-children.schema.json",
+    "RenameProject": "contracts/commands/workspace/rename-project.schema.json",
+    "ArchiveProject": "contracts/commands/workspace/archive-project.schema.json",
+    "UnarchiveProject": "contracts/commands/workspace/unarchive-project.schema.json",
+    "TrashProject": "contracts/commands/workspace/trash-project.schema.json",
+    "RestoreProject": "contracts/commands/workspace/restore-project.schema.json",
+    "CreateFolder": "contracts/commands/workspace/create-folder.schema.json",
+    "RenameFolder": "contracts/commands/workspace/rename-folder.schema.json",
+    "MoveFolder": "contracts/commands/workspace/move-folder.schema.json",
+    "TrashFolder": "contracts/commands/workspace/trash-folder.schema.json",
+    "RestoreFolder": "contracts/commands/workspace/restore-folder.schema.json",
+    "TransferWorkspaceOwner": "contracts/"
+    "commands/permission/transfer-workspace-owner.schema.json",
+    "HasSoleWorkspaceOwnership": "contracts/"
+    "queries/permission/has-sole-workspace-ownership.schema.json",
+}
+
 PHASE7_SURFACED_CODES: dict[str, str] = {
     "ACCOUNT_IN_RECOVERY_MODE": "Permission",
     "ACCOUNT_NOT_FOUND": "NotFound",
@@ -74,6 +100,57 @@ def _error_codes() -> dict:
 def _registry_schema_paths() -> list[tuple[str, object]]:
     """(logicalName, schemaPath) for every registered contract (doc 28 §2.1)."""
     return [(e["logicalName"], e["schemaPath"]) for e in _registry()["contracts"]]
+
+
+def test_workspace_contract_schemas_are_registered_at_canonical_paths() -> None:
+    registry = _registry()
+    entries = {
+        entry["logicalName"]: entry["schemaPath"]
+        for entry in registry["contracts"]
+        if entry.get("domain") in {"workspace", "permission"}
+    }
+    for name, path in WORKSPACE_SCHEMA_PATHS.items():
+        assert entries.get(name) == path, f"{name}: expected registered schema {path}"
+        schema = load_yaml(REPO_ROOT / path)
+        assert schema.get("$schema") == JSON_SCHEMA_2020_12
+        assert schema.get("$id", "").startswith("https://contracts.dom.internal/")
+
+
+RESOURCE_SCHEMA_PATHS = {
+    "OpenResource": "contracts/queries/resource/open-resource.schema.json",
+}
+
+
+def test_resource_contract_schemas_are_valid_2020_12() -> None:
+    for name, schema_path in RESOURCE_SCHEMA_PATHS.items():
+        path = REPO_ROOT / schema_path
+        assert path.is_file(), f"{name}: missing canonical schema {schema_path}"
+        Draft202012Validator.check_schema(load_yaml(path))
+
+
+def test_workspace_contract_schemas_are_valid_2020_12() -> None:
+    for name, schema_path in WORKSPACE_SCHEMA_PATHS.items():
+        path = REPO_ROOT / schema_path
+        assert path.is_file(), f"{name}: missing canonical schema {schema_path}"
+        Draft202012Validator.check_schema(load_yaml(path))
+
+
+def test_workspace_contract_registry_entries_keep_permission_storage_owned() -> None:
+    registry = _registry()
+    entries = {entry["logicalName"]: entry for entry in registry["contracts"]}
+    for name in WORKSPACE_SCHEMA_PATHS:
+        assert (
+            entries[name]["ownerModule"] == "packages/py/core/permission"
+            if name
+            in {
+                "TransferWorkspaceOwner",
+                "HasSoleWorkspaceOwnership",
+            }
+            else entries[name]["ownerModule"] == "packages/py/core/workspace"
+        )
+    transfer = load_yaml(REPO_ROOT / WORKSPACE_SCHEMA_PATHS["TransferWorkspaceOwner"])
+    assert "Permission-owned" in transfer["description"]
+    assert "Project Owner rows" in transfer["description"]
 
 
 def test_every_registry_schema_is_valid_2020_12() -> None:

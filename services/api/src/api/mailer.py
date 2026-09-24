@@ -26,6 +26,16 @@ class LoggingMailer(VerificationMailer, PasswordResetMailer):
 
     async def send_verification(self, email: str, secret: str) -> None:
         logger.info("dev-mail verification to=%s secret=%s", email, secret)
+        # Dev-only delivery channel for browser E2E: also append to a file the
+        # harness can read (never used in production — LoggingMailer is dev).
+        try:
+            from pathlib import Path
+
+            target = Path(__file__).resolve().parent.parent.parent / "dev-mail.log"
+            with target.open("a", encoding="utf-8") as fh:
+                fh.write(f"to={email} secret={secret}\n")
+        except OSError:
+            logger.warning("dev-mail file delivery unavailable", exc_info=True)
 
     async def send_password_reset(self, email: str, secret: str) -> None:
         logger.info("dev-mail password-reset to=%s secret=%s", email, secret)

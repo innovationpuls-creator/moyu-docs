@@ -27,7 +27,18 @@ import {
 	type SessionCachedData,
 	verifySession,
 } from "../auth/session_authenticator.js";
+import type { PresenceStore } from "../backlog/presence_store.js";
+import {
+	MemoryPresenceStore,
+	ValkeyPresenceStore,
+} from "../backlog/presence_store.js";
+import type { YjsBacklogStore } from "../backlog/yjs_backlog_store.js";
+import {
+	MemoryYjsBacklogStore,
+	ValkeyYjsBacklogStore,
+} from "../backlog/yjs_backlog_store.js";
 import { SessionInvalidator } from "../connection/session_invalidator.js";
+import { GatewayRelayHost } from "../relay/gateway_relay_host.js";
 
 /** Cookie name — mirrors api.config settings.session_cookie ("dom_session"). */
 export const SESSION_COOKIE_NAME = "dom_session";
@@ -135,6 +146,7 @@ export function startRealtimeServer({
 		});
 	});
 
+	let connectionSeq = 0;
 	wss.on("connection", (ws) => {
 		const authenticated = ws as AuthenticatedWebSocket;
 		const session = authenticated.session;
@@ -143,14 +155,124 @@ export function startRealtimeServer({
 			ws.close(4401, "session missing");
 			return;
 		}
+		// Server-wide sequence: the SAME account opens multiple tabs (sessions
+		// share session_id), so the connection id must stay unique per socket.
+		const connectionId = `${session.session_id}:${connectionSeq++}`;
+		relayHost.registerConnection(connectionId, (envelope) => {
+			if (ws.readyState === ws.OPEN) {
+				ws.send(JSON.stringify(envelope));
+			}
+		});
 		const unregister = invalidator.register(session.session_id, ws);
 		ws.on("close", () => {
 			unregister();
+			relayHost.unregisterConnection(connectionId);
 		});
 		ws.on("error", () => {
 			// Socket-level errors close the socket; the 'close' handler above
 			// unregisters. No business action to take.
 		});
+		ws.on("message", (data) => {
+			let message: {
+				type?: string;
+				resourceId?: string;
+				payload?: unknown;
+			};
+			try {
+				message = JSON.parse(data.toString()) as {
+					type?: string;
+					resourceId?: string;
+					payload?: unknown;
+				};
+			} catch {
+				ws.close(4400, "malformed message");
+				return;
+			}
+			if (message.type === "unsubscribe" && message.resourceId) {
+				relayHost.manager.unsubscribe(connectionId, message.resourceId);
+				return;
+			}
+			if (
+				message.type === "op" &&
+				message.resourceId &&
+				relayHost.manager.isSubscribed(connectionId, message.resourceId)
+			) {
+				// Peer op relay (arch 05 §171): client-originated Yjs updates go
+				// to the OTHER subscribers of the same resource; the origin
+				// excludes itself (it already applied the local update).
+				if (
+					typeof message.payload === "object" &&
+					message.payload !== null &&
+					(message.payload as { kind?: string }).kind === "sync" &&
+					typeof (message.payload as { stateVector?: string }).stateVector ===
+						"string"
+				) {
+					void relayHost.manager
+						.incrementalSync(
+							connectionId,
+							message.resourceId,
+							(message.payload as { stateVector: string }).stateVector,
+						)
+						.catch((err: unknown) => {
+							console.error("[dom/realtime] sync failed", err);
+						});
+				}
+				if (
+					typeof message.payload === "object" &&
+					message.payload !== null &&
+					(message.payload as { kind?: string }).kind === "yjs" &&
+					typeof (message.payload as { update?: string }).update === "string"
+				) {
+					relayHost.manager.recordYjsUpdate(
+						message.resourceId,
+						(message.payload as { update: string }).update,
+					);
+				}
+				void relayHost.manager.dispatch(
+					message.resourceId,
+					{
+						kind: "op",
+						payload: message.payload,
+					},
+					connectionId,
+				);
+				return;
+			}
+			if (message.type === "subscribe" && message.resourceId) {
+				console.error("[dom/realtime] subscribe requested", message.resourceId);
+				void relayHost.manager
+					.subscribe(connectionId, session.session_id, message.resourceId)
+					.then((result) => {
+						if (result === "denied" && ws.readyState === ws.OPEN) {
+							ws.send(
+								JSON.stringify({
+									resourceId: message.resourceId,
+									kind: "subscribe",
+									payload: { status: "denied" },
+								}),
+							);
+						}
+					});
+				return;
+			}
+		});
+	});
+
+	// Yjs backlog (arch 05 §initial sync): Valkey-backed when configured so
+	// catch-up survives gateway restarts; in-memory otherwise.
+	const backlogStore: YjsBacklogStore = process.env.REDIS_BACKLOG_URL
+		? new ValkeyYjsBacklogStore(valkey)
+		: new MemoryYjsBacklogStore();
+	const presenceStore: PresenceStore = process.env.REDIS_BACKLOG_URL
+		? new ValkeyPresenceStore(valkey)
+		: new MemoryPresenceStore();
+	// Realtime op relay: NATS broadcasts -> subscribed connections.
+	const relayHost = new GatewayRelayHost({
+		apiBaseUrl: process.env.REALTIME_API_BASE_URL ?? "http://127.0.0.1:8000",
+		natsUrl: process.env.NATS_URL ?? "nats://localhost:4222",
+	});
+	relayHost.startRelay().catch((error: unknown) => {
+		console.error("[dom/realtime] relay start failed:", error);
 	});
 
 	const close = async (): Promise<void> => {

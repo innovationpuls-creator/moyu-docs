@@ -8,6 +8,8 @@ dependencies = []
 
 [dependency-groups]
 dev = [
+    "opentelemetry-api>=1.25.0",
+    "cryptography>=42.0.0",
     # 生成物（Task 3 产出）：契约的 Python 投影，测试与 lint 依赖其强类型（doc 27 §17/§53）。
     "app-contracts",
     "app-core",
@@ -101,6 +103,11 @@ markers = [
 
 [tool.mypy]
 python_version = "3.12"
+mypy_path = [
+    "packages/py/task-runtime/src",
+    "packages/py/core/src",
+    "packages/py/infrastructure/src",
+]
 # 当前阶段仅 scripts/tests 存在；packages、services 在后续 Task 创建后由其自身 pyproject 纳入。
 # 注：早期将不存在的目录列入 files 会触发 mypy 模块映射异常（duplicate __main__），
 # 故此处仅覆盖当前已存在的源码目录。
@@ -108,6 +115,10 @@ files = [
     "scripts",
     "tests",
     "services/api/src",
+    "packages/py/core/src",
+    "packages/py/infrastructure/src",
+    "packages/py/task-runtime/src",
+    "workers",
 ]
 # 生成物（Task 3 产出）为机器生成代码，禁止手改，mypy 跳过
 exclude = [

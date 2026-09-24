@@ -1,0 +1,34 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/resource/append-journal-op.schema.json",
+	"title": "AppendJournalOp",
+	"description": "FR-RC-002. Append one content op to a Resource's journal (authorized by ownership). The op is sha256 of the transported update; client provides expectedSeq to make concurrency explicit.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+		"expectedSeq": { "type": "integer", "minimum": 1 },
+		"update": {
+			"type": "string",
+			"contentEncoding": "base64",
+			"minLength": 1
+		},
+		"idempotencyKey": {
+			"$ref": "../../ids/ids.schema.json#/$defs/IdempotencyKey"
+		}
+	},
+	"required": ["resourceId", "update", "idempotencyKey"],
+	"$defs": {
+		"AppendJournalOpResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+				"journalSeq": { "type": "integer" },
+				"updateSha256": { "type": "string" }
+			},
+			"required": ["resourceId", "journalSeq", "updateSha256"],
+			"title": "AppendJournalOpResponse"
+		}
+	}
+}

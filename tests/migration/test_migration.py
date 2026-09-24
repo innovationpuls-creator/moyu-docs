@@ -1,6 +1,7 @@
 import io
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 import pytest
 from alembic import command
@@ -8,9 +9,32 @@ from alembic.config import Config
 from sqlalchemy import create_engine, inspect
 
 
+def _migration_test_database_url(value: str | None) -> str:
+    if value is None:
+        raise ValueError(
+            "DATABASE_URL must explicitly target dom_workspace_lifecycle_test"
+        )
+    parsed = urlparse(value.replace("postgresql+psycopg://", "postgresql://", 1))
+    if parsed.path.lstrip("/") != "dom_workspace_lifecycle_test":
+        raise ValueError(
+            "DATABASE_URL must target the isolated test database "
+            "dom_workspace_lifecycle_test"
+        )
+    return value
+
+
+@pytest.mark.parametrize(
+    "value",
+    [None, "postgresql+psycopg://torch@localhost:5432/dom_dev"],
+)
+def test_migration_guard_rejects_non_isolated_databases(value: str | None) -> None:
+    with pytest.raises(ValueError, match="dom_workspace_lifecycle_test"):
+        _migration_test_database_url(value)
+
+
 @pytest.fixture
 def postgres_dsn() -> str:
-    return os.getenv("DATABASE_URL", "postgresql+psycopg:///dom_dev")
+    return _migration_test_database_url(os.environ.get("DATABASE_URL"))
 
 
 def _alembic_config(postgres_dsn: str) -> Config:

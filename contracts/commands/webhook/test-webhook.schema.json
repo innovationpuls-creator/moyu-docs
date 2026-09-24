@@ -1,0 +1,13 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/webhook/test-webhook.schema.json",
+	"title": "TestWebhookResponse",
+	"description": "FR-WEB-004. Deliver a webhook.test event to the endpoint and report the result (no body).",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"delivered": { "type": "boolean" },
+		"statusCode": { "type": "integer" }
+	},
+	"required": ["delivered", "statusCode"]
+}

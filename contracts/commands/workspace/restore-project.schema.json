@@ -1,0 +1,34 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/workspace/restore-project.schema.json",
+	"title": "RestoreProject",
+	"description": "FR-WRL-008. Restore Project ancestor lifecycle and all descendant metadata state atomically; preserve stable IDs, use current Permission, and never purge content.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+		"idempotencyKey": {
+			"$ref": "../../ids/ids.schema.json#/$defs/IdempotencyKey"
+		}
+	},
+	"required": ["projectId", "idempotencyKey"],
+	"$defs": {
+		"RestoreProjectResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+				"lifecycle": { "const": "Active" },
+				"restoredDescendantCount": { "type": "integer", "minimum": 0 },
+				"restoredAt": { "type": "string", "format": "date-time" }
+			},
+			"required": [
+				"projectId",
+				"lifecycle",
+				"restoredDescendantCount",
+				"restoredAt"
+			],
+			"title": "RestoreProjectResponse"
+		}
+	}
+}

@@ -1,0 +1,14 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/webhook/remove-webhook.schema.json",
+	"title": "RemoveWebhookResponse",
+	"description": "FR-WEB-003. Remove a workspace webhook subscription (no body).",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"removed": {
+			"type": "boolean"
+		}
+	},
+	"required": ["removed"]
+}

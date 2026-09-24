@@ -39,10 +39,11 @@ typecheck:
 test:
     uv run pytest
 
-# 运行 Phase 2 的真实 PostgreSQL 迁移与集成测试
-# 可通过 DATABASE_URL 覆盖本地测试数据库连接。
+# 运行真实 PostgreSQL 迁移与集成测试；只允许专用隔离测试库。
 test-db:
-    uv run pytest tests/migration tests/integration
+    test -n "$DATABASE_URL" || (echo "DATABASE_URL must target dom_workspace_lifecycle_test" >&2; exit 1)
+    uv run python -c 'from urllib.parse import urlparse; import os; url=os.environ["DATABASE_URL"].replace("postgresql+psycopg://", "postgresql://", 1); assert urlparse(url).path.lstrip("/") == "dom_workspace_lifecycle_test", "DATABASE_URL must target dom_workspace_lifecycle_test"'
+    PYTHONPATH=.:packages/py/task-runtime/src:packages/py/core/src uv run pytest tests/migration tests/integration
 
 # 运行 Realtime WebSocket 测试与类型检查 (@dom/realtime; vitest, 真实 Valkey db 15)
 test-realtime:
@@ -71,3 +72,28 @@ contract-baseline:
 # 校验冻结的仓库布局（docs/architecture/27 §3、§72）
 layout-check:
     uv run python scripts/check_repository_layout.py
+
+# 完整 Release Gate（arch 24）：lint + typecheck + 契约 + 受保护 DB 回归 +
+# 安全/迁移闸 + 浏览器套件。DATABASE_URL 必须指向隔离测试库。
+ts-packages:
+    pnpm --filter @dom/yjs-runtime test
+    pnpm --filter @dom/yjs-runtime typecheck
+    pnpm --filter @dom/editor-core test
+    pnpm --filter @dom/editor-core typecheck
+
+dr-check:
+    DATABASE_URL=postgresql+psycopg://torch@localhost:5432/dom_workspace_lifecycle_test uv run python scripts/dr_schema_check.py
+
+dr-sizing:
+    DATABASE_URL=postgresql+psycopg://torch@localhost:5432/dom_workspace_lifecycle_test uv run python scripts/dr_sizing.py
+
+dr-load:
+    DATABASE_URL=postgresql+psycopg://torch@localhost:5432/dom_workspace_lifecycle_test uv run python scripts/dr_load_probe.py
+
+check-full: lint layout-check typecheck ts-packages dr-check contract-compat contract-drift
+    test -n "$DATABASE_URL" || (echo "DATABASE_URL must target dom_workspace_lifecycle_test" >&2; exit 1)
+    uv run python -c 'from urllib.parse import urlparse; import os; url=os.environ["DATABASE_URL"].replace("postgresql+psycopg://", "postgresql://", 1); assert urlparse(url).path.lstrip("/") == "dom_workspace_lifecycle_test", "DATABASE_URL must target dom_workspace_lifecycle_test"'
+    PYTHONPATH=.:packages/py/task-runtime/src:packages/py/core/src uv run pytest --import-mode=importlib packages/py/core/tests packages/py/task-runtime/tests packages/py/infrastructure/tests/postgres packages/py/infrastructure/tests/nats tests/integration/task tests/security/task tests/bdd/async-task-execution tests/security/lifecycle-purge tests/bdd/lifecycle-purge tests/security/resource-content tests/bdd/resource-content tests/bdd/history tests/security/migrations workers/maintenance services/api/tests
+    uv run pytest tests/contract --ignore=tests/contract/test_contract_ci.py
+    uv run python scripts/generate_contracts.py --check
+    git diff --check
