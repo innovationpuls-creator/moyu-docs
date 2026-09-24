@@ -743,8 +743,36 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 	richToggle.dataset.testid = "editor-rich-toggle";
 	richToggle.type = "button";
 	richToggle.textContent = "富文本";
-	richToolbar.append(exportMd);
-	app.prepend(mdStatus);
+	const importMd = document.createElement("button");
+	importMd.dataset.testid = "editor-md-import";
+	importMd.type = "button";
+	importMd.textContent = "导入 Markdown";
+	importMd.addEventListener("click", () => {
+		void (async () => {
+			try {
+				const text = await navigator.clipboard.readText();
+				const { markdownToNodes } = await import("@dom/editor-core/md");
+				const nodes = markdownToNodes(text);
+				const { toText } = await import("@dom/editor-core");
+				const merged = toText(nodes);
+				draft.value = merged;
+				writeDraftListener();
+				void liveDocumentP?.then((doc) => {
+					void import("@dom/yjs-runtime").then((m) => m.setText(doc, merged));
+					publishYjsImpl?.();
+				});
+				importStatus.textContent = `已导入 ${nodes.length} 块`;
+			} catch (error) {
+				importStatus.textContent =
+					error instanceof Error ? error.message : String(error);
+			}
+		})();
+	});
+	const importStatus = document.createElement("p");
+	importStatus.dataset.testid = "editor-md-import-status";
+	importStatus.textContent = "";
+	richToolbar.append(exportMd, importMd);
+	app.prepend(mdStatus, importStatus);
 	const syncRich = (): void => {
 		if (richWrap.hidden) return;
 		if (pmView) {
