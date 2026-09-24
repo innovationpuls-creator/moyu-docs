@@ -17,6 +17,7 @@ from app_core.resource.purge import PurgeResource
 from app_core.webhook.application import DeliverWebhook
 from app_core.workspace.application.purge import PurgeWorkspace
 from app_infra.postgres.audit.audit_repository import PostgresAuditRepository
+from app_infra.postgres.ops_alerts import PostgresOpsAlerts
 from app_infra.postgres.permission_workspace_repository import (
     PostgresWorkspaceMembershipRepository,
 )
@@ -139,7 +140,9 @@ async def sweep(session: AsyncSession) -> int:
         purge = await PostgresResourcePurgeEnqueuer(session, create).enqueue()
     async with session.begin():
         retained = await PostgresWebhookRetention(session).run()
-    return checkpoint + purge + retained
+    async with session.begin():
+        alerts = await PostgresOpsAlerts(session).evaluate()
+    return checkpoint + purge + retained + len(alerts)
 
 
 async def run_daemon(

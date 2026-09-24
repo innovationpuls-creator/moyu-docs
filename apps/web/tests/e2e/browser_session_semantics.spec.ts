@@ -595,6 +595,14 @@ test("Editor saves a draft op and surfaces the authoritative seq", async ({
 			timeout: 15000,
 		},
 	);
+	// Rich-editor (arch 02/PM view): the toggle mounts the ProseMirror view
+	// inside the host (browser-level proof; the commit-back path is
+	// unit-proven at the y-prosemirror binding layer).
+	await page.getByTestId("editor-rich-toggle").click();
+	const richBody = page.getByTestId("editor-rich-body");
+	await expect(richBody.locator(".ProseMirror")).toBeVisible({
+		timeout: 5000,
+	});
 	await peerPage.close();
 	// AI changesets (arch 21): propose -> dev provider returns a canned
 	// changeset -> status line renders; apply -> status flips to Applied.

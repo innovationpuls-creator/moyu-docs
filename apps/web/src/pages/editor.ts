@@ -14,6 +14,8 @@
  */
 
 import { connectRealtime } from "@dom/realtime-client";
+import type { Awareness } from "y-protocols/awareness";
+import { encodeAwarenessUpdate } from "y-protocols/awareness";
 
 import { navigate } from "../main";
 
@@ -64,12 +66,35 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 		| import("@dom/realtime-client").ResourceChannelClient
 		| undefined;
 	const firstResourceId = resourceId ?? "";
+	let presenceText = "";
+	let remoteCursor: number | undefined;
+	// bounded per-peer cursor feed (identity = the presence peerId)
+	const peerCursors = new Map<string, { text: string; cursor: number }>();
+	const encodeAwarenessUpdateAndPublish = (
+		aware: Awareness,
+		channel: import("@dom/realtime-client").ResourceChannelClient,
+		resourceId: string,
+	): void => {
+		const bytes = encodeAwarenessUpdate(aware, [...aware.getStates().keys()]);
+		channel.publishAwareness(resourceId, btoa(String.fromCharCode(...bytes)));
+	};
 	const publishPresence = (typing: boolean): void => {
 		let cursor: number | undefined;
 		const box = document.querySelector<HTMLTextAreaElement>(
 			"[data-testid=editor-draft-textarea]",
 		);
 		if (box && typing) cursor = box.selectionStart;
+		// mirror the local cursor into the yjs awareness used by yCursorPlugin
+		if (cursor !== undefined) {
+			void liveDocumentP?.then((doc) => {
+				const aware = (doc.doc as unknown as { awareness?: Awareness })
+					.awareness;
+				aware?.setLocalStateField("cursor", {
+					anchor: cursor,
+					head: cursor,
+				});
+			});
+		}
 		if (typing) {
 			presence.textContent =
 				cursor === undefined ? "正在编辑…" : `正在编辑…（光标 @${cursor}）`;
@@ -78,6 +103,7 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 			channelLive.publishOp(firstResourceId, {
 				kind: "presence",
 				typing,
+				peerId: channelLive.getClientId(),
 				...(cursor !== undefined ? { cursor } : {}),
 			});
 		}
@@ -165,7 +191,23 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 		// updates merge into the local doc + textarea. The input listener binds
 		// to the textarea at its creation site further down (the DOM does not
 		// exist yet at this point).
-		liveDocumentP = import("@dom/yjs-runtime").then((m) => m.createDocument());
+		liveDocumentP = import("@dom/yjs-runtime").then(async (m) => {
+			const handle = m.createDocument();
+			// awareness bridge: yCursorPlugin needs doc.awareness; local
+			// awareness updates ride the op relay; incoming apply in-place
+			const { Awareness } = await import("y-protocols/awareness");
+			const aware = new Awareness(handle.doc);
+			(handle.doc as unknown as { awareness: typeof aware }).awareness = aware;
+			aware.on("update", (_update: Uint8Array, origin: unknown) => {
+				if (origin === "awareness-relay") return;
+				if (awarenessTimer) clearTimeout(awarenessTimer);
+				awarenessTimer = setTimeout(
+					() => encodeAwarenessUpdateAndPublish(aware, channel, resourceId),
+					200,
+				);
+			});
+			return handle;
+		});
 		publishYjsImpl = (): void => {
 			void liveDocumentP?.then((doc) => {
 				for (const update of doc.flushUpdates()) {
@@ -177,6 +219,9 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 			});
 		};
 		let peerYjsTimer: ReturnType<typeof setTimeout> | undefined;
+		let awarenessTimer: ReturnType<typeof setTimeout> | undefined;
+		// awareness bridge (arch 05): local awareness updates ride the op
+		// relay; incoming awareness updates apply into the live doc.
 		channel.onAny((message) => {
 			console.error("[dom-editor] any", JSON.stringify(message));
 			if (
@@ -248,11 +293,41 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 			) {
 				const typing = (message.payload as { typing?: boolean }).typing;
 				const cursor = (message.payload as { cursor?: number }).cursor;
+				remoteCursor = cursor;
+				presenceText = draft.value;
+				const peerId = (message.payload as { peerId?: string }).peerId;
+				if (peerId && cursor !== undefined) {
+					peerCursors.set(peerId, { text: draft.value, cursor });
+					if (peerCursors.size > 4) {
+						const first = peerCursors.keys().next().value;
+						if (first) peerCursors.delete(first);
+					}
+				}
 				presence.textContent = typing
 					? cursor === undefined
 						? "正在编辑…"
 						: `对方正在编辑…（光标 @${cursor}）`
 					: "";
+				return;
+			}
+			if (
+				message.type === "op" &&
+				typeof message.payload === "object" &&
+				message.payload !== null &&
+				(message.payload as { kind?: string }).kind === "awareness"
+			) {
+				void liveDocumentP?.then(async (doc) => {
+					const { applyAwarenessUpdate } = await import(
+						"y-protocols/awareness"
+					);
+					const bytes = Uint8Array.from(
+						atob((message.payload as { update?: string }).update ?? ""),
+						(c) => c.charCodeAt(0),
+					);
+					const aware = (doc.doc as unknown as { awareness?: Awareness })
+						.awareness;
+					if (aware) applyAwarenessUpdate(aware, bytes, "awareness-relay");
+				});
 				return;
 			}
 			if (
@@ -572,6 +647,178 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 			}, 400);
 		});
 	}
+	// Rich-editor baseline (arch 02): a contenteditable surface layered OVER the
+	// same text pipeline — edits commit back into the textarea (which remains
+	// the source of truth for yjs/presence/save), so the CRDT path is
+	// untouched. Formatting uses execCommand (bold/italic/code) with no new
+	// runtime deps; the ProseMirror lib upgrade is the documented next step.
+	const richWrap = document.createElement("div");
+	richWrap.dataset.testid = "editor-rich";
+	richWrap.hidden = true;
+	const richToolbar = document.createElement("div");
+	const richBold = document.createElement("button");
+	richBold.textContent = "B";
+	richBold.type = "button";
+	richBold.addEventListener("click", () => {
+		if (!pmView) return;
+		void Promise.all([
+			import("prosemirror-commands"),
+			import("@dom/editor-core/pm-schema"),
+		]).then(([commands, m]) => {
+			commands.toggleMark(m.schema.marks.strong)(
+				pmView!.state,
+				pmView!.dispatch,
+			);
+			commitRich();
+			pmView?.focus();
+		});
+	});
+	const richItalic = document.createElement("button");
+	richItalic.textContent = "I";
+	richItalic.type = "button";
+	richItalic.addEventListener("click", () => {
+		if (!pmView) return;
+		void Promise.all([
+			import("prosemirror-commands"),
+			import("@dom/editor-core/pm-schema"),
+		]).then(([commands, m]) => {
+			commands.toggleMark(m.schema.marks.em)(pmView!.state, pmView!.dispatch);
+			commitRich();
+			pmView?.focus();
+		});
+	});
+	richToolbar.append(richBold, richItalic);
+	const richPmHost = document.createElement("div");
+	richPmHost.dataset.testid = "editor-rich-body";
+	let pmView: import("prosemirror-view").EditorView | undefined;
+	const commitRich = (): void => {
+		if (!pmView) return;
+		const text = pmView.state.doc.textContent;
+		if (draft.value !== text) {
+			draft.value = text;
+			writeDraftListener();
+		}
+	};
+	richPmHost.addEventListener("input", () => void commitRich());
+	richWrap.append(richToolbar, richPmHost);
+	const mdStatus = document.createElement("p");
+	mdStatus.dataset.testid = "editor-md-status";
+	mdStatus.textContent = "";
+	const exportMd = document.createElement("button");
+	exportMd.dataset.testid = "editor-md-export";
+	exportMd.type = "button";
+	exportMd.textContent = "导出 Markdown";
+	exportMd.addEventListener("click", () => {
+		void (async () => {
+			try {
+				let nodes: Array<{ kind: string }> | undefined;
+				if (resourceId !== null) {
+					const { DomClient } = await import("@dom/client-sdk");
+					const opened = await new DomClient().openResource(resourceId);
+					const snapshot = (
+						opened as unknown as {
+							snapshot?: { nodes?: Array<{ kind: string }> };
+						}
+					).snapshot;
+					nodes = snapshot?.nodes;
+				}
+				const { nodesToMarkdown } = await import("@dom/editor-core/md");
+				const md = nodes
+					? nodesToMarkdown(nodes as never)
+					: nodesToMarkdown(
+							draft.value.split("\n").map((line) => ({
+								kind: "paragraph",
+								children: [{ kind: "text", text: line }],
+							})) as never,
+						);
+				await navigator.clipboard.writeText(md);
+				mdStatus.textContent = `已复制 ${md.length} 字符`;
+			} catch (error) {
+				mdStatus.textContent =
+					error instanceof Error ? error.message : String(error);
+			}
+		})();
+	});
+	const richToggle = document.createElement("button");
+	richToggle.dataset.testid = "editor-rich-toggle";
+	richToggle.type = "button";
+	richToggle.textContent = "富文本";
+	richToolbar.append(exportMd);
+	app.prepend(mdStatus);
+	const syncRich = (): void => {
+		if (richWrap.hidden) return;
+		if (pmView) {
+			const plain = pmView.state.doc.textContent;
+			if (plain !== draft.value) {
+				draft.value = plain;
+				writeDraftListener();
+			}
+			return;
+		}
+	};
+	richToggle.addEventListener("click", () => {
+		richWrap.hidden = !richWrap.hidden;
+		if (!richWrap.hidden) {
+			void (async () => {
+				const [{ EditorState }, { EditorView }, { schema }] = await Promise.all(
+					[
+						import("prosemirror-state"),
+						import("prosemirror-view"),
+						import("@dom/editor-core/pm-schema"),
+					],
+				);
+				// bind the rich view to the LIVE yjs doc: the ySyncPlugin keeps
+				// the fragment <-> pm state in sync, so rich edits ride the
+				// existing yjs publish pipeline (peers + save).
+				const sync = await import("@dom/editor-core/pm-yjs");
+				let fragment: import("yjs").XmlFragment | undefined;
+				if (liveDocumentP) {
+					const handle = await liveDocumentP;
+					fragment = sync.yFragmentFor(handle.doc);
+					sync.nodesToYFragment([{ kind: "paragraph" }] as never[], fragment);
+				}
+				const cursorPlugins = await import("@dom/editor-core/pm-cursor");
+				let cursorPlugin: object;
+				if (liveDocumentP) {
+					const handle = await liveDocumentP;
+					const yProse = await import("y-prosemirror");
+					const aware = (handle.doc as unknown as { awareness?: object })
+						.awareness;
+					cursorPlugin = aware
+						? (() => {
+								const aware = handle.doc as unknown as {
+									awareness: import("y-protocols/awareness").Awareness;
+								};
+								return yProse.yCursorPlugin(aware.awareness);
+							})()
+						: cursorPlugins.remoteCursorsPlugin(() =>
+								[...peerCursors.values()].map((p) => () => p),
+							);
+				} else {
+					cursorPlugin = cursorPlugins.remoteCursorsPlugin(() =>
+						[...peerCursors.values()].map((p) => () => p),
+					);
+				}
+				const plugins: Array<object> = [
+					...(fragment ? [sync.ySyncPluginFor(fragment)] : []),
+					cursorPlugin,
+				];
+				richPmHost.replaceChildren();
+				pmView?.destroy();
+				pmView = new EditorView(richPmHost, {
+					state: EditorState.create({ schema, plugins: plugins as never[] }),
+					dispatchTransaction: (tr) => {
+						pmView?.updateState(pmView.state.apply(tr));
+						commitRich();
+					},
+				});
+				pmView.focus();
+			})();
+		} else {
+			syncRich();
+		}
+	});
+
 	const hint = document.createElement("p");
 	hint.textContent = "本地未同步草稿将保存在此浏览器中";
 
@@ -581,7 +828,7 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 	status.dataset.testid = "realtime-status";
 	status.textContent = "connecting";
 
-	app.append(heading, hint, draft, status);
+	app.append(heading, hint, draft, richToggle, richWrap, status);
 
 	// Draft-recovery banner: visible after a replacement while an unsynced
 	// draft exists; content stays readable and exportable (never discarded).

@@ -172,6 +172,9 @@ export interface SocketLike {
 }
 
 export class ResourceChannelClient {
+	/** Stable per-connection id (arch 05): presence ops carry it. */
+	private readonly clientId =
+		`c-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`;
 	private handlers = new Map<
 		string,
 		(message: ResourceChannelMessage) => void
@@ -206,6 +209,12 @@ export class ResourceChannelClient {
 		};
 	}
 
+	/** Stable per-connection id (arch 05): presence ops carry it so peers can
+	 * attribute remote cursors/typing to a source. */
+	getClientId(): string {
+		return this.clientId;
+	}
+
 	subscribe(resourceId: string): void {
 		this.send({ type: "subscribe", resourceId, payload: {} });
 	}
@@ -228,6 +237,17 @@ export class ResourceChannelClient {
 			type: "op",
 			resourceId,
 			payload: { kind: "sync", stateVector: stateVectorBase64 },
+		});
+	}
+
+	/** Awareness relay (arch 05 §cursor/awareness): binary Yjs awareness
+	 * updates ride the SAME op relay as yjs updates; the gateway forwards
+	 * them peer-wise unchanged. */
+	publishAwareness(resourceId: string, updateBase64: string): void {
+		this.send({
+			type: "op",
+			resourceId,
+			payload: { kind: "awareness", update: updateBase64 },
 		});
 	}
 
