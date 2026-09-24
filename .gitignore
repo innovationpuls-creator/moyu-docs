@@ -103,5 +103,5 @@ test-results/
 Thumbs.db
 ehthumbs.db
 
-# 原型/演示 HTML（不提交）
-demohtml/
+# 原型/演示 HTML（不提交，apps 顶层合规；27§3 顶层 allow-list 禁止根级新增目录）
+apps/web/demohtml/
