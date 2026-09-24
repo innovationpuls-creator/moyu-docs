@@ -35,5 +35,34 @@ class Settings:
     # Device cookie lifetime: stable per browser across sessions (FR-AUTH-013).
     device_cookie_max_age: int = 10 * 365 * 24 * 60 * 60
 
+    # Mailer provider (doc 16 §51): "logging" = dev log delivery (default);
+    # "smtp" = real SMTP delivery. In smtp mode SMTP_HOST/SMTP_FROM are
+    # required and validated by the wiring gate; MAIL_LINK_BASE_URL is the
+    # public origin embedded in mail links.
+    mailer_provider: str = field(
+        default_factory=lambda: os.getenv("MAILER_PROVIDER", "logging").strip().lower()
+    )
+    smtp_host: str | None = field(
+        default_factory=lambda: os.getenv("SMTP_HOST") or None
+    )
+    smtp_port: int = field(default_factory=lambda: int(os.getenv("SMTP_PORT", "587")))
+    smtp_username: str | None = field(
+        default_factory=lambda: os.getenv("SMTP_USERNAME") or None
+    )
+    smtp_password: str | None = field(
+        default_factory=lambda: os.getenv("SMTP_PASSWORD") or None
+    )
+    smtp_from: str | None = field(
+        default_factory=lambda: os.getenv("SMTP_FROM") or None
+    )
+    smtp_starttls: bool = field(
+        default_factory=lambda: (
+            os.getenv("SMTP_STARTTLS", "1") not in {"0", "false", "False"}
+        )
+    )
+    mail_link_base_url: str = field(
+        default_factory=lambda: os.getenv("MAIL_LINK_BASE_URL", "http://localhost:5173")
+    )
+
 
 settings = Settings()

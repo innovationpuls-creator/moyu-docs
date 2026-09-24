@@ -34,8 +34,8 @@ from fastapi import Depends, Request, Response
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.config import settings
-from api.mailer import LoggingMailer
+from api.config import Settings, settings
+from api.mailer import LoggingMailer, SmtpMailer
 
 SESSION_COOKIE = settings.session_cookie
 DEVICE_COOKIE = settings.device_cookie
@@ -73,9 +73,43 @@ async def get_db_session() -> AsyncIterator[AsyncSession]:
         yield session
 
 
-def get_mailer() -> LoggingMailer:
-    """Dev mailer adapter (log-delivered); tests override this dependency."""
-    return LoggingMailer()
+def build_mailer(settings: Settings = settings) -> LoggingMailer | SmtpMailer:
+    """Mailer wiring with a fail-fast configuration gate.
+
+    Default is the dev ``LoggingMailer`` (log + dev-mail.log delivery, E2E
+    stable). ``MAILER_PROVIDER=smtp`` selects real SMTP delivery; missing
+    required configuration raises at wiring time (doc 16 §51 / deployment
+    hygiene — a silently non-sending production mailer is a worse failure).
+    """
+    provider = settings.mailer_provider
+    if provider == "logging":
+        return LoggingMailer()
+    if provider == "smtp":
+        missing = [
+            name
+            for name, value in (
+                ("SMTP_HOST", settings.smtp_host),
+                ("SMTP_FROM", settings.smtp_from),
+            )
+            if not value
+        ]
+        if missing:
+            raise RuntimeError(f"MAILER_PROVIDER=smtp requires: {'/'.join(missing)}")
+        return SmtpMailer(
+            host=settings.smtp_host or "",
+            port=settings.smtp_port,
+            from_addr=settings.smtp_from or "",
+            link_base_url=settings.mail_link_base_url,
+            username=settings.smtp_username,
+            password=settings.smtp_password,
+            starttls=settings.smtp_starttls,
+        )
+    raise RuntimeError(f"unknown MAILER_PROVIDER: {provider}")
+
+
+def get_mailer() -> LoggingMailer | SmtpMailer:
+    """Mailer dependency (tests override this dependency)."""
+    return build_mailer()
 
 
 async def get_valkey(request: Request) -> Redis:
