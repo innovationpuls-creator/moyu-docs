@@ -34,20 +34,18 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function renderRegisterPage(app: HTMLElement): Promise<void> {
 	const client = new DomClient();
-	let hadSession = false;
-	try {
-		hadSession = (await client.me()) !== null;
-	} catch {
-		hadSession = false;
-	}
-	if (hadSession) {
-		navigate("/workspace");
-		return;
-	}
+	// 并行探测会话并立即挂载页面，避免路由刷新期间等待网络请求造成空白闪现。
+	const sessionCheck = client.me().catch(() => null);
 	app.replaceChildren();
 
 	const shell: AuthShell = createAuthShell();
 	const { card, notice } = shell;
+
+	void sessionCheck.then((user) => {
+		if (user !== null) {
+			navigate("/workspace");
+		}
+	});
 
 	const form = document.createElement("form");
 	form.dataset.testid = "register-form";

@@ -12,6 +12,7 @@ import { DomApiError, DomClient } from "@dom/client-sdk";
 import {
 	type AuthShell,
 	bindOffline,
+	bindPatchworkParallax,
 	cardHeader,
 	createAuthShell,
 	feedbackBar,
@@ -20,8 +21,10 @@ import {
 	formGroup,
 	gentleShake,
 	passwordToggle,
+	playAuthExit,
 	primaryButton,
 	setLoading,
+	setSuccessButton,
 	startCountdown,
 	textInput,
 } from "../components/auth";
@@ -32,22 +35,20 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function renderLoginPage(app: HTMLElement): Promise<void> {
 	const client = new DomClient();
-	// 已有有效会话（刷新/重启恢复）直接进入工作台；会话探测失败（如 API
-	// 未就绪/网络抖动）按"无会话"渲染表单，错误由提交动作如实呈现。
-	let hadSession = false;
-	try {
-		hadSession = (await client.me()) !== null;
-	} catch {
-		hadSession = false;
-	}
-	if (hadSession) {
-		navigate("/workspace");
-		return;
-	}
+	// 并行探测会话：有会话直接导向工作台（FR-AUTH-021）；
+	// 界面在未决期间即刻挂载落位，避免网络 RTT 造成白屏停顿或动画延迟（spec §4）。
+	const sessionCheck = client.me().catch(() => null);
+
 	app.replaceChildren();
 
 	const shell: AuthShell = createAuthShell();
 	const { card, notice } = shell;
+
+	void sessionCheck.then((user) => {
+		if (user !== null) {
+			navigate("/workspace");
+		}
+	});
 
 	const form = document.createElement("form");
 	form.dataset.testid = "login-form";
@@ -106,6 +107,7 @@ export async function renderLoginPage(app: HTMLElement): Promise<void> {
 	);
 	card.append(form);
 	app.append(shell.root);
+	const unbindParallax = bindPatchworkParallax(shell.root);
 
 	let busy = false;
 	let offline = false;
@@ -196,6 +198,8 @@ export async function renderLoginPage(app: HTMLElement): Promise<void> {
 					email: email.value.trim(),
 					password: password.value,
 				});
+				setSuccessButton(submit, "登入成功，正在进入…");
+				await playAuthExit(shell.root);
 				navigate("/workspace");
 			} catch (cause) {
 				busy = false;
@@ -232,6 +236,7 @@ export async function renderLoginPage(app: HTMLElement): Promise<void> {
 	});
 	window.addEventListener("beforeunload", () => {
 		unbind();
+		unbindParallax();
 		cooldownStop?.();
 	});
 }

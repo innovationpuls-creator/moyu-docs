@@ -9,6 +9,7 @@
 /** 自研纯 SVG 矢量图标集（spec：纯 SVG 图标，零 Emoji 策略）。 */
 export const AUTH_ICONS = {
 	eye: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`,
+	eyeOff: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>`,
 	info: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
 	clock: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
 	check: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>`,
@@ -65,11 +66,17 @@ export function createAuthShell(): AuthShell {
 	badge.append(badgeText);
 
 	const headline = el("h1", "art-headline");
-	headline.append(
-		document.createTextNode("以结构组织思考，"),
-		document.createElement("br"),
-		document.createTextNode("专注、轻盈、本地优先。"),
-	);
+	const line1Wrap = el("span", "headline-line-wrap");
+	const line1Inner = el("span", "headline-line-inner");
+	line1Inner.textContent = "以结构组织思考，";
+	line1Wrap.append(line1Inner);
+
+	const line2Wrap = el("span", "headline-line-wrap");
+	const line2Inner = el("span", "headline-line-inner");
+	line2Inner.textContent = "专注、轻盈、本地优先。";
+	line2Wrap.append(line2Inner);
+
+	headline.append(line1Wrap, line2Wrap);
 	const subline = el("p", "art-subline");
 	subline.textContent =
 		"墨屿（Moyu Docs）是一款本地优先的团队协同文档软件。像笔记一样轻盈灵敏、断网即开即写；像现代工作台一样多人无冲突实时共笔，让思考与协作从容推进。";
@@ -170,15 +177,20 @@ export function textInput(opts: {
 	return input;
 }
 
-/** 密码显隐切换按钮（input-addon-btn，44px 热区）。 */
+/** 密码显隐切换按钮（input-addon-btn，44px 热区，带轻快回弹动效与明暗文图标切换）。 */
 export function passwordToggle(input: HTMLInputElement): HTMLButtonElement {
 	const button = document.createElement("button");
 	button.type = "button";
 	button.className = "input-addon-btn";
 	button.setAttribute("aria-label", "切换密码明暗文");
-	button.append(iconSpan(AUTH_ICONS.eye));
+	const iconContainer = iconSpan(AUTH_ICONS.eye);
+	button.append(iconContainer);
 	button.addEventListener("click", () => {
-		input.type = input.type === "password" ? "text" : "password";
+		const isPassword = input.type === "password";
+		input.type = isPassword ? "text" : "password";
+		iconContainer.innerHTML = isPassword ? AUTH_ICONS.eyeOff : AUTH_ICONS.eye;
+		button.classList.add("toggled");
+		window.setTimeout(() => button.classList.remove("toggled"), 240);
 	});
 	return button;
 }
@@ -332,4 +344,148 @@ export function formatLockout(seconds: number): string {
 	const m = Math.floor(seconds / 60);
 	const s = seconds % 60;
 	return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+/**
+ * 桌面端微重力指针流体视差与舞台 2.5D 透视联动（遵循 motion-web handfeel §7.1 单阶指数衰减平滑方程与 §2 速度耦合）。
+ * 在 pointer: fine 桌面端捕获鼠标轨迹，驱动色块分层视差偏移与主舞台微透视倾斜。
+ * 离开视口平滑归位；页面注销时返回清理函数。
+ */
+export function bindPatchworkParallax(stage: HTMLElement): () => void {
+	if (
+		typeof window === "undefined" ||
+		!window.matchMedia("(pointer: fine)").matches ||
+		window.matchMedia("(prefers-reduced-motion: reduce)").matches
+	) {
+		return () => {};
+	}
+	const shape1 = stage.querySelector<HTMLElement>(".patchwork-shape-1");
+	const shape2 = stage.querySelector<HTMLElement>(".patchwork-shape-2");
+	const shape3 = stage.querySelector<HTMLElement>(".patchwork-shape-3");
+	const shape4 = stage.querySelector<HTMLElement>(".patchwork-shape-4");
+	const shapeSun = stage.querySelector<HTMLElement>(".patchwork-shape-sun");
+
+	if (!shape1 && !shape2 && !shape3 && !shape4 && !shapeSun) {
+		return () => {};
+	}
+
+	let targetX = 0;
+	let targetY = 0;
+	let currentX = 0;
+	let currentY = 0;
+	let prevX = 0;
+	let animId = 0;
+	let lastTime = performance.now();
+	let running = true;
+
+	const onMouseMove = (event: MouseEvent): void => {
+		const rect = stage.getBoundingClientRect();
+		if (rect.width <= 0 || rect.height <= 0) return;
+		const cx = rect.left + rect.width / 2;
+		const cy = rect.top + rect.height / 2;
+		targetX = Math.max(
+			-1,
+			Math.min(1, (event.clientX - cx) / (rect.width / 2)),
+		);
+		targetY = Math.max(
+			-1,
+			Math.min(1, (event.clientY - cy) / (rect.height / 2)),
+		);
+	};
+
+	const onMouseLeave = (): void => {
+		targetX = 0;
+		targetY = 0;
+	};
+
+	// Handfeel §7.1 & §7.2: dt in seconds; K=5.4 buoyant, settling crisply within 240ms
+	const K = 5.4;
+
+	const loop = (now: number): void => {
+		if (!running) return;
+		const dt = Math.min((now - lastTime) / 1000, 0.05);
+		lastTime = now;
+
+		const factor = 1 - Math.exp(-K * dt);
+		currentX += (targetX - currentX) * factor;
+		currentY += (targetY - currentY) * factor;
+		const velX = (currentX - prevX) / (dt || 0.016);
+		prevX = currentX;
+
+		// 1. 主舞台 2.5D 透视微倾斜（±1.6° ~ ±1.8°）
+		const tiltX = (-currentY * 1.6).toFixed(2);
+		const tiltY = (currentX * 1.8).toFixed(2);
+		stage.style.setProperty("--tilt-x", `${tiltX}deg`);
+		stage.style.setProperty("--tilt-y", `${tiltY}deg`);
+
+		// 2. 色块 1 (深层暖桃): 微动 (-14px, -10px)
+		shape1?.style.setProperty("--px", `${(currentX * -14).toFixed(2)}px`);
+		shape1?.style.setProperty("--py", `${(currentY * -10).toFixed(2)}px`);
+
+		// 3. 色块 2 (中层鼠尾草绿): (24px, 20px, 微旋转 1.6deg)
+		shape2?.style.setProperty("--px", `${(currentX * 24).toFixed(2)}px`);
+		shape2?.style.setProperty("--py", `${(currentY * 20).toFixed(2)}px`);
+		shape2?.style.setProperty("--prot", `${(currentX * 1.6).toFixed(2)}deg`);
+
+		// 4. 色块 3 (穿透中轴陶土珊瑚主色 · 前景核心): 层次大幅拉开 (-42px, -32px, 叠加速度耦合倾角)
+		const lean3 = Math.max(-3.5, Math.min(3.5, velX * 0.45));
+		shape3?.style.setProperty("--px", `${(currentX * -42).toFixed(2)}px`);
+		shape3?.style.setProperty("--py", `${(currentY * -32).toFixed(2)}px`);
+		shape3?.style.setProperty(
+			"--prot",
+			`${(currentX * -2.8 - lean3).toFixed(2)}deg`,
+		);
+
+		// 5. 色块 4 (薰衣草紫): (18px, -16px)
+		shape4?.style.setProperty("--px", `${(currentX * 18).toFixed(2)}px`);
+		shape4?.style.setProperty("--py", `${(currentY * -16).toFixed(2)}px`);
+
+		// 6. 色块 5 (晨曦金环): 强烈向心引力 (32px, 28px) 与距离膨胀微感
+		const dist = Math.hypot(currentX, currentY);
+		shapeSun?.style.setProperty("--px", `${(currentX * 32).toFixed(2)}px`);
+		shapeSun?.style.setProperty("--py", `${(currentY * 28).toFixed(2)}px`);
+		shapeSun?.style.setProperty("--pscale", `${(1 + dist * 0.08).toFixed(3)}`);
+
+		animId = requestAnimationFrame(loop);
+	};
+
+	window.addEventListener("mousemove", onMouseMove, { passive: true });
+	document.addEventListener("mouseleave", onMouseLeave);
+	animId = requestAnimationFrame(loop);
+
+	return () => {
+		running = false;
+		cancelAnimationFrame(animId);
+		window.removeEventListener("mousemove", onMouseMove);
+		document.removeEventListener("mouseleave", onMouseLeave);
+		stage.style.removeProperty("--tilt-x");
+		stage.style.removeProperty("--tilt-y");
+	};
+}
+
+/** 切换主按钮至成功态（绽放鼠尾草绿勾选印记）。 */
+export function setSuccessButton(
+	button: HTMLButtonElement,
+	label = "登入成功，正在进入…",
+): void {
+	button.disabled = true;
+	button.classList.add("btn-success");
+	button.replaceChildren();
+	const checkIcon = iconSpan(AUTH_ICONS.check);
+	checkIcon.className = "btn-icon-check";
+	const span = document.createElement("span");
+	span.textContent = label;
+	button.append(checkIcon, span);
+}
+
+/** 登录成功平滑退场过渡（光晕散开、舞台柔和缩退）。 */
+export async function playAuthExit(root: HTMLElement): Promise<void> {
+	if (
+		typeof window === "undefined" ||
+		window.matchMedia("(prefers-reduced-motion: reduce)").matches
+	) {
+		return;
+	}
+	root.classList.add("stage-exit");
+	await new Promise((resolve) => setTimeout(resolve, 360));
 }
