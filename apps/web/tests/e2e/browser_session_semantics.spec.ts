@@ -596,13 +596,18 @@ test("Editor saves a draft op and surfaces the authoritative seq", async ({
 			timeout: 15000,
 		},
 	);
-	// Rich-editor (arch 02/PM view): the toggle mounts the ProseMirror view
-	// inside the host (browser-level proof; the commit-back path is
-	// unit-proven at the y-prosemirror binding layer).
-	await page.getByTestId("editor-rich-toggle").click();
+	// Rich-editor (arch 02/PM view): 富文本正式化后 PM 页面即默认挂载为主视图；
+	// toggle 在富文本/源码（textarea 合同载体）间切换。浏览器级挂载证明 +
+	// 往返切换证明（commit-back 路径由 y-prosemirror 绑定层单测覆盖）。
 	const richBody = page.getByTestId("editor-rich-body");
 	await expect(richBody.locator(".ProseMirror")).toBeVisible({
-		timeout: 5000,
+		timeout: 10000,
+	});
+	await page.getByTestId("editor-rich-toggle").click();
+	await expect(richBody.locator(".ProseMirror")).toBeHidden();
+	await page.getByTestId("editor-rich-toggle").click();
+	await expect(richBody.locator(".ProseMirror")).toBeVisible({
+		timeout: 10000,
 	});
 	await peerPage.close();
 	// AI changesets (arch 21): propose -> dev provider returns a canned

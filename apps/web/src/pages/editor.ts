@@ -754,23 +754,23 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 	draft.addEventListener("input", writeDraftListener);
 	// Live body CRDT + presence only make sense with an open resource; the
 	// declarations are function-scoped and filled inside the resource branch.
-	if (resourceId !== null && liveDocumentP && publishYjsImpl) {
-		draft.addEventListener("input", () => {
-			// presence + the yjs update share the 400ms debounce so both ride
-			// the same settled relay window (peer subscription warm).
-			if (idleLiveTimer) clearTimeout(idleLiveTimer);
-			idleLiveTimer = setTimeout(() => publishPresence(false), 2000);
-			void liveDocumentP?.then((doc) => {
-				void import("@dom/yjs-runtime").then((m) =>
-					m.setText(doc, draft.value),
-				);
-			});
-			if (yjsLiveTimer) clearTimeout(yjsLiveTimer);
-			yjsLiveTimer = setTimeout(() => {
-				publishPresence(true);
-				publishYjsImpl?.();
-			}, 400);
+	// 富文本正式化：源文本（textarea）与 PM 富表面共用同一提交管道——任何一侧
+	// 的编辑都写回 draft（保存/草稿），并经 yjs text 根 setText + 防抖发布
+	// （实时 peer 与 presence），与 ADR-0050 的 fragment 绑定并行不互扰。
+	const liveCommit = (): void => {
+		if (idleLiveTimer) clearTimeout(idleLiveTimer);
+		idleLiveTimer = setTimeout(() => publishPresence(false), 2000);
+		void liveDocumentP?.then((doc) => {
+			void import("@dom/yjs-runtime").then((m) => m.setText(doc, draft.value));
 		});
+		if (yjsLiveTimer) clearTimeout(yjsLiveTimer);
+		yjsLiveTimer = setTimeout(() => {
+			publishPresence(true);
+			publishYjsImpl?.();
+		}, 400);
+	};
+	if (resourceId !== null && liveDocumentP && publishYjsImpl) {
+		draft.addEventListener("input", liveCommit);
 	}
 	// Rich-editor baseline (arch 02): a contenteditable surface layered OVER the
 	// same text pipeline — edits commit back into the textarea (which remains
@@ -779,7 +779,7 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 	// runtime deps; the ProseMirror lib upgrade is the documented next step.
 	const richWrap = document.createElement("div");
 	richWrap.dataset.testid = "editor-rich";
-	richWrap.hidden = true;
+	richWrap.hidden = false; // 富文本正式化：进入编辑器即为主视图（textarea 保留为源码/合同载体）
 	const richToolbar = document.createElement("div");
 	const richBold = document.createElement("button");
 	richBold.textContent = "B";
@@ -821,6 +821,12 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 		if (draft.value !== text) {
 			draft.value = text;
 			writeDraftListener();
+			// PM 富表面编辑同样进入源文本/实时管道（正式化后 PM 是主视图）。
+			(() => {
+				if (resourceId !== null && liveDocumentP && publishYjsImpl) {
+					liveCommit();
+				}
+			})();
 		}
 	};
 	richPmHost.addEventListener("input", () => void commitRich());
@@ -908,65 +914,79 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 			return;
 		}
 	};
-	richToggle.addEventListener("click", () => {
-		richWrap.hidden = !richWrap.hidden;
-		if (!richWrap.hidden) {
-			void (async () => {
-				const [{ EditorState }, { EditorView }, { schema }] = await Promise.all(
-					[
-						import("prosemirror-state"),
-						import("prosemirror-view"),
-						import("@dom/editor-core/pm-schema"),
-					],
-				);
-				// bind the rich view to the LIVE yjs doc: the ySyncPlugin keeps
-				// the fragment <-> pm state in sync, so rich edits ride the
-				// existing yjs publish pipeline (peers + save).
-				const sync = await import("@dom/editor-core/pm-yjs");
-				let fragment: import("yjs").XmlFragment | undefined;
-				if (liveDocumentP) {
-					const handle = await liveDocumentP;
-					fragment = sync.yFragmentFor(handle.doc);
+	const mountRich = (): void => {
+		void (async () => {
+			const [{ EditorState }, { EditorView }, { schema }] = await Promise.all([
+				import("prosemirror-state"),
+				import("prosemirror-view"),
+				import("@dom/editor-core/pm-schema"),
+			]);
+			// bind the rich view to the LIVE yjs doc: the ySyncPlugin keeps
+			// the fragment <-> pm state in sync, so rich edits ride the
+			// existing yjs publish pipeline (peers + save).
+			const sync = await import("@dom/editor-core/pm-yjs");
+			let fragment: import("yjs").XmlFragment | undefined;
+			if (liveDocumentP) {
+				const handle = await liveDocumentP;
+				fragment = sync.yFragmentFor(handle.doc);
+				// 正式化：挂载时以现有草稿种子化富表面（不重置为空段落，避免
+				// 覆盖已有内容）；空草稿才落一个初始段落。
+				const seed = draft.value.trim();
+				if (seed) {
+					const { markdownToNodes } = await import("@dom/editor-core/md");
+					const nodes = markdownToNodes(seed);
+					sync.nodesToYFragment(nodes as never, fragment);
+				} else {
 					sync.nodesToYFragment([{ kind: "paragraph" }] as never[], fragment);
 				}
-				const cursorPlugins = await import("@dom/editor-core/pm-cursor");
-				let cursorPlugin: object;
-				if (liveDocumentP) {
-					const handle = await liveDocumentP;
-					const yProse = await import("y-prosemirror");
-					const aware = (handle.doc as unknown as { awareness?: object })
-						.awareness;
-					cursorPlugin = aware
-						? (() => {
-								const aware = handle.doc as unknown as {
-									awareness: import("y-protocols/awareness").Awareness;
-								};
-								return yProse.yCursorPlugin(aware.awareness);
-							})()
-						: cursorPlugins.remoteCursorsPlugin(() =>
-								[...peerCursors.values()].map((p) => () => p),
-							);
-				} else {
-					cursorPlugin = cursorPlugins.remoteCursorsPlugin(() =>
-						[...peerCursors.values()].map((p) => () => p),
-					);
-				}
-				const plugins: Array<object> = [
-					...(fragment ? [sync.ySyncPluginFor(fragment)] : []),
-					cursorPlugin,
-				];
-				richPmHost.replaceChildren();
-				pmView?.destroy();
-				pmView = new EditorView(richPmHost, {
-					state: EditorState.create({ schema, plugins: plugins as never[] }),
-					dispatchTransaction: (tr) => {
-						pmView?.updateState(pmView.state.apply(tr));
-						commitRich();
-					},
-				});
-				pmView.focus();
-			})();
+			}
+			const cursorPlugins = await import("@dom/editor-core/pm-cursor");
+			let cursorPlugin: object;
+			if (liveDocumentP) {
+				const handle = await liveDocumentP;
+				const yProse = await import("y-prosemirror");
+				const aware = (handle.doc as unknown as { awareness?: object })
+					.awareness;
+				cursorPlugin = aware
+					? (() => {
+							const aware = handle.doc as unknown as {
+								awareness: import("y-protocols/awareness").Awareness;
+							};
+							return yProse.yCursorPlugin(aware.awareness);
+						})()
+					: cursorPlugins.remoteCursorsPlugin(() =>
+							[...peerCursors.values()].map((p) => () => p),
+						);
+			} else {
+				cursorPlugin = cursorPlugins.remoteCursorsPlugin(() =>
+					[...peerCursors.values()].map((p) => () => p),
+				);
+			}
+			const plugins: Array<object> = [
+				...(fragment ? [sync.ySyncPluginFor(fragment)] : []),
+				cursorPlugin,
+			];
+			richPmHost.replaceChildren();
+			pmView?.destroy();
+			pmView = new EditorView(richPmHost, {
+				state: EditorState.create({ schema, plugins: plugins as never[] }),
+				dispatchTransaction: (tr) => {
+					pmView?.updateState(pmView.state.apply(tr));
+					commitRich();
+				},
+			});
+			pmView.focus();
+		})();
+	};
+	// 进入编辑器即挂载富文本主视图（正式化）；toggle 在富文本/源码间切换。
+	void mountRich();
+	richToggle.addEventListener("click", () => {
+		if (richWrap.hidden) {
+			richWrap.hidden = false;
+			if (!pmView) mountRich();
+			else pmView.focus();
 		} else {
+			richWrap.hidden = true;
 			syncRich();
 		}
 	});
@@ -982,7 +1002,7 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 	status.className = "editor-status-line";
 	status.textContent = "connecting";
 
-	paper.append(hint, draft, richToggle, richWrap, status);
+	paper.append(hint, richToggle, richWrap, draft, status);
 	app.append(shell);
 
 	// Draft-recovery banner: visible after a replacement while an unsynced
