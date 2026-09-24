@@ -15,7 +15,7 @@
  * resource-row / editor-link / logout-button / search-* / notifications-*。
  */
 
-import { DomClient } from "@dom/client-sdk";
+import { DomApiError, DomClient } from "@dom/client-sdk";
 
 import {
 	createPatchwork,
@@ -224,8 +224,7 @@ export async function renderWorkspacePage(app: HTMLElement): Promise<void> {
 	main.dataset.testid = "console-main";
 
 	const welcome = document.createElement("div");
-	welcome.className = "sidebar-section-title";
-	welcome.style.marginBottom = "4px";
+	welcome.className = "console-welcome";
 	const emailLine = document.createElement("p");
 	emailLine.style.fontSize = "13px";
 	emailLine.style.color = "var(--ink-muted)";
@@ -237,6 +236,91 @@ export async function renderWorkspacePage(app: HTMLElement): Promise<void> {
 	emailLine.append(emailPrefix, emailValue);
 	welcome.append(emailLine);
 	main.append(welcome);
+
+	// 邮箱验证引导（PendingVerification 才出现）：注册后即登录进入工作台，
+	// 但未验证账户创建不了工作区——前端必须给出显式引导与重发入口，
+	// 而不是让用户撞 403 后无路可走（FR-AUTH 验证链的产品面）。
+	const pendingVerification = account.accountStatus === "PendingVerification";
+	let resendTimer: ReturnType<typeof setInterval> | undefined;
+	if (pendingVerification) {
+		const banner = document.createElement("div");
+		banner.className = "verify-banner";
+		banner.dataset.testid = "console-verify-banner";
+		const iconWrap = document.createElement("div");
+		iconWrap.className = "verify-icon";
+		iconWrap.append(svgIcon("bell", 18));
+		const copy = document.createElement("div");
+		copy.className = "verify-copy";
+		const title = document.createElement("div");
+		title.className = "verify-title";
+		title.textContent = "还差一步：去邮箱完成验证";
+		const desc = document.createElement("div");
+		desc.className = "verify-desc";
+		desc.textContent =
+			"验证后即可创建工作区并邀请协作者；未验证期间只能浏览已有内容。";
+		copy.append(title, desc);
+		const actions = document.createElement("div");
+		actions.className = "verify-actions";
+		const resend = document.createElement("button");
+		resend.type = "button";
+		resend.className = "verify-resend";
+		resend.dataset.testid = "console-resend-verification";
+		resend.textContent = "重新发送验证邮件";
+		const status = document.createElement("div");
+		status.className = "verify-status";
+		status.dataset.testid = "console-verify-status";
+		const startCooldown = (deadline: number, prefix: string): void => {
+			const tick = (): void => {
+				const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+				if (left <= 0) {
+					if (resendTimer) clearInterval(resendTimer);
+					resend.disabled = false;
+					status.textContent = "现在可以重新发送了。";
+					return;
+				}
+				status.textContent = `${prefix}${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")} 后可重发。`;
+			};
+			tick();
+			if (resendTimer) clearInterval(resendTimer);
+			resendTimer = setInterval(tick, 1000);
+		};
+		resend.addEventListener("click", () => {
+			void (async () => {
+				resend.disabled = true;
+				status.textContent = "正在发送…";
+				try {
+					const result = await client.resendVerification({
+						email: account.primaryEmail,
+					});
+					const deadline = result.nextAllowedAt
+						? new Date(result.nextAllowedAt).getTime()
+						: Date.now() + 60_000;
+					startCooldown(deadline, "验证邮件已发送，");
+				} catch (error) {
+					if (
+						error instanceof DomApiError &&
+						error.errorCode === "RATE_LIMITED"
+					) {
+						// 注册时已自动发送一封；429 不带服务端时间，按契约冷却窗兜底。
+						status.textContent = "验证邮件刚发送过，请查收邮箱…";
+						startCooldown(Date.now() + 60_000, "已发送，");
+						return;
+					}
+					resend.disabled = false;
+					status.textContent =
+						error instanceof Error ? error.message : String(error);
+				}
+			})();
+		});
+		const goVerify = document.createElement("button");
+		goVerify.type = "button";
+		goVerify.className = "verify-link";
+		goVerify.textContent = "前往验证页";
+		goVerify.addEventListener("click", () => navigate("/verify-email"));
+		actions.append(resend, goVerify);
+		banner.append(iconWrap, copy, actions, status);
+		main.append(banner);
+	}
 
 	const headerRow = document.createElement("div");
 	headerRow.className = "content-header-row";
@@ -727,10 +811,26 @@ export async function renderWorkspacePage(app: HTMLElement): Promise<void> {
 		kind: "no-workspace" | "no-projects" | "no-resources" | "trash-empty",
 	): void => {
 		listArea.style.display = "none";
+		if (pendingVerification) createBtn.style.display = "none";
 		emptyHost.style.display = "flex";
 		emptyHost.replaceChildren();
 		let card: HTMLElement;
-		if (kind === "no-workspace") {
+		if (kind === "no-workspace" && pendingVerification) {
+			// 未验证账户创建必 403：空态直接给验证引导而非创建按钮。
+			const goVerify = document.createElement("button");
+			goVerify.type = "button";
+			goVerify.className = "btn-create-context";
+			goVerify.dataset.testid = "console-empty-verify";
+			goVerify.textContent = "前往验证邮箱";
+			goVerify.addEventListener("click", () => navigate("/verify-email"));
+			card = emptyStateCard({
+				title: "先完成邮箱验证",
+				description:
+					"验证通过后，这里会出现你的第一座数字墨屿。验证邮件已发送至你的邮箱，也可以点下方按钮重新发送。",
+				illustration: illustrationNoWorkspace(),
+				actions: [goVerify],
+			});
+		} else if (kind === "no-workspace") {
 			const create = document.createElement("button");
 			create.type = "button";
 			create.className = "btn-create-context";
