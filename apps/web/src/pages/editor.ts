@@ -17,6 +17,7 @@ import { connectRealtime } from "@dom/realtime-client";
 import type { Awareness } from "y-protocols/awareness";
 import { encodeAwarenessUpdate } from "y-protocols/awareness";
 
+import { svgIcon } from "../components/console";
 import { navigate } from "../main";
 
 export const DRAFT_STORAGE_KEY = "draft_unsaved";
@@ -34,8 +35,138 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 		return;
 	}
 
-	const heading = document.createElement("h1");
-	heading.textContent = "编辑器占位页";
+	// ---- B 组编辑器壳（墨屿 · 生产实现）----
+	const shell = document.createElement("div");
+	shell.className = "editor-shell";
+	shell.dataset.testid = "editor-shell";
+	const editorTopbar = document.createElement("header");
+	editorTopbar.className = "editor-topbar";
+	const navLeft = document.createElement("div");
+	navLeft.className = "editor-nav-left";
+	const backBtn = document.createElement("button");
+	backBtn.type = "button";
+	backBtn.className = "btn-editor-back";
+	backBtn.dataset.testid = "editor-back";
+	backBtn.append(svgIcon("back", 14));
+	const backLabel = document.createElement("span");
+	backLabel.textContent = "返回管理台";
+	backBtn.append(backLabel);
+	backBtn.addEventListener("click", () => navigate("/workspace"));
+	const breadcrumb = document.createElement("div");
+	breadcrumb.className = "breadcrumb-trail editor-breadcrumb";
+	breadcrumb.dataset.testid = "editor-breadcrumb";
+	const crumbDoc = document.createElement("span");
+	crumbDoc.className = "breadcrumb-item current";
+	crumbDoc.id = "editorBreadcrumbDoc";
+	crumbDoc.textContent = "文档";
+	breadcrumb.append(crumbDoc);
+	navLeft.append(backBtn, breadcrumb);
+	const navRight = document.createElement("div");
+	navRight.className = "topbar-right";
+	const rosterBadge = document.createElement("div");
+	rosterBadge.className = "editor-roster-badge";
+	rosterBadge.dataset.testid = "editor-roster-badge";
+	const rosterDot = document.createElement("span");
+	rosterDot.className = "roster-dot";
+	rosterBadge.append(rosterDot);
+	navRight.append(rosterBadge);
+	const panelToggle = document.createElement("button");
+	panelToggle.type = "button";
+	panelToggle.className = "icon-btn-quiet";
+	panelToggle.dataset.testid = "editor-panel-toggle";
+	panelToggle.title = "展开/收起面板";
+	panelToggle.append(svgIcon("panel", 18));
+	panelToggle.addEventListener("click", toggleEditorDrawer);
+	navRight.append(panelToggle);
+	editorTopbar.append(navLeft, navRight);
+
+	const editorBody = document.createElement("div");
+	editorBody.className = "editor-body";
+	const canvas = document.createElement("main");
+	canvas.className = "editor-canvas-container";
+	const paper = document.createElement("article");
+	paper.className = "editor-doc-paper";
+	canvas.append(paper);
+
+	// 右抽屉（评论/历史/AI 三 Tab + 移动端覆盖遮罩）
+	const drawer = document.createElement("aside");
+	drawer.className = "editor-drawer";
+	drawer.dataset.testid = "editor-drawer";
+	const drawerBackdrop = document.createElement("div");
+	drawerBackdrop.className = "editor-drawer-backdrop";
+	drawerBackdrop.addEventListener("click", closeEditorDrawerMobile);
+	const tabsHeader = document.createElement("div");
+	tabsHeader.className = "drawer-tabs-header";
+	const paneComments = document.createElement("div");
+	paneComments.className = "drawer-tab-pane active";
+	paneComments.id = "pane-comments";
+	const paneHistory = document.createElement("div");
+	paneHistory.className = "drawer-tab-pane";
+	paneHistory.id = "pane-history";
+	const paneAi = document.createElement("div");
+	paneAi.className = "drawer-tab-pane";
+	paneAi.id = "pane-ai";
+	const buildTab = (
+		name: "comments" | "history" | "ai",
+		icon: "comment" | "history" | "sparkles",
+		label: string,
+	): HTMLButtonElement => {
+		const btn = document.createElement("button");
+		btn.type = "button";
+		btn.className = "drawer-tab-btn";
+		btn.dataset.testid = `editor-panel-tab-${name}`;
+		btn.append(svgIcon(icon, 13));
+		const span = document.createElement("span");
+		span.textContent = label;
+		btn.append(span);
+		btn.addEventListener("click", () => switchDrawerTab(name));
+		return btn;
+	};
+	const tabComments = buildTab("comments", "comment", "评论");
+	tabComments.classList.add("active");
+	tabsHeader.append(
+		tabComments,
+		buildTab("history", "history", "历史"),
+		buildTab("ai", "sparkles", "AI 提案"),
+	);
+	drawer.append(tabsHeader, paneComments, paneHistory, paneAi);
+	editorBody.append(canvas, drawer);
+	shell.append(editorTopbar, editorBody);
+
+	function switchDrawerTab(tab: "comments" | "history" | "ai"): void {
+		drawer.classList.remove("collapsed");
+		drawer.classList.add("mobile-open");
+		drawerBackdrop.classList.add("show");
+		tabsHeader
+			.querySelectorAll<HTMLButtonElement>(".drawer-tab-btn")
+			.forEach((b) => {
+				b.classList.toggle(
+					"active",
+					b.dataset.testid === `editor-panel-tab-${tab}`,
+				);
+			});
+		[paneComments, paneHistory, paneAi].forEach((p) => {
+			p.classList.toggle("active", p.id === `pane-${tab}`);
+		});
+	}
+
+	function toggleEditorDrawer(): void {
+		if (window.matchMedia("(max-width: 699px)").matches) {
+			if (drawer.classList.contains("mobile-open")) {
+				closeEditorDrawerMobile();
+			} else {
+				drawer.classList.add("mobile-open");
+				drawerBackdrop.classList.add("show");
+			}
+			return;
+		}
+		drawer.classList.toggle("collapsed");
+	}
+
+	function closeEditorDrawerMobile(): void {
+		drawer.classList.remove("mobile-open");
+		drawerBackdrop.classList.remove("show");
+	}
 
 	// Resource vertical: /editor?resource=<id> loads the snapshot through the
 	// client SDK (agents never fetch directly) and renders it read-only under
@@ -121,6 +252,7 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 			const name = document.createElement("h2");
 			name.dataset.testid = "resource-name";
 			name.textContent = resource.name;
+			crumbDoc.textContent = resource.name;
 			const snapshot = document.createElement("pre");
 			snapshot.dataset.testid = "resource-snapshot";
 			snapshot.textContent =
@@ -522,15 +654,12 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 			});
 		});
 		aiSection.append(aiInstruction, aiPropose, aiResult);
-		resourcePanel.append(
-			save,
-			status,
-			incoming,
-			roster,
-			presence,
-			aiSection,
-			commentsSection,
-		);
+		resourcePanel.append(save, status, incoming);
+		// B 组壳：roster/presence 上移到顶栏徽标，AI/评论收进右抽屉。
+		rosterBadge.append(roster);
+		navRight.append(presence);
+		paneAi.append(aiSection);
+		paneComments.append(commentsSection);
 		// History panel (arch 08): timeline + restore at a version.
 		const historySection = document.createElement("section");
 		historySection.dataset.testid = "history-panel";
@@ -615,8 +744,8 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 		});
 		void renderHistory();
 		historySection.append(historyList, versionLabel, versionAdd, historyStatus);
-		resourcePanel.append(historySection);
-		app.append(resourcePanel);
+		paneHistory.append(historySection);
+		paper.append(resourcePanel);
 	}
 
 	const draft = document.createElement("textarea");
@@ -767,7 +896,7 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 	importStatus.dataset.testid = "editor-md-import-status";
 	importStatus.textContent = "";
 	richToolbar.append(exportMd, importMd);
-	app.prepend(mdStatus, importStatus);
+	paper.prepend(mdStatus, importStatus);
 	const syncRich = (): void => {
 		if (richWrap.hidden) return;
 		if (pmView) {
@@ -843,15 +972,18 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 	});
 
 	const hint = document.createElement("p");
+	hint.className = "editor-status-line";
 	hint.textContent = "本地未同步草稿将保存在此浏览器中";
 
 	// Functional realtime connection status (E2E waits for "connected" before
 	// driving the replacement so the socket is provably live).
 	const status = document.createElement("p");
 	status.dataset.testid = "realtime-status";
+	status.className = "editor-status-line";
 	status.textContent = "connecting";
 
-	app.append(heading, hint, draft, richToggle, richWrap, status);
+	paper.append(hint, draft, richToggle, richWrap, status);
+	app.append(shell);
 
 	// Draft-recovery banner: visible after a replacement while an unsynced
 	// draft exists; content stays readable and exportable (never discarded).

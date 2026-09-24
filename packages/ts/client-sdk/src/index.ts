@@ -32,7 +32,10 @@ import type { AuthErrorCategory } from "@dom/contracts/errors/error-envelope";
 import type { GetCurrentAccountResponse } from "@dom/contracts/queries/auth/get-current-account";
 import type { GetCurrentSessionResponse } from "@dom/contracts/queries/auth/get-current-session";
 
-type CreateWorkspaceRequest = components["schemas"]["create-workspace.schema"];
+type CreateWorkspaceRequest = Omit<
+	components["schemas"]["create-workspace.schema"],
+	"$defs"
+>;
 type CreateWorkspaceResponse = components["schemas"]["CreateWorkspaceResponse"];
 type WorkspaceResponse = components["schemas"]["get-workspace.schema"];
 type OpenResourceResponse = components["schemas"]["open-resource.schema"];

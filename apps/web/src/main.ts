@@ -16,6 +16,7 @@
  */
 
 import "./styles/auth.css";
+import "./styles/console.css";
 import { renderEditorPage } from "./pages/editor";
 import { renderForgotPasswordPage } from "./pages/forgot-password";
 import { renderLoginPage } from "./pages/login";
@@ -37,6 +38,9 @@ const AUTH_SURFACE_PATHS = new Set([
 	"/reset-password",
 ]);
 
+/** B 组登录后作用域（console.css 的管理台/编辑器壳布局仅在其上生效）。 */
+const CONSOLE_SURFACE_PATHS = new Set(["/workspace", "/editor"]);
+
 function mount(): void {
 	const app = document.querySelector<HTMLDivElement>("#app");
 	if (!app) {
@@ -46,6 +50,11 @@ function mount(): void {
 		document.body.classList.add("auth-surface");
 	} else {
 		document.body.classList.remove("auth-surface");
+	}
+	if (CONSOLE_SURFACE_PATHS.has(window.location.pathname)) {
+		document.body.classList.add("console-surface");
+	} else {
+		document.body.classList.remove("console-surface");
 	}
 	switch (window.location.pathname) {
 		case "/login":

@@ -560,6 +560,7 @@ test("Editor saves a draft op and surfaces the authoritative seq", async ({
 	);
 	// Mention autocomplete (arch 17 §4): typing @ surfaces member suggestions
 	// from the workspace; the picker shows the member email.
+	await page.getByTestId("editor-panel-tab-comments").click();
 	await page.getByTestId("comment-input").fill("@");
 	await expect(page.getByTestId("mention-option")).toBeVisible({
 		timeout: 15000,
@@ -606,6 +607,8 @@ test("Editor saves a draft op and surfaces the authoritative seq", async ({
 	await peerPage.close();
 	// AI changesets (arch 21): propose -> dev provider returns a canned
 	// changeset -> status line renders; apply -> status flips to Applied.
+	// (B 组壳：AI 面板收在右抽屉 AI Tab，先切换到该 Tab 再操作。)
+	await page.getByTestId("editor-panel-tab-ai").click();
 	await page.getByTestId("ai-instruction").fill("优化标题");
 	await page.getByTestId("ai-propose").click();
 	await expect(page.getByTestId("ai-changeset-status")).toContainText(
@@ -615,6 +618,7 @@ test("Editor saves a draft op and surfaces the authoritative seq", async ({
 		},
 	);
 	// Comments panel: add a comment through the SDK -> it appears in the list.
+	await page.getByTestId("editor-panel-tab-comments").click();
 	await page.getByTestId("comment-input").fill("整体缺异常流程");
 	await page.getByTestId("comment-submit").click();
 	await expect(page.getByTestId("comment-row")).toHaveText("整体缺异常流程");
