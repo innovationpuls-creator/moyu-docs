@@ -2,11 +2,22 @@
 # AGENTS.md、docs/architecture/、docs/product/、docs/behavior/、docs/adr/、
 # docs/superpowers/plans/、docs/runbooks/ 必须进 Git，不再 ignore。
 
+# CI / 部署编排与迁移必须进 Git，不得 ignore：
+# .github/、compose.yaml、Dockerfile*、migrations/、contracts/ 及
+# uv.lock / pnpm-lock.yaml 等 lockfile 均为部署必需，勿加入 ignore。
+
 # 本阶段刻意使用嵌套 git worktree，忽略 worktree 目录本身
 .worktrees/
 
 # 会话记忆 / 本地工具状态（不进 Git）
 .workbuddy/
+
+# DSH harness / Agent 本地状态（非部署必须）
+# .dsh/ = DSH 会话状态；.agents/ = DSH 原生项目 skill 根
+# （.agents/skills/<name>/SKILL.md）；.agent = 本地代理标记
+.dsh/
+.agent
+.agents/
 
 # Dependencies & Virtual Environments
 node_modules/
@@ -39,12 +50,15 @@ build/
 out/
 .turbo/
 .cache/
+.uv-cache/
 .vite/
 .next/
 *.tsbuildinfo
+*.local
 
 # Logs
 *.log
+logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -52,8 +66,9 @@ pnpm-debug.log*
 
 # Environment Variables & Secrets
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+.envrc
 *.pem
 *.key
 *.cert
