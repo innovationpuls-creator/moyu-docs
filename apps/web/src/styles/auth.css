@@ -1,0 +1,795 @@
+/* ==========================================================================
+       霞鹜文楷自包含字体体系 (LXGW WenKai Typography System · Fully Self-Contained)
+       优先匹配 Mac 本地系统字体 ~/Library/Fonts，回退至相对路径与 Vite 静态目录 /fonts/
+       包含 Light (300) / Regular (400) / Medium (500-700) 三大字重
+       ========================================================================== */
+@font-face {
+	font-family: "LXGW WenKai";
+	src:
+		local("LXGW WenKai Light"),
+		local("霞鹜文楷 Light"),
+		local("LXGWWenKai-Light"),
+		url("/fonts/LXGWWenKai-Light.ttf") format("truetype"),
+		url("/fonts/LXGWWenKai-Light.ttf") format("truetype");
+	font-weight: 300;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "LXGW WenKai";
+	src:
+		local("LXGW WenKai"),
+		local("霞鹜文楷"),
+		local("LXGWWenKai-Regular"),
+		url("/fonts/LXGWWenKai-Regular.ttf") format("truetype"),
+		url("/fonts/LXGWWenKai-Regular.ttf") format("truetype");
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "LXGW WenKai";
+	src:
+		local("LXGW WenKai Medium"),
+		local("霞鹜文楷 Medium"),
+		local("LXGWWenKai-Medium"),
+		url("/fonts/LXGWWenKai-Medium.ttf") format("truetype"),
+		url("/fonts/LXGWWenKai-Medium.ttf") format("truetype");
+	font-weight: 500 800;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "LXGW WenKai Light";
+	src:
+		local("LXGW WenKai Light"),
+		local("霞鹜文楷 Light"),
+		local("LXGWWenKai-Light"),
+		url("/fonts/LXGWWenKai-Light.ttf") format("truetype"),
+		url("/fonts/LXGWWenKai-Light.ttf") format("truetype");
+	font-weight: 300;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "LXGW WenKai Medium";
+	src:
+		local("LXGW WenKai Medium"),
+		local("霞鹜文楷 Medium"),
+		local("LXGWWenKai-Medium"),
+		url("/fonts/LXGWWenKai-Medium.ttf") format("truetype"),
+		url("/fonts/LXGWWenKai-Medium.ttf") format("truetype");
+	font-weight: 500 800;
+	font-style: normal;
+	font-display: swap;
+}
+
+/* ==========================================================================
+       设计系统令牌 (墨屿 · Moyu Docs Design Tokens)
+       ========================================================================== */
+:root {
+	/* 画布地基 */
+	--canvas-bg: #fff8f0;
+	--surface-card: #fffdfa;
+	--surface-subtle: #fbf5eb;
+	--surface-raised: #ffffff;
+
+	/* 不规则拼色色阶 (Organic Cutout Palette) */
+	--color-block-peach: #ffd9bc;
+	--color-block-coral: #f4a573;
+	--color-block-terracotta: #e58752;
+	--color-block-sage: #a8be88;
+	--color-block-sage-deep: #789456;
+	--color-block-lavender: #b9aed8;
+	--color-block-cream: #fff3e3;
+	--color-block-sun: #f7ca72;
+
+	/* 墨水文字阶梯 */
+	--ink-primary: #1b3a47;
+	--ink-secondary: #586976;
+	--ink-muted: #8e9ea9;
+	--ink-on-accent: #ffffff;
+
+	/* 核心操作主色 */
+	--accent-coral: #f4a573;
+	--accent-coral-hover: #f7b58d;
+	--accent-coral-active: #e28e58;
+	--accent-coral-subtle: rgba(244, 165, 115, 0.16);
+
+	/* 语义反馈 */
+	--semantic-success-surface: #eff5ea;
+	--semantic-success-border: #c4dcaf;
+	--semantic-success-ink: #3f6832;
+
+	--semantic-warning-surface: #fef7e7;
+	--semantic-warning-border: #f8de9e;
+	--semantic-warning-ink: #7a5814;
+
+	--semantic-danger-surface: #fff0ee;
+	--semantic-danger-border: #fccac5;
+	--semantic-danger-ink: #8f3429;
+	--semantic-danger-accent: #f5867b;
+
+	/* 描边与边框 */
+	--border-card: rgba(244, 165, 115, 0.22);
+	--border-input: #ecdccb;
+	--border-input-hover: #dfc4ad;
+	--border-input-focus: var(--accent-coral);
+
+	/* 浮力阴影 */
+	--shadow-stage:
+		0 28px 72px -16px rgba(229, 135, 82, 0.22),
+		0 4px 20px 0 rgba(27, 58, 71, 0.04);
+	--shadow-button-primary: 0 10px 24px -6px rgba(244, 165, 115, 0.48);
+	--shadow-button-hover: 0 14px 28px -6px rgba(244, 165, 115, 0.6);
+	--shadow-input-focus: 0 0 0 4px rgba(244, 165, 115, 0.16);
+	--shadow-error-focus: 0 0 0 4px rgba(245, 134, 123, 0.18);
+
+	/* 几何圆角梯度 */
+	--radius-pill: 9999px;
+	--radius-stage: 36px;
+	--radius-card: 28px;
+	--radius-input: 16px;
+
+	/* 字体族：以 Quicksand / Nunito 支撑西文几何钝感，以霞鹜文楷（Light / Regular / Medium）支撑中文温润人文笔触 */
+	--font-display:
+		"Quicksand", "LXGW WenKai Medium", "LXGW WenKai", "霞鹜文楷", -apple-system,
+		sans-serif;
+	--font-body:
+		"Nunito", "LXGW WenKai", "霞鹜文楷", -apple-system, BlinkMacSystemFont,
+		"Segoe UI", sans-serif;
+	--font-light:
+		"Nunito", "LXGW WenKai Light", "霞鹜文楷 Light", -apple-system, sans-serif;
+	--font-wenkai: "LXGW WenKai", "霞鹜文楷", cursive, sans-serif;
+	--font-mono: ui-monospace, SFMono-Regular, "Geist Mono", monospace;
+
+	/* 缓动动效 */
+	--ease-buoyant: cubic-bezier(0.22, 1, 0.36, 1);
+	--ease-breathe: cubic-bezier(0.4, 0, 0.2, 1);
+	--ease-float: cubic-bezier(0.45, 0.05, 0.55, 0.95);
+}
+
+/* A 组认证页作用域重置（不污染 workspace/editor） */
+body.auth-surface * {
+	box-sizing: border-box;
+	margin: 0;
+	padding: 0;
+}
+
+body {
+	min-height: 100vh;
+	font-family: var(--font-body);
+	color: var(--ink-primary);
+	background-color: var(--canvas-bg);
+	background-image:
+		radial-gradient(at 0% 0%, #ffe9d6 0px, transparent 50%),
+		radial-gradient(at 100% 100%, #f6ebde 0px, transparent 50%);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 24px 20px 80px;
+	position: relative;
+	overflow-x: hidden;
+	-webkit-font-smoothing: antialiased;
+}
+
+/* 离线通告条 (Offline Notice Banner) */
+.offline-notice {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	background: var(--semantic-warning-surface);
+	border-bottom: 1.5px solid var(--semantic-warning-border);
+	color: var(--semantic-warning-ink);
+	font-size: 13px;
+	font-weight: 700;
+	text-align: center;
+	padding: 10px 16px;
+	z-index: 200;
+	display: none;
+	box-shadow: 0 2px 10px rgba(122, 88, 20, 0.12);
+	animation: slide-in 200ms ease;
+}
+
+.offline-notice.show {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+}
+
+/* ==========================================================================
+       55:45 主舞台 (55:45 Asymmetric Split Stage with Blurred Boundary)
+       ========================================================================== */
+.split-stage {
+	width: 100%;
+	max-width: 1220px;
+	min-height: 700px;
+	display: grid;
+	grid-template-columns: 55fr 45fr;
+	background: #fff6ed;
+	border: 1.5px solid var(--border-card);
+	border-radius: var(--radius-stage);
+	box-shadow: var(--shadow-stage);
+	overflow: hidden;
+	margin-top: 48px;
+	position: relative;
+	transition: all 300ms var(--ease-buoyant);
+}
+
+/* 移动端降级折叠 */
+@media (max-width: 960px) {
+	.split-stage {
+		grid-template-columns: 1fr;
+		max-width: 480px;
+		min-height: auto;
+	}
+	.art-panel {
+		/* biome-ignore lint/complexity/noImportantStyles: 移动端媒体查询覆盖（原型既定设计） */
+		min-height: 220px !important;
+		/* biome-ignore lint/complexity/noImportantStyles: 移动端媒体查询覆盖（原型既定设计） */
+		padding: 32px 24px !important;
+	}
+	.auth-panel {
+		/* biome-ignore lint/complexity/noImportantStyles: 移动端媒体查询覆盖（原型既定设计） */
+		padding: 36px 24px !important;
+		/* biome-ignore lint/complexity/noImportantStyles: 移动端媒体查询覆盖（原型既定设计） */
+		background: rgba(255, 253, 249, 0.92) !important;
+	}
+}
+
+/* 全舞台贯通不规则色块底布 (Underlying Seamless Patchwork Canvas) */
+.patchwork-canvas {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	z-index: 1;
+	overflow: hidden;
+}
+
+/* 色块 1: 左侧暖桃大基底 */
+.patchwork-shape-1 {
+	position: absolute;
+	top: -120px;
+	left: -90px;
+	width: 580px;
+	height: 560px;
+	background: var(--color-block-peach);
+	border-radius: 46% 54% 63% 37% / 41% 44% 56% 59%;
+	opacity: 0.88;
+	animation: organic-float-1 14s infinite var(--ease-float);
+}
+
+/* 色块 2: 蔓延至右侧下方的鼠尾草绿大波浪 (穿透边界) */
+.patchwork-shape-2 {
+	position: absolute;
+	bottom: -100px;
+	left: 36%;
+	width: 540px;
+	height: 520px;
+	background: var(--color-block-sage);
+	border-radius: 58% 42% 48% 52% / 51% 59% 41% 49%;
+	opacity: 0.65;
+	animation: organic-float-2 16s infinite var(--ease-float);
+}
+
+/* 色块 3: 跨越 55/45 中轴的陶土珊瑚主色 (彻底模糊硬边界) */
+.patchwork-shape-3 {
+	position: absolute;
+	top: 26%;
+	left: 38%;
+	width: 360px;
+	height: 380px;
+	background: var(--color-block-coral);
+	border-radius: 64% 36% 41% 59% / 43% 57% 43% 57%;
+	opacity: 0.72;
+	animation: organic-float-3 12s infinite var(--ease-float);
+	box-shadow: 0 20px 48px rgba(229, 135, 82, 0.28);
+}
+
+/* 色块 4: 右上方若隐若现的薰衣草紫 */
+.patchwork-shape-4 {
+	position: absolute;
+	top: 6%;
+	right: 4%;
+	width: 220px;
+	height: 220px;
+	background: var(--color-block-lavender);
+	border-radius: 48% 52% 68% 32% / 42% 40% 60% 58%;
+	opacity: 0.68;
+	animation: organic-float-1 10s infinite var(--ease-float) reverse;
+}
+
+/* 色块 5: 左下角晨曦金环 */
+.patchwork-shape-sun {
+	position: absolute;
+	bottom: 15%;
+	left: 8%;
+	width: 120px;
+	height: 120px;
+	background: var(--color-block-sun);
+	border-radius: 50%;
+	opacity: 0.92;
+	box-shadow: 0 16px 36px rgba(247, 202, 114, 0.35);
+	animation: sun-pulse 4.5s infinite var(--ease-breathe);
+}
+
+/* 浮动与脉冲缓动 */
+@keyframes organic-float-1 {
+	0%,
+	100% {
+		transform: translate(0, 0) rotate(0deg);
+	}
+	50% {
+		transform: translate(20px, 16px) rotate(5deg);
+	}
+}
+
+@keyframes organic-float-2 {
+	0%,
+	100% {
+		transform: translate(0, 0) rotate(0deg);
+	}
+	50% {
+		transform: translate(-18px, -20px) rotate(-4deg);
+	}
+}
+
+@keyframes organic-float-3 {
+	0%,
+	100% {
+		transform: translate(0, 0) scale(1);
+	}
+	50% {
+		transform: translate(12px, -15px) scale(1.06);
+	}
+}
+
+@keyframes sun-pulse {
+	0%,
+	100% {
+		transform: scale(1);
+	}
+	50% {
+		transform: scale(1.08);
+	}
+}
+
+/* ---------------- 55% 沉浸品牌与架构叙事区 (55% Art & Architecture Panel) ---------------- */
+.art-panel {
+	position: relative;
+	background: transparent;
+	z-index: 2;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	padding: 56px 52px;
+	/* 移除一切硬分界线 (Blur the boundary) */
+	border-right: none;
+}
+
+.art-content-top {
+	position: relative;
+}
+
+.brand-pill-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	background: rgba(255, 253, 249, 0.85);
+	backdrop-filter: blur(10px);
+	-webkit-backdrop-filter: blur(10px);
+	border: 1px solid rgba(244, 165, 115, 0.25);
+	padding: 6px 14px;
+	border-radius: var(--radius-pill);
+	font-family: var(--font-display);
+	font-size: 13px;
+	font-weight: 700;
+	color: var(--ink-primary);
+	box-shadow: 0 4px 14px rgba(27, 58, 71, 0.05);
+	margin-bottom: 28px;
+}
+
+.brand-pill-badge svg {
+	width: 14px;
+	height: 14px;
+	color: var(--color-block-terracotta);
+}
+
+.art-headline {
+	font-family: var(--font-display);
+	font-size: 38px;
+	font-weight: 600;
+	color: var(--ink-primary);
+	line-height: 1.35;
+	letter-spacing: 0.02em;
+	max-width: 480px;
+}
+
+.art-subline {
+	font-family: var(--font-body);
+	font-size: 15.5px;
+	font-weight: 400;
+	color: var(--ink-secondary);
+	margin-top: 18px;
+	line-height: 1.75;
+	letter-spacing: 0.015em;
+	max-width: 450px;
+}
+
+.art-content-bottom {
+	position: relative;
+}
+
+.brand-subtle-tag {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	font-family: var(--font-display);
+	font-size: 13.5px;
+	font-weight: 500;
+	letter-spacing: 0.03em;
+	color: var(--ink-secondary);
+	background: rgba(255, 253, 249, 0.65);
+	backdrop-filter: blur(12px);
+	-webkit-backdrop-filter: blur(12px);
+	border: 1px solid rgba(244, 165, 115, 0.25);
+	border-radius: var(--radius-pill);
+	padding: 8px 18px;
+}
+
+.brand-subtle-tag .dot {
+	color: var(--color-block-terracotta);
+}
+
+/* ---------------- 45% 专注交互面板 (45% Frosted Glass Auth Panel) ---------------- */
+.auth-panel {
+	position: relative;
+	z-index: 2;
+	/* 半透明玻璃材质 + 柔化边界 (Frosted Glassmorphism) */
+	background: rgba(255, 253, 250, 0.65);
+	backdrop-filter: blur(32px) saturate(140%);
+	-webkit-backdrop-filter: blur(32px) saturate(140%);
+	border-left: 1px solid rgba(255, 255, 255, 0.45);
+	box-shadow: -20px 0 48px -12px rgba(229, 135, 82, 0.08);
+	padding: 56px 48px;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	transition: background 250ms ease;
+}
+
+.auth-card-inner {
+	width: 100%;
+	max-width: 400px;
+	margin: 0 auto;
+}
+
+/* 轻微安抚晃动 */
+@keyframes gentle-reassure-shake {
+	0%,
+	100% {
+		transform: translateX(0);
+	}
+	25% {
+		transform: translateX(-4px);
+	}
+	50% {
+		transform: translateX(4px);
+	}
+	75% {
+		transform: translateX(-2px);
+	}
+}
+
+.auth-card-inner.gentle-shake {
+	animation: gentle-reassure-shake 250ms var(--ease-buoyant);
+}
+
+.card-header {
+	margin-bottom: 28px;
+	text-align: left;
+}
+
+.card-title {
+	font-family: var(--font-display);
+	font-size: 28px;
+	font-weight: 800;
+	color: var(--ink-primary);
+	letter-spacing: -0.02em;
+}
+
+.card-description {
+	font-size: 14.5px;
+	color: var(--ink-secondary);
+	margin-top: 8px;
+	line-height: 1.5;
+}
+
+/* 表单组件 (Form Fields) */
+.form-group {
+	display: flex;
+	flex-direction: column;
+	margin-bottom: 20px;
+	position: relative;
+}
+
+.form-label-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 8px;
+}
+
+.form-label {
+	font-family: var(--font-display);
+	font-size: 13.5px;
+	font-weight: 700;
+	color: var(--ink-primary);
+}
+
+.form-label-link {
+	font-size: 12.5px;
+	font-weight: 600;
+	color: var(--accent-coral);
+	text-decoration: none;
+	transition: color 150ms ease;
+	cursor: pointer;
+}
+
+.form-label-link:hover {
+	color: var(--accent-coral-active);
+	text-decoration: underline;
+}
+
+.input-wrapper {
+	position: relative;
+	display: flex;
+	align-items: center;
+}
+
+.auth-input {
+	width: 100%;
+	height: 52px;
+	padding: 0 48px 0 18px;
+	background: rgba(251, 245, 235, 0.85);
+	border: 1.5px solid var(--border-input);
+	border-radius: var(--radius-input);
+	font-family: var(--font-body);
+	font-size: 15px;
+	font-weight: 500;
+	color: var(--ink-primary);
+	outline: none;
+	transition: all 150ms var(--ease-buoyant);
+}
+
+.auth-input::placeholder {
+	color: var(--ink-muted);
+}
+
+.auth-input:hover {
+	border-color: var(--border-input-hover);
+}
+
+.auth-input:focus {
+	background: var(--surface-raised);
+	border-color: var(--border-input-focus);
+	box-shadow: var(--shadow-input-focus);
+}
+
+.auth-input.has-error {
+	background: var(--semantic-danger-surface);
+	border-color: var(--semantic-danger-accent);
+	box-shadow: var(--shadow-error-focus);
+}
+
+.auth-input:disabled {
+	background: #f3ede2;
+	border-color: #e2d5c3;
+	color: var(--ink-muted);
+	cursor: not-allowed;
+}
+
+/* 44px x 44px 触控靶区与 SVG 眼睛切换 */
+.input-addon-btn {
+	position: absolute;
+	right: 4px;
+	width: 44px;
+	height: 44px;
+	background: transparent;
+	border: none;
+	color: var(--ink-secondary);
+	cursor: pointer;
+	border-radius: 10px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: all 150ms ease;
+}
+
+.input-addon-btn:hover {
+	color: var(--ink-primary);
+	background: rgba(244, 165, 115, 0.15);
+}
+
+.input-addon-btn svg {
+	width: 20px;
+	height: 20px;
+	stroke-width: 2;
+}
+
+.field-hint {
+	font-size: 12.5px;
+	color: var(--ink-secondary);
+	margin-top: 6px;
+	display: flex;
+	align-items: center;
+	gap: 5px;
+}
+
+.field-hint.error {
+	color: var(--semantic-danger-ink);
+	font-weight: 600;
+}
+
+.field-hint.success {
+	color: var(--semantic-success-ink);
+	font-weight: 600;
+}
+
+/* 统一反馈条原语 (Feedback Bar) */
+.feedback-bar {
+	padding: 12px 18px;
+	border-radius: 16px;
+	font-size: 13.5px;
+	font-weight: 600;
+	margin-bottom: 22px;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	animation: slide-in 200ms var(--ease-buoyant);
+}
+
+.feedback-bar svg {
+	width: 18px;
+	height: 18px;
+	flex-shrink: 0;
+}
+
+@keyframes slide-in {
+	from {
+		opacity: 0;
+		transform: translateY(-6px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.feedback-bar.danger {
+	background: var(--semantic-danger-surface);
+	border: 1px solid var(--semantic-danger-border);
+	color: var(--semantic-danger-ink);
+}
+
+.feedback-bar.warning {
+	background: var(--semantic-warning-surface);
+	border: 1px solid var(--semantic-warning-border);
+	color: var(--semantic-warning-ink);
+}
+
+.feedback-bar.success {
+	background: var(--semantic-success-surface);
+	border: 1px solid var(--semantic-success-border);
+	color: var(--semantic-success-ink);
+}
+
+/* 按钮原语 (Pill Buttons) */
+.btn-pill {
+	height: 52px;
+	width: 100%;
+	border-radius: var(--radius-pill);
+	font-family: var(--font-display);
+	font-size: 15.5px;
+	font-weight: 700;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: all 180ms var(--ease-buoyant);
+	position: relative;
+	letter-spacing: 0.01em;
+	border: none;
+	text-decoration: none;
+}
+
+.btn-pill.primary {
+	background: var(--accent-coral);
+	color: var(--ink-on-accent);
+	box-shadow: var(--shadow-button-primary);
+}
+
+.btn-pill.primary:hover:not(:disabled) {
+	background: var(--accent-coral-hover);
+	box-shadow: var(--shadow-button-hover);
+	transform: translateY(-1.5px);
+}
+
+.btn-pill.primary:active:not(:disabled) {
+	background: var(--accent-coral-active);
+	transform: translateY(0.5px) scale(0.99);
+}
+
+.btn-pill.secondary {
+	background: rgba(255, 253, 249, 0.9);
+	color: var(--ink-primary);
+	border: 1.5px solid var(--border-input);
+	box-shadow: 0 2px 6px rgba(27, 58, 71, 0.03);
+	margin-top: 10px;
+}
+
+.btn-pill.secondary:hover:not(:disabled) {
+	background: #ffffff;
+	border-color: var(--accent-coral);
+	color: var(--accent-coral);
+}
+
+.btn-pill:disabled {
+	/* biome-ignore lint/complexity/noImportantStyles: 禁用态覆盖按钮基础样式（原型既定设计） */
+	background: #ebd8c8 !important;
+	/* biome-ignore lint/complexity/noImportantStyles: 禁用态覆盖按钮基础样式（原型既定设计） */
+	color: #bcaaa0 !important;
+	/* biome-ignore lint/complexity/noImportantStyles: 禁用态覆盖按钮基础样式（原型既定设计） */
+	box-shadow: none !important;
+	cursor: not-allowed;
+	/* biome-ignore lint/complexity/noImportantStyles: 禁用态覆盖按钮基础样式（原型既定设计） */
+	transform: none !important;
+}
+
+/* 加载中旋转微动效 (Layout-Shift-Free Spinner) */
+.spinner {
+	width: 20px;
+	height: 20px;
+	border: 2.5px solid rgba(255, 255, 255, 0.35);
+	border-top-color: #ffffff;
+	border-radius: 50%;
+	animation: spin 600ms linear infinite;
+	position: absolute;
+}
+
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.btn-text-loading {
+	opacity: 0;
+}
+
+/* 底部辅助通道 (Card Footer) */
+.card-footer {
+	margin-top: 24px;
+	text-align: center;
+	font-size: 13.5px;
+	color: var(--ink-secondary);
+}
+
+.card-footer a {
+	color: var(--accent-coral);
+	font-weight: 700;
+	text-decoration: none;
+	margin-left: 4px;
+	cursor: pointer;
+}
+
+.card-footer a:hover {
+	text-decoration: underline;
+}
