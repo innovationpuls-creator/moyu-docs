@@ -87,6 +87,9 @@ dr-check:
 dr-sizing:
     DATABASE_URL=postgresql+psycopg://torch@localhost:5432/dom_workspace_lifecycle_test uv run python scripts/dr_sizing.py
 
+dr-load:
+    DATABASE_URL=postgresql+psycopg://torch@localhost:5432/dom_workspace_lifecycle_test uv run python scripts/dr_load_probe.py
+
 check-full: lint layout-check typecheck ts-packages dr-check contract-compat contract-drift
     test -n "$DATABASE_URL" || (echo "DATABASE_URL must target dom_workspace_lifecycle_test" >&2; exit 1)
     uv run python -c 'from urllib.parse import urlparse; import os; url=os.environ["DATABASE_URL"].replace("postgresql+psycopg://", "postgresql://", 1); assert urlparse(url).path.lstrip("/") == "dom_workspace_lifecycle_test", "DATABASE_URL must target dom_workspace_lifecycle_test"'

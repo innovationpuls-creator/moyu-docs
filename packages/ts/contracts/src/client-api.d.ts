@@ -453,6 +453,23 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/v1/integrations/usage": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Current-window Public API usage (FR-INT-006) */
+		get: operations["GetApiUsage"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/v1/integrations/api-keys/{keyId}/rotate": {
 		parameters: {
 			query?: never;
@@ -479,6 +496,23 @@ export interface paths {
 		};
 		/** Machine-client readable resources (PUB-002) */
 		get: operations["GetPublicResources"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/ops/metrics": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Process-local operational metrics (OPS-001) */
+		get: operations["GetOpsMetrics"];
 		put?: never;
 		post?: never;
 		delete?: never;
@@ -1657,6 +1691,17 @@ export interface components {
 			readAt: string;
 		};
 		/**
+		 * GetApiUsageResponse
+		 * @description FR-INT-006. Current-window Public API usage per route for the session account.
+		 */
+		"get-api-usage.schema": {
+			items: {
+				route: string;
+				requests: number;
+				limit: number;
+			}[];
+		};
+		/**
 		 * RotateApiKey
 		 * @description FR-INT-003. Issue a fresh integration key and revoke the old one atomically.
 		 */
@@ -1690,6 +1735,13 @@ export interface components {
 				name: string;
 				updatedAt: string | null;
 			}[];
+		};
+		/**
+		 * GetOpsMetricsResponse
+		 * @description OPS-001. Process-local counters (requests by status, DL activity, rate-limit blocks).
+		 */
+		"get-ops-metrics.schema": {
+			[key: string]: unknown;
 		};
 		/**
 		 * GetPublicNotificationsResponse
@@ -3308,6 +3360,27 @@ export interface operations {
 			404: components["responses"]["ErrorEnvelopeResponse"];
 		};
 	};
+	GetApiUsage: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Usage per route */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["get-api-usage.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
 	RotateApiKey: {
 		parameters: {
 			query?: never;
@@ -3361,6 +3434,27 @@ export interface operations {
 			};
 			401: components["responses"]["ErrorEnvelopeResponse"];
 			429: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	GetOpsMetrics: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Counter snapshot */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["get-ops-metrics.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
 		};
 	};
 	GetPublicNotifications: {

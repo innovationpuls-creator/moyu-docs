@@ -589,8 +589,8 @@ test("Editor saves a draft op and surfaces the authoritative seq", async ({
 	// resets the 2s idle so the typing:true signal stays current. The second
 	// tab keeps a console capture to prove the op relay delivered the signal.
 	await page.getByTestId("editor-draft-textarea").pressSequentially(" v2");
-	await expect(peerPage.getByTestId("editor-presence")).toHaveText(
-		"正在编辑…",
+	await expect(peerPage.getByTestId("editor-presence")).toContainText(
+		"正在编辑",
 		{
 			timeout: 15000,
 		},

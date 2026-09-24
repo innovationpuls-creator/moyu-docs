@@ -50,7 +50,9 @@ async def _row_estimate(conn: AsyncConnection, schema: str, table: str) -> int:
     return reltuples
 
 
-async def _sample_rows(conn: AsyncConnection) -> dict[str, int]:
+async def _sample_rows(
+    conn: AsyncConnection,
+) -> tuple[dict[str, int], dict[str, float]]:
     print(f"{'table':<34}{'rows':>12}{'B/row':>9}{'est MB':>10}")
     totals: dict[str, int] = {}
     for qualified in SCALING_TABLES:
@@ -68,29 +70,72 @@ async def _sample_rows(conn: AsyncConnection) -> dict[str, int]:
         est_mb = reltuples * bytes_per_row / (1024 * 1024)
         print(f"{schema}.{table:<28}{reltuples:>12}{bytes_per_row:>9}{est_mb:>10.1f}")
         totals[schema + "." + table] = bytes_per_row
-    return totals
+    factors = await _measured_factors(conn)
+    print()
+    print("measured per-resource factors (bytes, from live rows):")
+    for name, value in factors.items():
+        print(f"  {name}: {value}")
+    print()
+    return totals, factors
 
 
-def _factor_for(table: str) -> int:
+async def _measured_factors(conn: AsyncConnection) -> dict[str, float]:
+    journal = (
+        await conn.execute(
+            text(
+                "SELECT COALESCE(AVG(length(update_bytes)),0)::float FROM "
+                "(SELECT update_bytes FROM collab.resource_update_journal "
+                "LIMIT 500) t"
+            )
+        )
+    ).scalar()
+    comment = (
+        await conn.execute(
+            text(
+                "SELECT COALESCE(AVG(length(body)),0)::float FROM "
+                "(SELECT body FROM collab.resource_comments LIMIT 500) t"
+            )
+        )
+    ).scalar()
+    checkpoint = (
+        await conn.execute(
+            text(
+                "SELECT COALESCE(AVG(length(snapshot::text)),0)::float FROM "
+                "(SELECT snapshot FROM collab.resource_checkpoints LIMIT 500) t"
+            )
+        )
+    ).scalar()
+    return {
+        "journal.op_bytes": float(journal or 0),
+        "comment.bytes": float(comment or 0),
+        "checkpoint.bytes": float(checkpoint or 0),
+    }
+
+
+def _factor_for(factors: dict[str, float], table: str) -> float:
     if table in ("resources", "folders", "notifications"):
-        return 1
-    if table in ("resource_update_journal", "resource_comments"):
-        return 50
-    if table in ("resource_checkpoints", "resource_search_index"):
-        return 5
+        return 1.0
+    if table == "resource_update_journal":
+        return factors["journal.op_bytes"] or 50.0
+    if table == "resource_comments":
+        return factors["comment.bytes"] or 50.0
+    if table == "resource_checkpoints":
+        return factors["checkpoint.bytes"] or 5.0
+    if table == "resource_search_index":
+        return 5.0
     if table == "resource_named_versions":
-        return 3
+        return 3.0
     if table == "tasks":
-        return 8
-    return 1
+        return 8.0
+    return 1.0
 
 
-async def _project(totals: dict[str, int]) -> None:
+async def _project(totals: dict[str, int], factors: dict[str, float]) -> None:
     for label in SCENARIOS:
         count = int(label[:-1]) * (1000 if label[-1] == "k" else 1_000_000)
         total = 0.0
         for key, bpr in totals.items():
-            total += count * _factor_for(key.partition(".")[2]) * bpr
+            total += count * _factor_for(factors, key.partition(".")[2]) * bpr
         mb = total / (1024 * 1024)
         print(f"  {label} resources: ~{mb:,.0f} MB")
 
@@ -103,10 +148,9 @@ async def main() -> int:
     engine = create_async_engine(database_url)
     try:
         async with engine.connect() as conn:
-            totals = await _sample_rows(conn)
-            print()
+            totals, factors = await _sample_rows(conn)
             print("projected storage per scenario (top scaling tables):")
-            await _project(totals)
+            await _project(totals, factors)
             return 0
     finally:
         await engine.dispose()

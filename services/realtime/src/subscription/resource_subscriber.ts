@@ -1,4 +1,6 @@
 import * as Y from "yjs";
+import type { PresenceStore } from "../backlog/presence_store.js";
+import { MemoryPresenceStore } from "../backlog/presence_store.js";
 import type { YjsBacklogStore } from "../backlog/yjs_backlog_store.js";
 import { MemoryYjsBacklogStore } from "../backlog/yjs_backlog_store.js";
 /**
@@ -32,12 +34,16 @@ export const SUBSCRIPTION_OK = "ok";
 export class ResourceSubscriptionManager {
 	private readonly subscriptions = new Map<string, Set<string>>(); // conn -> subjects
 	private readonly bySubject = new Map<string, Set<string>>(); // subject -> conns
+	private readonly actors = new Map<string, string>(); // conn -> actor
+
 	constructor(
 		private readonly authorize: SubscriptionAuthorizer,
 		private readonly sender: OutboundSender,
 		private readonly backlogStore?: YjsBacklogStore,
+		private readonly presence?: PresenceStore,
 	) {
 		this.backlogStore ??= new MemoryYjsBacklogStore();
+		this.presence ??= new MemoryPresenceStore();
 	}
 
 	async subscribe(
@@ -69,6 +75,8 @@ export class ResourceSubscriptionManager {
 		});
 		this.broadcastRoster(subject, resourceId);
 		this.sendBacklog(subject, resourceId, connectionId);
+		this.actors.set(connectionId, actorId);
+		void this.presence?.join(resourceId, actorId);
 		return SUBSCRIPTION_OK;
 	}
 
@@ -155,13 +163,16 @@ export class ResourceSubscriptionManager {
 
 	dropConnection(connectionId: string): void {
 		const subjects = this.subscriptions.get(connectionId);
+		const actorId = this.actors.get(connectionId);
 		if (!subjects) return;
 		for (const subject of subjects) {
 			this.bySubject.get(subject)?.delete(connectionId);
 			const resourceId = subject.replace(/^rt\.resource\./, "");
+			if (actorId) void this.presence?.leave(resourceId, actorId);
 			this.broadcastRoster(subject, resourceId);
 		}
 		this.subscriptions.delete(connectionId);
+		this.actors.delete(connectionId);
 	}
 
 	dispatch(

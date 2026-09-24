@@ -877,6 +877,21 @@ paths:
         "404":
           $ref: "#/components/responses/ErrorEnvelopeResponse"
 
+  /v1/integrations/usage:
+    get:
+      operationId: GetApiUsage
+      summary: Current-window Public API usage (FR-INT-006)
+      tags: [integrations]
+      responses:
+        "200":
+          description: Usage per route
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/integrations/get-api-usage.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
   /v1/integrations/api-keys/{keyId}/rotate:
     post:
       operationId: RotateApiKey
@@ -940,6 +955,21 @@ paths:
         "401":
           $ref: "#/components/responses/ErrorEnvelopeResponse"
         "429":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/ops/metrics:
+    get:
+      operationId: GetOpsMetrics
+      summary: Process-local operational metrics (OPS-001)
+      tags: [ops]
+      responses:
+        "200":
+          description: Counter snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/ops/get-ops-metrics.schema.json"
+        "401":
           $ref: "#/components/responses/ErrorEnvelopeResponse"
 
   /v1/public/notifications:

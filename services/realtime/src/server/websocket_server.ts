@@ -27,6 +27,11 @@ import {
 	type SessionCachedData,
 	verifySession,
 } from "../auth/session_authenticator.js";
+import type { PresenceStore } from "../backlog/presence_store.js";
+import {
+	MemoryPresenceStore,
+	ValkeyPresenceStore,
+} from "../backlog/presence_store.js";
 import type { YjsBacklogStore } from "../backlog/yjs_backlog_store.js";
 import {
 	MemoryYjsBacklogStore,
@@ -258,6 +263,9 @@ export function startRealtimeServer({
 	const backlogStore: YjsBacklogStore = process.env.REDIS_BACKLOG_URL
 		? new ValkeyYjsBacklogStore(valkey)
 		: new MemoryYjsBacklogStore();
+	const presenceStore: PresenceStore = process.env.REDIS_BACKLOG_URL
+		? new ValkeyPresenceStore(valkey)
+		: new MemoryPresenceStore();
 	// Realtime op relay: NATS broadcasts -> subscribed connections.
 	const relayHost = new GatewayRelayHost({
 		apiBaseUrl: process.env.REALTIME_API_BASE_URL ?? "http://127.0.0.1:8000",

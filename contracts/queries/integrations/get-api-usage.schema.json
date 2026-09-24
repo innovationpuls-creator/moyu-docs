@@ -1,0 +1,24 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/integrations/get-api-usage.schema.json",
+	"title": "GetApiUsageResponse",
+	"description": "FR-INT-006. Current-window Public API usage per route for the session account.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"items": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"route": { "type": "string" },
+					"requests": { "type": "integer" },
+					"limit": { "type": "integer" }
+				},
+				"required": ["route", "requests", "limit"]
+			}
+		}
+	},
+	"required": ["items"]
+}

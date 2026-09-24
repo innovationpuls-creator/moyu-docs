@@ -65,10 +65,21 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 		| undefined;
 	const firstResourceId = resourceId ?? "";
 	const publishPresence = (typing: boolean): void => {
-		if (typing) presence.textContent = "正在编辑…";
-		else presence.textContent = "";
+		let cursor: number | undefined;
+		const box = document.querySelector<HTMLTextAreaElement>(
+			"[data-testid=editor-draft-textarea]",
+		);
+		if (box && typing) cursor = box.selectionStart;
+		if (typing) {
+			presence.textContent =
+				cursor === undefined ? "正在编辑…" : `正在编辑…（光标 @${cursor}）`;
+		} else presence.textContent = "";
 		if (channelLive && firstResourceId) {
-			channelLive.publishOp(firstResourceId, { kind: "presence", typing });
+			channelLive.publishOp(firstResourceId, {
+				kind: "presence",
+				typing,
+				...(cursor !== undefined ? { cursor } : {}),
+			});
 		}
 	};
 	const writeDraftListener = (): void => {
@@ -236,7 +247,12 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 				(message.payload as { kind?: string }).kind === "presence"
 			) {
 				const typing = (message.payload as { typing?: boolean }).typing;
-				presence.textContent = typing ? "正在编辑…" : "";
+				const cursor = (message.payload as { cursor?: number }).cursor;
+				presence.textContent = typing
+					? cursor === undefined
+						? "正在编辑…"
+						: `对方正在编辑…（光标 @${cursor}）`
+					: "";
 				return;
 			}
 			if (

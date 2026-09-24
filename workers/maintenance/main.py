@@ -41,6 +41,7 @@ from app_infra.postgres.search_repository import PostgresSearchRepository
 from app_infra.postgres.task.effect_repository import PostgresTaskEffectRepository
 from app_infra.postgres.task.task_repository import PostgresTaskRepository
 from app_infra.postgres.webhook_repository import PostgresWebhookSubscriptionRepository
+from app_infra.postgres.webhook_retention import PostgresWebhookRetention
 from app_infra.postgres.webhook_transporter import PostgresWebhookTransporter
 from app_infra.postgres.workspace_purge_repository import (
     PostgresWorkspacePurgeRepository,
@@ -136,7 +137,9 @@ async def sweep(session: AsyncSession) -> int:
         )
     async with session.begin():
         purge = await PostgresResourcePurgeEnqueuer(session, create).enqueue()
-    return checkpoint + purge
+    async with session.begin():
+        retained = await PostgresWebhookRetention(session).run()
+    return checkpoint + purge + retained
 
 
 async def run_daemon(

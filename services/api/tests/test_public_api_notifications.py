@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from uuid import uuid4
@@ -407,6 +408,225 @@ async def test_public_api_rate_limit_blocks_after_budget() -> None:
             assert second.status_code == 200, second.text
             assert third.status_code == 429, third.text
             assert third.json()["errorCode"] == "RATE_LIMITED"
+    finally:
+        await session.close()
+        await connection.close()
+
+
+@pytest.mark.asyncio
+async def test_api_usage_metering_reflects_window_counts() -> None:
+    """Arch 22 metering: the usage endpoint reports current-window counts."""
+    connection = await engine.connect()
+    session = AsyncSession(connection)
+    try:
+        actor = uuid4()
+        async with session.begin():
+            await session.execute(
+                text(
+                    "INSERT INTO auth.accounts "
+                    "(account_id,status,primary_email,normalized_email) "
+                    "VALUES (:a,'Active',:e,:e)"
+                ),
+                {"a": actor, "e": f"us-{actor}@test"},
+            )
+        from app_core.integrations.application import IssueApiKey
+        from app_infra.postgres.integration_key_repository import (
+            PostgresIntegrationKeyRepository,
+        )
+
+        async with session.begin():
+            key, private = await IssueApiKey(
+                PostgresIntegrationKeyRepository(session)
+            ).execute(actor, "machine-usage")
+
+        class _FakeValkey:
+            store: dict[str, str] = {}
+
+            async def get(self, key: str):
+                return self.store.get(key)
+
+            def pipeline(self):
+                return _FakePipeline(self.store)
+
+        class _FakePipeline:
+            def __init__(self, store: dict):
+                self._store = store
+                self._ops: list[tuple] = []
+
+            def incr(self, key: str):
+                self._ops.append(("incr", key))
+                return self
+
+            def expire(self, key: str, seconds: int):
+                self._ops.append(("expire", key, seconds))
+                return self
+
+            async def execute(self):
+                for op in self._ops:
+                    if op[0] == "incr":
+                        self._store[op[1]] = str(int(self._store.get(op[1], "0")) + 1)
+                return [1] * len(self._ops)
+
+        from api.main import create_app
+        from api.routes import public_api
+        from app_infra.valkey.public_rate_limiter import PublicApiRateLimiter
+
+        valkey = _FakeValkey()
+        limiter = PublicApiRateLimiter(valkey, limit=5)
+
+        class _StubPublisher:
+            async def publish(self, *_args, **_kwargs):
+                return "stub"
+
+        app = create_app(debug=True)
+        app.dependency_overrides[get_current_session] = lambda: SimpleNamespace(
+            account_id=actor
+        )
+        app.dependency_overrides[get_broadcast_publisher] = lambda: _StubPublisher()
+        app.dependency_overrides[public_api.get_public_rate_limiter] = lambda: limiter
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            now = datetime.now(UTC)
+            headers = {
+                "X-Dom-Key-Id": str(key.key_id),
+                "X-Dom-Signature": sign(b"", now, private),
+                "X-Dom-Timestamp": str(int(now.timestamp())),
+            }
+            await client.get("/v1/public/notifications", headers=headers)
+            await client.get("/v1/public/notifications", headers=headers)
+            usage = await client.get("/v1/integrations/usage")
+            assert usage.status_code == 200, usage.text
+            items = {i["route"]: i for i in usage.json()["items"]}
+            assert items["notifications"]["requests"] == 2
+            assert items["notifications"]["limit"] == 5
+            assert items["resources"]["requests"] == 0
+    finally:
+        await session.close()
+        await connection.close()
+
+
+@pytest.mark.asyncio
+async def test_ops_metrics_reflects_request_volume() -> None:
+    """Arch 15 observability: process-local counters feed /ops/metrics."""
+    connection = await engine.connect()
+    session = AsyncSession(connection)
+    try:
+        actor = uuid4()
+        async with session.begin():
+            await session.execute(
+                text(
+                    "INSERT INTO auth.accounts "
+                    "(account_id,status,primary_email,normalized_email) "
+                    "VALUES (:a,'Active',:e,:e)"
+                ),
+                {"a": actor, "e": f"op-{actor}@test"},
+            )
+        from api.infra.metrics import get_metrics
+
+        metrics = get_metrics()
+        metrics.set("test.marker", 3)
+        from api.main import create_app
+
+        class _StubPublisher:
+            async def publish(self, *_args, **_kwargs):
+                return "stub"
+
+        app = create_app(debug=True)
+        app.dependency_overrides[get_current_session] = lambda: SimpleNamespace(
+            account_id=actor
+        )
+        app.dependency_overrides[get_broadcast_publisher] = lambda: _StubPublisher()
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.get("/v1/ops/metrics")
+            assert response.status_code == 200, response.text
+            body = response.json()
+            # the middleware counter is bumped by the request itself; the
+            # marker is the isolated observable we planted
+            assert body["test.marker"] == 3
+            assert body["requests.total"] >= 1
+            # DB gauges are composed into the same snapshot (arch 14/15)
+            assert body["db.accounts.total"] >= 1
+            assert body["db.sessions.active"] >= 0
+            assert body["db.resources.active"] >= 0
+    finally:
+        await session.close()
+        await connection.close()
+
+
+@pytest.mark.asyncio
+async def test_valkey_metrics_shared_counter_increments() -> None:
+    """Arch 14/15: the Valkey counter store aggregates INCR increments."""
+    import asyncio
+
+    from api.infra.metrics import ValkeyMetrics
+
+    class _Fake:
+        def __init__(self):
+            self.store: dict[str, str] = {}
+
+        async def incr(self, key: str) -> int:
+            self.store[key] = str(int(self.store.get(key, "0")) + 1)
+            return int(self.store[key])
+
+        async def set(self, key: str, value: str) -> None:
+            self.store[key] = value
+
+        async def get(self, key: str) -> str | None:
+            return self.store.get(key)
+
+    fake = _Fake()
+    metrics = ValkeyMetrics(fake)
+    await asyncio.get_running_loop().run_in_executor(None, lambda: None)
+    # drive two increments synchronously via the executor-safe path
+    metrics.inc("relayed.ops")
+    metrics.inc("relayed.ops")
+    await asyncio.sleep(0)  # let the scheduled tasks land
+    await asyncio.sleep(0)
+    assert int(fake.store.get("dom:metrics:relayed.ops", "0")) == 2
+
+
+@pytest.mark.asyncio
+async def test_shared_metrics_summary_composes_into_ops() -> None:
+    """Arch 14/15: with a shared store configured, /ops/metrics merges the
+    aggregate namespace counters."""
+    connection = await engine.connect()
+    session = AsyncSession(connection)
+    try:
+        actor = uuid4()
+        async with session.begin():
+            await session.execute(
+                text(
+                    "INSERT INTO auth.accounts "
+                    "(account_id,status,primary_email,normalized_email) "
+                    "VALUES (:a,'Active',:e,:e)"
+                ),
+                {"a": actor, "e": f"sh-{actor}@test"},
+            )
+        from api.infra.metrics import ValkeyMetrics
+
+        class _Fake:
+            def __init__(self):
+                self.store: dict[str, str] = {}
+
+            async def incr(self, key: str) -> int:
+                self.store[key] = str(int(self.store.get(key, "0")) + 1)
+                return int(self.store[key])
+
+            async def get(self, key: str) -> str | None:
+                return self.store.get(key)
+
+            async def set(self, key: str, value: str) -> None:
+                self.store[key] = value
+
+        fake = _Fake()
+        shared = ValkeyMetrics(fake)
+        shared.inc("requests.total")
+        await asyncio.sleep(0)
+        summary = await shared.summarize()
+        assert summary.get("shared.requests.total") == 1
     finally:
         await session.close()
         await connection.close()

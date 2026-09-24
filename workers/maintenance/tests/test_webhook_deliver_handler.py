@@ -171,14 +171,10 @@ def test_webhook_retry_backoff_and_exhaustion() -> None:
         )
         engine = create_async_engine(database_url)
         session = AsyncSession(engine)
-        # keep the claim deterministic: clear leftovers from earlier runs
+        # keep the claim deterministic: this proof owns the whole queue (the
+        # maintenance sweep may enqueue checkpoint/purge work between tests)
         async with session.begin():
-            await session.execute(
-                _text(
-                    "DELETE FROM work.tasks WHERE task_type='webhook.deliver' "
-                    "AND state IN ('Queued','Retrying')"
-                )
-            )
+            await session.execute(_text("DELETE FROM work.tasks"))
         task_id = uuid4()
         task_type = "webhook.deliver"
         input_ref = json.dumps(

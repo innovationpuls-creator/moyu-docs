@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { MemoryPresenceStore } from "../../src/backlog/presence_store.js";
 import { MemoryYjsBacklogStore } from "../../src/backlog/yjs_backlog_store.js";
 import { ResourceSubscriptionManager } from "../../src/subscription/resource_subscriber.js";
 
@@ -186,4 +187,26 @@ it("incrementalSync replays the missing tail for a stale vector", async () => {
 		Uint8Array.from(atob(update), (c) => c.charCodeAt(0)),
 	);
 	expect(replica.getText("content").toString()).toBe("标题 追加");
+});
+
+it("persists roster membership across joins and drops", async () => {
+	const authorizer = new FakeAuthorizer();
+	const sent: Array<{ to: string; envelope: unknown }> = [];
+	const presence = new MemoryPresenceStore();
+	const manager = new ResourceSubscriptionManager(
+		authorizer,
+		{ send: (to, envelope) => sent.push({ to, envelope }) },
+		undefined,
+		presence,
+	);
+	authorizer.allowed.add("actor-a:res-1");
+	authorizer.allowed.add("actor-b:res-1");
+	await manager.subscribe("c1", "actor-a", "res-1");
+	await manager.subscribe("c2", "actor-b", "res-1");
+	expect((await presence.peers("res-1")).sort()).toEqual([
+		"actor-a",
+		"actor-b",
+	]);
+	manager.dropConnection("c1");
+	expect(await presence.peers("res-1")).toEqual(["actor-b"]);
 });

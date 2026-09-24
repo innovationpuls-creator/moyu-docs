@@ -18,6 +18,7 @@ from fastapi import Depends, FastAPI
 from api.config import settings
 from api.logging import configure_logging
 from api.middleware.error_handler import register_error_handlers
+from api.middleware.metrics_middleware import MetricsMiddleware
 from api.middleware.recovery_mode_guard import get_recovery_guard
 from api.middleware.request_context import RequestContextMiddleware
 from api.middleware.security_headers import SecurityHeadersMiddleware
@@ -34,6 +35,7 @@ from api.routes.importexport import router as importexport_router
 from api.routes.integrations import router as integrations_router
 from api.routes.member_suggestions import router as member_suggestions_router
 from api.routes.notifications import router as notifications_router
+from api.routes.ops import router as ops_router
 from api.routes.project_listing import router as project_listing_router
 from api.routes.public_api import router as public_api_router
 from api.routes.resource_diff import router as resource_diff_router
@@ -67,6 +69,7 @@ def create_app(
         configure_logging()
         app.add_middleware(RequestContextMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(MetricsMiddleware)
     register_error_handlers(app)
 
     app.include_router(auth_registration_router, prefix="/v1/auth")
@@ -89,6 +92,7 @@ def create_app(
     app.include_router(integrations_router, prefix="/v1")
     app.include_router(history_router, prefix="/v1")
     app.include_router(notifications_router, prefix="/v1")
+    app.include_router(ops_router, prefix="/v1")
     app.include_router(public_api_router, prefix="/v1")
     app.include_router(resource_diff_router, prefix="/v1")
     app.include_router(project_listing_router, prefix="/v1")

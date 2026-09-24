@@ -1,0 +1,8 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/ops/get-ops-metrics.schema.json",
+	"title": "GetOpsMetricsResponse",
+	"description": "OPS-001. Process-local counters (requests by status, DL activity, rate-limit blocks).",
+	"type": "object",
+	"additionalProperties": true
+}

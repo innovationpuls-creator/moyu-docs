@@ -9,6 +9,7 @@
  */
 
 import { connect, type JetStreamClient } from "nats";
+import type { PresenceStore } from "../backlog/presence_store.js";
 import type { YjsBacklogStore } from "../backlog/yjs_backlog_store.js";
 import {
 	type OpEnvelope,
@@ -24,6 +25,8 @@ export interface RelayHostOptions {
 	natsUrl: string;
 	/** Yjs backlog store for late-join catch-up (arch 05); default in-memory. */
 	backlogStore?: YjsBacklogStore;
+	/** Presence roster store (arch 05); default in-memory. */
+	presenceStore?: PresenceStore;
 }
 
 export interface ConnectionRegistry {
@@ -48,6 +51,7 @@ export class GatewayRelayHost {
 				},
 			},
 			this.options.backlogStore,
+			this.options.presenceStore,
 		);
 	}
 

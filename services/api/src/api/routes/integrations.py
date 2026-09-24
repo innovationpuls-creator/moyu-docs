@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from app_core.integrations.application import IssueApiKey, RevokeApiKey
@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.dependencies.auth import get_current_session, get_db_session
+from api.routes.public_api import get_public_rate_limiter
 
 router = APIRouter()
 
@@ -104,3 +105,35 @@ async def revoke_api_key(
     except LookupError:
         raise HTTPException(status_code=404, detail="INTEGRATION_KEY_NOT_FOUND")
     return RevokeKeyResponse(keyId=key_id)
+
+
+class ApiUsageItem(BaseModel):
+    route: str
+    requests: int
+    limit: int
+
+
+class ApiUsageResponse(BaseModel):
+    items: list[ApiUsageItem]
+
+
+@router.get("/integrations/usage", response_model=ApiUsageResponse)
+async def get_api_usage(
+    current: Annotated[Session, Depends(get_current_session)],
+    limiter: Annotated[Any, Depends(get_public_rate_limiter)],
+) -> ApiUsageResponse:
+    """Arch 22 metering: the account's current-window Public API usage."""
+    owner = str(current.account_id)
+    items = [
+        ApiUsageItem(
+            route="notifications",
+            requests=await limiter.usage(owner, "notifications"),
+            limit=limiter.limit(),
+        ),
+        ApiUsageItem(
+            route="resources",
+            requests=await limiter.usage(owner, "resources"),
+            limit=limiter.limit(),
+        ),
+    ]
+    return ApiUsageResponse(items=items)

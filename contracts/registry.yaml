@@ -556,6 +556,38 @@ contracts:
     ownerModule: packages/py/core/integrations
     status: active
 
+  - logicalName: GetOpsMetrics
+    kind: Query
+    domain: ops
+    version: "1.0.0"
+    schemaPath: contracts/queries/ops/get-ops-metrics.schema.json
+    requestRef: none
+    responseRef: contracts/queries/ops/get-ops-metrics.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: []
+    ownerDocument: docs/architecture/15-Deployment-and-Operations-Design.md
+    ownerModule: services/api
+    status: active
+
+  - logicalName: GetApiUsage
+    kind: Query
+    domain: integrations
+    version: "1.0.0"
+    schemaPath: contracts/queries/integrations/get-api-usage.schema.json
+    requestRef: none
+    responseRef: contracts/queries/integrations/get-api-usage.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: []
+    ownerDocument: docs/architecture/22-Public-API-Design.md
+    ownerModule: packages/py/core/integrations
+    status: active
+
   - logicalName: GetPublicNotifications
     kind: Query
     domain: public-api
