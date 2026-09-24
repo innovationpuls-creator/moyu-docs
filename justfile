@@ -43,7 +43,7 @@ test:
 test-db:
     test -n "$DATABASE_URL" || (echo "DATABASE_URL must target dom_workspace_lifecycle_test" >&2; exit 1)
     uv run python -c 'from urllib.parse import urlparse; import os; url=os.environ["DATABASE_URL"].replace("postgresql+psycopg://", "postgresql://", 1); assert urlparse(url).path.lstrip("/") == "dom_workspace_lifecycle_test", "DATABASE_URL must target dom_workspace_lifecycle_test"'
-    uv run pytest tests/migration tests/integration
+    PYTHONPATH=.:packages/py/task-runtime/src:packages/py/core/src uv run pytest tests/migration tests/integration
 
 # 运行 Realtime WebSocket 测试与类型检查 (@dom/realtime; vitest, 真实 Valkey db 15)
 test-realtime:
