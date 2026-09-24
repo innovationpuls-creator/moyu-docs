@@ -1,0 +1,28 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/importexport/import-resource.schema.json",
+	"title": "ImportResource",
+	"description": "FR-IE-002. Import one exchange document INTO an existing Resource: the imported snapshot becomes a new checkpoint and the import is recorded as a journal op.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+		"document": { "type": "object" },
+		"idempotencyKey": {
+			"$ref": "../../ids/ids.schema.json#/$defs/IdempotencyKey"
+		}
+	},
+	"required": ["resourceId", "document", "idempotencyKey"],
+	"$defs": {
+		"ImportResourceResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+				"journalSeq": { "type": "integer" }
+			},
+			"required": ["resourceId", "journalSeq"],
+			"title": "ImportResourceResponse"
+		}
+	}
+}

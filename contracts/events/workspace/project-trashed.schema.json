@@ -1,0 +1,45 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/events/workspace/project-trashed.schema.json",
+	"title": "ProjectTrashed",
+	"description": "FR-WRL-008. Fact that Project ancestor lifecycle transitioned to Trashed; descendants inherit this state without per-descendant writes. Does not signal Resource session closure or physical cleanup.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"eventId": { "$ref": "../../ids/ids.schema.json#/$defs/EventId" },
+		"eventType": { "const": "ProjectTrashed" },
+		"schemaVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+		"occurredAt": { "type": "string", "format": "date-time" },
+		"producer": { "type": "string", "minLength": 1 },
+		"payload": { "$ref": "#/$defs/ProjectTrashedPayload" }
+	},
+	"required": [
+		"eventId",
+		"eventType",
+		"schemaVersion",
+		"occurredAt",
+		"producer",
+		"payload"
+	],
+	"$defs": {
+		"ProjectTrashedPayload": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"workspaceId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId"
+				},
+				"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+				"actorAccountId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+				"purgeEligibleAt": { "type": "string", "format": "date-time" }
+			},
+			"required": [
+				"workspaceId",
+				"projectId",
+				"actorAccountId",
+				"purgeEligibleAt"
+			],
+			"title": "ProjectTrashedPayload"
+		}
+	}
+}

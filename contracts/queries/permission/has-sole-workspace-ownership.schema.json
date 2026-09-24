@@ -1,0 +1,18 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/permission/has-sole-workspace-ownership.schema.json",
+	"title": "HasSoleWorkspaceOwnershipResponse",
+	"description": "FR-WRL-009/011 Permission-owned owner query adapter behind Auth WorkspaceOwnershipQueryPort. Evaluates the same authoritative membership source as Workspace create/transfer. The API actor is the authenticated account; no account ID is accepted from the request body.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"hasSoleWorkspaceOwnership": { "type": "boolean" },
+		"workspaceId": {
+			"oneOf": [
+				{ "$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId" },
+				{ "type": "null" }
+			]
+		}
+	},
+	"required": ["hasSoleWorkspaceOwnership", "workspaceId"]
+}

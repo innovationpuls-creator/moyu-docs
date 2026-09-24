@@ -1,0 +1,39 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/comments/list-comments.schema.json",
+	"title": "ListCommentsResponse",
+	"description": "FR-CMT-002. List flat-thread comments of a Resource, oldest first.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+		"items": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"commentId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+					"threadId": {
+						"$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId"
+					},
+					"authorAccountId": {
+						"$ref": "../../ids/ids.schema.json#/$defs/UserId"
+					},
+					"body": { "type": "string" },
+					"anchor": { "type": "object" },
+					"createdAt": { "type": "string", "format": "date-time" }
+				},
+				"required": [
+					"commentId",
+					"threadId",
+					"authorAccountId",
+					"body",
+					"anchor",
+					"createdAt"
+				]
+			}
+		}
+	},
+	"required": ["resourceId", "items"]
+}

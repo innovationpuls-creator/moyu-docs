@@ -1,0 +1,28 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/resource/rename-resource.schema.json",
+	"title": "RenameResource",
+	"description": "FR-RC-004. Rename one authorized Resource; sibling names (normalized, incl. Trashed/Purged) stay reserved.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+		"name": { "type": "string", "minLength": 1, "maxLength": 200 },
+		"idempotencyKey": {
+			"$ref": "../../ids/ids.schema.json#/$defs/IdempotencyKey"
+		}
+	},
+	"required": ["resourceId", "name", "idempotencyKey"],
+	"$defs": {
+		"RenameResourceResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+				"name": { "type": "string" }
+			},
+			"required": ["resourceId", "name"],
+			"title": "RenameResourceResponse"
+		}
+	}
+}

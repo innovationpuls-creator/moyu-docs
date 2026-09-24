@@ -12,6 +12,7 @@
 	},
 	"dependencies": {
 		"@dom/client-sdk": "workspace:*",
+		"@dom/yjs-runtime": "workspace:*",
 		"@dom/contracts": "workspace:*",
 		"@dom/realtime-client": "workspace:*"
 	},

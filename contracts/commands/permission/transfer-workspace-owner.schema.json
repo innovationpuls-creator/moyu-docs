@@ -1,0 +1,45 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/permission/transfer-workspace-owner.schema.json",
+	"title": "TransferWorkspaceOwner",
+	"description": "FR-WRL-011 Permission-owned command contract. Transfer Workspace Owner only to an existing Workspace member. Permission atomically retains the former Owner as a normal member, removes inherited Workspace-wide Project management, preserves independent Project Owner rows, and maintains one authoritative Workspace Owner. This schema specifies the boundary only; no Permission storage adapter is implemented by Lifecycle.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"workspaceId": { "$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId" },
+		"newOwnerAccountId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+		"idempotencyKey": {
+			"$ref": "../../ids/ids.schema.json#/$defs/IdempotencyKey"
+		}
+	},
+	"required": ["workspaceId", "newOwnerAccountId", "idempotencyKey"],
+	"$defs": {
+		"TransferWorkspaceOwnerResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"workspaceId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId"
+				},
+				"previousOwnerAccountId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/UserId"
+				},
+				"newOwnerAccountId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/UserId"
+				},
+				"previousOwnerRemainsMember": { "const": true },
+				"independentProjectOwnerRowsChanged": { "const": false },
+				"transferredAt": { "type": "string", "format": "date-time" }
+			},
+			"required": [
+				"workspaceId",
+				"previousOwnerAccountId",
+				"newOwnerAccountId",
+				"previousOwnerRemainsMember",
+				"independentProjectOwnerRowsChanged",
+				"transferredAt"
+			],
+			"title": "TransferWorkspaceOwnerResponse"
+		}
+	}
+}

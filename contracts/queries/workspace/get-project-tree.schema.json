@@ -1,0 +1,65 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/workspace/get-project-tree.schema.json",
+	"title": "GetProjectTreeResponse",
+	"description": "FR-WRL-004. Metadata-only, lazy-load-capable Project Tree; this Query never loads Resource content.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"workspaceId": { "$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId" },
+		"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+		"project": { "$ref": "#/$defs/ProjectSummary" },
+		"folders": {
+			"type": "array",
+			"items": { "$ref": "#/$defs/FolderSummary" }
+		},
+		"nextCursor": { "type": ["string", "null"] }
+	},
+	"required": ["workspaceId", "projectId", "project", "folders", "nextCursor"],
+	"$defs": {
+		"ProjectLifecycle": {
+			"type": "string",
+			"enum": ["Active", "Archived", "Trashed", "Purging", "Purged"],
+			"title": "ProjectLifecycle"
+		},
+		"FolderLifecycle": {
+			"type": "string",
+			"enum": ["Active", "Trashed", "Deleted"],
+			"title": "FolderLifecycle"
+		},
+		"ProjectSummary": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"name": { "type": "string" },
+				"lifecycle": { "$ref": "#/$defs/ProjectLifecycle" }
+			},
+			"required": ["name", "lifecycle"],
+			"title": "ProjectSummary"
+		},
+		"FolderSummary": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"folderId": { "$ref": "../../ids/ids.schema.json#/$defs/FolderId" },
+				"parentFolderId": {
+					"oneOf": [
+						{ "$ref": "../../ids/ids.schema.json#/$defs/FolderId" },
+						{ "type": "null" }
+					]
+				},
+				"name": { "type": "string" },
+				"lifecycle": { "$ref": "#/$defs/FolderLifecycle" },
+				"hasChildren": { "type": "boolean" }
+			},
+			"required": [
+				"folderId",
+				"parentFolderId",
+				"name",
+				"lifecycle",
+				"hasChildren"
+			],
+			"title": "FolderSummary"
+		}
+	}
+}

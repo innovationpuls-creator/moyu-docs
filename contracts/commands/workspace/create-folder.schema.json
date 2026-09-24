@@ -1,0 +1,48 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/workspace/create-folder.schema.json",
+	"title": "CreateFolder",
+	"description": "FR-WRL-005. Create Folder metadata. Parent, when present, must be in the same Project.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+		"parentFolderId": {
+			"oneOf": [
+				{ "$ref": "../../ids/ids.schema.json#/$defs/FolderId" },
+				{ "type": "null" }
+			]
+		},
+		"name": { "type": "string", "minLength": 1, "maxLength": 120 },
+		"idempotencyKey": {
+			"$ref": "../../ids/ids.schema.json#/$defs/IdempotencyKey"
+		}
+	},
+	"required": ["projectId", "parentFolderId", "name", "idempotencyKey"],
+	"$defs": {
+		"CreateFolderResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"folderId": { "$ref": "../../ids/ids.schema.json#/$defs/FolderId" },
+				"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+				"parentFolderId": {
+					"oneOf": [
+						{ "$ref": "../../ids/ids.schema.json#/$defs/FolderId" },
+						{ "type": "null" }
+					]
+				},
+				"name": { "type": "string" },
+				"createdAt": { "type": "string", "format": "date-time" }
+			},
+			"required": [
+				"folderId",
+				"projectId",
+				"parentFolderId",
+				"name",
+				"createdAt"
+			],
+			"title": "CreateFolderResponse"
+		}
+	}
+}

@@ -1,0 +1,25 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/history/restore-version.schema.json",
+	"title": "RestoreVersion",
+	"description": "FR-HS-002. Restore at a version = a NEW current, never a rewind.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"baseJournalSeq": { "type": "integer", "minimum": 1 }
+	},
+	"required": ["baseJournalSeq"],
+	"$defs": {
+		"RestoreVersionResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+				"newSeq": { "type": "integer" },
+				"label": { "type": "string" }
+			},
+			"required": ["resourceId", "newSeq", "label"],
+			"title": "RestoreVersionResponse"
+		}
+	}
+}

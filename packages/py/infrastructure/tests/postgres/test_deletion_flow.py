@@ -3,6 +3,7 @@ from uuid import uuid4
 
 import pytest
 import pytest_asyncio
+from api.dependencies.workspace_ownership import PostgresWorkspaceOwnershipQuery
 from app_core.account.application.deletion import (
     CancelAccountDeletion,
     ProcessAccountPurge,
@@ -18,6 +19,9 @@ from app_core.session.domain.session import (
 from app_infra.postgres.account_repository import PostgresAccountRepository
 from app_infra.postgres.deletion_repository import PostgresDeletionRepository
 from app_infra.postgres.engine import engine
+from app_infra.postgres.permission_workspace_repository import (
+    PostgresWorkspaceMembershipRepository,
+)
 from app_infra.postgres.session_repository import PostgresSessionRepository
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -95,17 +99,29 @@ async def test_postgres_deletion_sole_owner_does_not_create_request(
     db_session: AsyncSession,
 ):
     now, account, accounts, sessions, current = await _setup(db_session)
+    workspace_id = uuid4()
+    await db_session.execute(
+        text(
+            "INSERT INTO core.workspaces (workspace_id,name,created_by) "
+            "VALUES (:workspace_id,'Owned',:account_id)"
+        ),
+        {"workspace_id": workspace_id, "account_id": account.account_id},
+    )
+    await PostgresWorkspaceMembershipRepository(db_session).grant_initial_owner(
+        workspace_id, account.account_id
+    )
+    ownership = PostgresWorkspaceOwnershipQuery(db_session)
     with pytest.raises(ConflictError) as error:
         await RequestAccountDeletion(
             accounts,
             sessions,
-            SoleOwner(),
+            ownership,
             Audit(),
             PostgresDeletionRepository(db_session),
             now=lambda: now,
         ).execute(account.account_id, current.session_id)
     assert error.value.error_code == "ACCOUNT_DELETION_SOLE_OWNER"
-    assert "workspace-" in error.value.message
+    assert "Owned" in error.value.message
     assert (
         await db_session.execute(
             text(
@@ -115,6 +131,25 @@ async def test_postgres_deletion_sole_owner_does_not_create_request(
             {"id": account.account_id},
         )
     ).scalar_one() == 0
+
+
+@pytest.mark.asyncio
+async def test_postgres_deletion_non_owner_proceeds_with_real_projection(
+    db_session: AsyncSession,
+):
+    now, account, accounts, sessions, current = await _setup(db_session)
+    ownership = PostgresWorkspaceOwnershipQuery(db_session)
+    await RequestAccountDeletion(
+        accounts,
+        sessions,
+        ownership,
+        Audit(),
+        PostgresDeletionRepository(db_session),
+        now=lambda: now,
+    ).execute(account.account_id, current.session_id)
+    record = await accounts.find_by_account_id(account.account_id)
+    assert record is not None
+    assert record.account.status.value == "DeletionPending"
 
 
 @pytest.mark.asyncio

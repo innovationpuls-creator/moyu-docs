@@ -1,0 +1,34 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/search/search-comments.schema.json",
+	"title": "SearchCommentsResponse",
+	"description": "FR-SRC-004. Search undeleted comment bodies within a workspace.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"workspaceId": { "$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId" },
+		"query": { "type": "string" },
+		"items": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"commentId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+					"threadId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+					"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+					"resourceName": { "type": "string" },
+					"body": { "type": "string" }
+				},
+				"required": [
+					"commentId",
+					"threadId",
+					"resourceId",
+					"resourceName",
+					"body"
+				]
+			}
+		}
+	},
+	"required": ["workspaceId", "query", "items"]
+}

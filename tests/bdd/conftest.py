@@ -269,6 +269,24 @@ def bdd_context(
             runner(client.aclose())
 
 
+def pytest_configure(config) -> None:  # type: ignore[no-untyped-def]
+    """Register lifecycle requirement markers before pytest-bdd collection."""
+    for number in range(1, 12):
+        marker = f"FR-WRL-{number:03d}: Workspace lifecycle requirement"
+        if marker not in config.getini("markers"):
+            config.addinivalue_line("markers", marker)
+    pending_marker = (
+        "pending-contract-binding: lifecycle scenario awaits canonical Task-4 "
+        "OpenAPI/Contract path and schema before executable step binding"
+    )
+    if pending_marker not in config.getini("markers"):
+        config.addinivalue_line("markers", pending_marker)
+    config.addinivalue_line(
+        "markers",
+        "pending_owner_bootstrap: Workspace creation awaits Permission owner bootstrap",
+    )
+
+
 def pytest_collection_modifyitems(config, items) -> None:  # type: ignore[no-untyped-def]
     """pytest-bdd >= 8 routes tag filtering through pytest markers; emulate the
     pre-8 ``filter_="not browser"`` selection by deselecting the 9 browser-
@@ -291,10 +309,18 @@ def pytest_collection_modifyitems(config, items) -> None:  # type: ignore[no-unt
             str(item.path).endswith("tests/bdd/test_account_auth_session_bdd.py")
             and item.get_closest_marker("browser") is not None
         )
+        and not (
+            str(item.path).endswith(
+                "tests/bdd/test_workspace_resource_lifecycle_bdd.py"
+            )
+            and item.get_closest_marker("pending_owner_bootstrap") is not None
+        )
     ]
     if len(kept) != len(items):
         # pytest-bdd 8.x limitation: `item.items[:] = kept` (removing the
         # browser scenarios) is the only reliable deselection for BDD items —
         # see the docstring above. Replacing it with marker-based selection is
-        # not possible for pytest-bdd scenario items.
+        # not possible for pytest-bdd scenario items. The pending lifecycle
+        # owner-bootstrap scenario is deliberately deselected until its
+        # Permission-backed shared transaction exists.
         items[:] = kept

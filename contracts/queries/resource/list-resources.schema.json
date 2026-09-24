@@ -1,0 +1,32 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/resource/list-resources.schema.json",
+	"title": "ListResourcesResponse",
+	"description": "FR-RC-006. List Resources of an authorized Project (workspace-member authority). Trashed/Purged rows carry their lifecycle; navigation surfaces Active only.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId" },
+		"items": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+					"name": { "type": "string" },
+					"resourceType": {
+						"type": "string",
+						"enum": ["document", "code", "markdown", "text"]
+					},
+					"lifecycle": {
+						"type": "string",
+						"enum": ["Active", "Trashed", "Purging", "Purged"]
+					}
+				},
+				"required": ["resourceId", "name", "resourceType", "lifecycle"]
+			}
+		}
+	},
+	"required": ["projectId", "items"]
+}

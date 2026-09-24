@@ -100,3 +100,164 @@ codes:
     messageKey: "auth.error.idempotencyKeyConflict"
     retryable: false
     description: "相同幂等键但请求内容不一致（PRD AC-001.4/006.4/029.5）"
+  WORKSPACE_NAME_INVALID:
+    category: Validation
+    messageKey: "workspace.error.nameInvalid"
+    retryable: false
+    description: "Workspace、Project 或 Folder 名称为空、超长或包含控制字符（FR-WRL-002/005）"
+  WORKSPACE_NAME_CONFLICT:
+    category: Conflict
+    messageKey: "workspace.error.nameConflict"
+    retryable: false
+    description: "同级 Workspace、Project 或 Folder 名称按 NFC、边缘空白裁剪和大小写折叠后冲突（FR-WRL-002/005/008）"
+  WORKSPACE_NOT_FOUND:
+    category: NotFound
+    messageKey: "workspace.error.notFound"
+    retryable: false
+    description: "目标 Workspace 不存在或不可见（FR-WRL-001/002/003）"
+  PROJECT_NOT_FOUND:
+    category: NotFound
+    messageKey: "workspace.error.projectNotFound"
+    retryable: false
+    description: "目标 Project 不存在或不可见（FR-WRL-003/004/006/007/008）"
+  FOLDER_NOT_FOUND:
+    category: NotFound
+    messageKey: "workspace.error.folderNotFound"
+    retryable: false
+    description: "目标 Folder 不存在或不可见（FR-WRL-005/006/008）"
+  WORKSPACE_PARENT_INVALID:
+    category: Conflict
+    messageKey: "workspace.error.parentInvalid"
+    retryable: false
+    description: "父对象不存在、已归档/回收站状态不允许写入，或 Folder 父子不属于同一 Project（FR-WRL-003/005/006）"
+  FOLDER_CYCLE:
+    category: Conflict
+    messageKey: "workspace.error.folderCycle"
+    retryable: false
+    description: "Folder 移动会形成树循环（FR-WRL-006）"
+  WORKSPACE_LIFECYCLE_CONFLICT:
+    category: Conflict
+    messageKey: "workspace.error.lifecycleConflict"
+    retryable: false
+    description: "当前 Workspace、Project 或 Folder 生命周期状态不允许该操作（FR-WRL-007/008）"
+  PROJECT_READ_ONLY:
+    category: Permission
+    messageKey: "workspace.error.projectReadOnly"
+    retryable: false
+    description: "Archived Project 为只读状态（FR-WRL-007）"
+  WEBHOOK_SUBSCRIPTION_NOT_FOUND:
+    category: NotFound
+    httpStatus: 404
+    messageKey: "webhook.error.subscriptionNotFound"
+    message: Webhook subscription not found in this workspace
+    retryable: false
+    description: "Webhook 订阅在当前 Workspace 不存在（FR-WEB-003）"
+  INTEGRATION_KEY_NOT_FOUND:
+    category: NotFound
+    httpStatus: 404
+    messageKey: "integration.error.keyNotFound"
+    message: Integration key not found for this account
+    retryable: false
+    description: "当前 Account 无权操作该集成密钥或密钥不存在（FR-INT-003）"
+  INTEGRATION_KEY_LIMIT_REACHED:
+    category: Conflict
+    httpStatus: 409
+    messageKey: "integration.error.keyLimit"
+    message: Integration key limit reached
+    retryable: false
+    description: "集成密钥数量达到上限（FR-INT-003）"
+  INTEGRATION_AUTH_REQUIRED:
+    category: Authentication
+    httpStatus: 401
+    messageKey: "integration.error.authRequired"
+    message: Public API requires an integration key signature
+    retryable: false
+    description: "Public API 请求缺少/无法解析集成密钥签名头（arch 22 / PUB-001）"
+  INTEGRATION_AUTH_UNAUTHORIZED:
+    category: Authentication
+    httpStatus: 401
+    messageKey: "integration.error.authUnauthorized"
+    message: Public API signature verification failed
+    retryable: false
+    description: "Public API 集成密钥签名校验失败或已吊销（arch 22 / PUB-001）"
+  WORKSPACE_PERMISSION_DENIED:
+    category: Permission
+    messageKey: "workspace.error.permissionDenied"
+    retryable: false
+    description: "当前 Account 无权执行 Workspace/Project/Folder 元数据操作（FR-WRL-001/003/005/006/007/008）"
+  WORKSPACE_CREATION_REQUIRES_ACTIVE_ACCOUNT:
+    category: Permission
+    messageKey: "workspace.error.activeAccountRequired"
+    retryable: false
+    description: "仅 Active Account 可以创建 Workspace（FR-WRL-001）"
+  WORKSPACE_AUTHORIZATION_UNAVAILABLE:
+    category: Unavailable
+    messageKey: "workspace.error.authorizationUnavailable"
+    retryable: true
+    description: "Permission 授权结果不可用；Lifecycle 必须失败关闭（FR-WRL-001/003/005/006/007/008/009/011）"
+  WORKSPACE_OWNER_TRANSFER_INVALID:
+    category: Conflict
+    messageKey: "workspace.error.ownerTransferInvalid"
+    retryable: false
+    description: "Workspace Owner 转移无效、目标不是成员或并发状态已变化（FR-WRL-011）"
+  WORKSPACE_REQUEST_MISMATCH:
+    category: Conflict
+    messageKey: "workspace.error.requestIdMismatch"
+    retryable: false
+    description: "请求路径与请求体内的对象 ID 不一致（FR-WRL-001/003/005/006）"
+
+  RESOURCE_NAME_CONFLICT:
+    category: Conflict
+    messageKey: "resource.error.nameConflict"
+    retryable: false
+    description: "同级 Resource 名称（归一化，含 Trashed/Purged）已被占用（FR-RC-001）"
+  RESOURCE_NOT_FOUND:
+    category: NotFound
+    messageKey: "resource.error.notFound"
+    retryable: false
+    description: "Resource 不存在、不可访问或已清除（FR-RC-001/006）"
+  RESOURCE_PERMISSION_DENIED:
+    category: Permission
+    messageKey: "resource.error.permissionDenied"
+    retryable: false
+    description: "当前身份无权读取该 Resource（FR-RC-001）"
+  RESOURCE_AUTHORIZATION_UNAVAILABLE:
+    category: DependencyFailure
+    messageKey: "resource.error.authorizationUnavailable"
+    retryable: true
+    description: "权限判定服务不可用，无法完成授权检查（FR-RC-001）"
+
+  COMMENT_BODY_INVALID:
+    category: Validation
+    messageKey: "comment.error.bodyInvalid"
+    retryable: false
+    description: "评论正文为空或格式无效（FR-CMT-001）"
+
+  IMPORT_DOCUMENT_INVALID:
+    category: Validation
+    messageKey: "importexport.error.documentInvalid"
+    retryable: false
+    description: "Import 文档格式无效（FR-IE-002）"
+
+  COMMENT_NOT_FOUND:
+    category: NotFound
+    messageKey: "comment.error.notFound"
+    retryable: false
+    description: "评论不存在或已删除（FR-CMT-003/004）"
+  COMMENT_PERMISSION_DENIED:
+    category: Permission
+    messageKey: "comment.error.permissionDenied"
+    retryable: false
+    description: "仅作者可编辑/删除评论（FR-CMT-003/004）"
+
+  VERSION_LABEL_CONFLICT:
+    category: Conflict
+    messageKey: "history.error.labelConflict"
+    retryable: false
+    description: "命名版本标签已存在（FR-HS-003）"
+
+  NOTIFICATION_NOT_FOUND:
+    category: NotFound
+    messageKey: "notification.error.notFound"
+    retryable: false
+    description: "通知不存在或不属于当前账户（FR-NTF-003）"

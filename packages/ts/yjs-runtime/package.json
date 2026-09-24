@@ -1,0 +1,22 @@
+{
+	"name": "@dom/yjs-runtime",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"description": "Yjs document runtime for body CRDT consensus (arch 05 §14/§171/§218): update merge guarantees consumed by the resource runtime.",
+	"types": "./src/index.ts",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"yjs": "^13.6.31"
+	},
+	"devDependencies": {
+		"typescript": "^5.9.3",
+		"vitest": "^3.2.4"
+	}
+}

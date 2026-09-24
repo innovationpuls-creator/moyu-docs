@@ -391,6 +391,15 @@ membership_kind
 created_at
 ```
 
+`membership_kind` is the Workspace membership authority and has exactly these values:
+
+```text
+Owner
+Member
+```
+
+Each non-Deleted Workspace has exactly one `Owner` membership. Owner transfer changes the `membership_kind` of the old and new Owner in one transaction; the former Owner remains a `Member`. Project roles are independent and are not changed by Workspace Owner transfer. Workspace Owner inherits `Manage` capability over Projects in that Workspace at authorization evaluation time; inherited access is not copied into `core.project_members`.
+
 Primary Key：
 
 ```text

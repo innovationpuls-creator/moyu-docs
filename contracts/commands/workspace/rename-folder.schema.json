@@ -1,0 +1,42 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/workspace/rename-folder.schema.json",
+	"title": "RenameFolder",
+	"description": "FR-WRL-005. Rename Folder metadata while preserving its stable Folder identity.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"folderId": { "$ref": "../../ids/ids.schema.json#/$defs/FolderId" },
+		"name": { "type": "string", "minLength": 1, "maxLength": 120 },
+		"idempotencyKey": {
+			"$ref": "../../ids/ids.schema.json#/$defs/IdempotencyKey"
+		}
+	},
+	"required": ["folderId", "name", "idempotencyKey"],
+	"$defs": {
+		"RenameFolderResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"folderId": { "$ref": "../../ids/ids.schema.json#/$defs/FolderId" },
+				"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+				"parentFolderId": {
+					"oneOf": [
+						{ "$ref": "../../ids/ids.schema.json#/$defs/FolderId" },
+						{ "type": "null" }
+					]
+				},
+				"name": { "type": "string" },
+				"updatedAt": { "type": "string", "format": "date-time" }
+			},
+			"required": [
+				"folderId",
+				"projectId",
+				"parentFolderId",
+				"name",
+				"updatedAt"
+			],
+			"title": "RenameFolderResponse"
+		}
+	}
+}

@@ -1,0 +1,28 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/comments/edit-comment.schema.json",
+	"title": "EditComment",
+	"description": "FR-CMT-003. Author edits their own comment body.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"commentId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+		"body": { "type": "string", "minLength": 1 },
+		"idempotencyKey": {
+			"$ref": "../../ids/ids.schema.json#/$defs/IdempotencyKey"
+		}
+	},
+	"required": ["commentId", "body", "idempotencyKey"],
+	"$defs": {
+		"EditCommentResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"commentId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+				"body": { "type": "string" }
+			},
+			"required": ["commentId", "body"],
+			"title": "EditCommentResponse"
+		}
+	}
+}

@@ -1,0 +1,29 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/notifications/list-notifications.schema.json",
+	"title": "ListNotificationsResponse",
+	"description": "FR-NTF-001. In-app notifications, newest first.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"items": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"notificationId": {
+						"$ref": "../../ids/ids.schema.json#/$defs/UserId"
+					},
+					"kind": { "type": "string" },
+					"payload": { "type": "object" },
+					"createdAt": { "type": ["string", "null"] },
+					"readAt": { "type": ["string", "null"] }
+				},
+				"required": ["notificationId", "kind", "payload", "createdAt", "readAt"]
+			}
+		},
+		"unreadCount": { "type": "integer" }
+	},
+	"required": ["items", "unreadCount"]
+}

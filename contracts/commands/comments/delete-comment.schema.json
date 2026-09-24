@@ -1,0 +1,27 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/comments/delete-comment.schema.json",
+	"title": "DeleteComment",
+	"description": "FR-CMT-004. Author soft-deletes their comment (thread integrity kept).",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"commentId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+		"idempotencyKey": {
+			"$ref": "../../ids/ids.schema.json#/$defs/IdempotencyKey"
+		}
+	},
+	"required": ["commentId", "idempotencyKey"],
+	"$defs": {
+		"DeleteCommentResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"commentId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+				"deleted": { "type": "boolean", "const": true }
+			},
+			"required": ["commentId", "deleted"],
+			"title": "DeleteCommentResponse"
+		}
+	}
+}

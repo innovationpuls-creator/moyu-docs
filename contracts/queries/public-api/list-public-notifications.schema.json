@@ -1,0 +1,27 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/public-api/list-public-notifications.schema.json",
+	"title": "GetPublicNotificationsResponse",
+	"description": "PUB-001. Machine-client notifications list, authenticated by an integration key (Ed25519 signature headers; no session).",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"items": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"notificationId": {
+						"$ref": "../../ids/ids.schema.json#/$defs/UserId"
+					},
+					"kind": { "type": "string" },
+					"payload": { "type": "object" },
+					"readAt": { "type": ["string", "null"] }
+				},
+				"required": ["notificationId", "kind", "payload", "readAt"]
+			}
+		}
+	},
+	"required": ["items"]
+}

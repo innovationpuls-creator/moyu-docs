@@ -1,0 +1,31 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/workspace/create-workspace.schema.json",
+	"title": "CreateWorkspace",
+	"description": "FR-WRL-001/011. Create a Workspace. Permission-owned bootstrap must atomically establish the requesting Account as its initial sole Workspace Owner; Lifecycle never writes membership rows.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"name": { "type": "string", "minLength": 1, "maxLength": 120 },
+		"idempotencyKey": {
+			"$ref": "../../ids/ids.schema.json#/$defs/IdempotencyKey"
+		}
+	},
+	"required": ["name", "idempotencyKey"],
+	"$defs": {
+		"CreateWorkspaceResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"workspaceId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId"
+				},
+				"name": { "type": "string" },
+				"ownerAccountId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+				"createdAt": { "type": "string", "format": "date-time" }
+			},
+			"required": ["workspaceId", "name", "ownerAccountId", "createdAt"],
+			"title": "CreateWorkspaceResponse"
+		}
+	}
+}

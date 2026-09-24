@@ -1,0 +1,12 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/notifications/mark-notifications-read.schema.json",
+	"title": "MarkNotificationsReadResponse",
+	"description": "FR-NTF-002. Mark all notifications read (no body).",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"marked": { "type": "integer" }
+	},
+	"required": ["marked"]
+}

@@ -14,6 +14,7 @@
  * round-trips (and multi-tab shares it automatically through the cookie jar).
  */
 
+import type { components } from "@dom/contracts/client-api";
 import type { LoginWithPassword } from "@dom/contracts/commands/auth/login-with-password";
 import type { LoginWithPasswordResponse } from "@dom/contracts/commands/auth/login-with-password-response";
 import type { LogoutResponse } from "@dom/contracts/commands/auth/logout";
@@ -22,6 +23,67 @@ import type { RegisterWithEmailResponse } from "@dom/contracts/commands/auth/reg
 import type { AuthErrorCategory } from "@dom/contracts/errors/error-envelope";
 import type { GetCurrentAccountResponse } from "@dom/contracts/queries/auth/get-current-account";
 import type { GetCurrentSessionResponse } from "@dom/contracts/queries/auth/get-current-session";
+
+type CreateWorkspaceRequest = components["schemas"]["create-workspace.schema"];
+type CreateWorkspaceResponse = components["schemas"]["CreateWorkspaceResponse"];
+type WorkspaceResponse = components["schemas"]["get-workspace.schema"];
+type OpenResourceResponse = components["schemas"]["open-resource.schema"];
+type CreateResourceRequest = Omit<
+	components["schemas"]["create-resource.schema"],
+	"$defs"
+>;
+type CreateResourceResponse =
+	components["schemas"]["create-resource.schema"]["$defs"]["CreateResourceResponse"];
+type AppendJournalOpRequest = Omit<
+	components["schemas"]["append-journal-op.schema"],
+	"$defs"
+>;
+type AppendJournalOpResponse =
+	components["schemas"]["append-journal-op.schema"]["$defs"]["AppendJournalOpResponse"];
+type RenameResourceRequest = Omit<
+	components["schemas"]["rename-resource.schema"],
+	"$defs"
+>;
+type RenameResourceResponse =
+	components["schemas"]["rename-resource.schema"]["$defs"]["RenameResourceResponse"];
+type TrashResourceRequest = Omit<
+	components["schemas"]["trash-resource.schema"],
+	"$defs"
+>;
+type TrashResourceResponse =
+	components["schemas"]["trash-resource.schema"]["$defs"]["TrashResourceResponse"];
+type RestoreResourceRequest = Omit<
+	components["schemas"]["restore-resource.schema"],
+	"$defs"
+>;
+type RestoreResourceResponse =
+	components["schemas"]["restore-resource.schema"]["$defs"]["RestoreResourceResponse"];
+type AddCommentRequest = Omit<
+	components["schemas"]["add-comment.schema"],
+	"$defs"
+>;
+type AddCommentResponse =
+	components["schemas"]["add-comment.schema"]["$defs"]["AddCommentResponse"];
+type ListCommentsResponse = components["schemas"]["list-comments.schema"];
+type SearchWorkspaceResponse = components["schemas"]["search-workspace.schema"];
+type ListWorkspacesResponse = components["schemas"]["list-workspaces.schema"];
+type ListProjectsResponse = components["schemas"]["list-projects.schema"];
+type ListResourcesResponse = components["schemas"]["list-resources.schema"];
+type TransferOwnerRequest =
+	components["schemas"]["transfer-workspace-owner.schema"];
+type TransferOwnerResponse =
+	components["schemas"]["TransferWorkspaceOwnerResponse"];
+type CreateProjectRequest = components["schemas"]["create-project.schema"];
+type CreateProjectResponse = components["schemas"]["CreateProjectResponse"];
+type CreateFolderRequest = components["schemas"]["create-folder.schema"];
+type CreateFolderResponse = components["schemas"]["CreateFolderResponse"];
+type MoveFolderRequest = components["schemas"]["move-folder.schema"];
+type MoveFolderResponse = components["schemas"]["MoveFolderResponse"];
+type ProjectTreeResponse = components["schemas"]["get-project-tree.schema"];
+type WorkspaceId = components["schemas"]["WorkspaceId"];
+type ProjectId = components["schemas"]["ProjectId"];
+type FolderId = components["schemas"]["FolderId"];
+type IdempotencyKey = components["schemas"]["IdempotencyKey"];
 
 /** Stable per-origin device id key (mirrored to the dom_device cookie). */
 export const DEVICE_ID_STORAGE_KEY = "dom:device-id";
@@ -133,9 +195,281 @@ export class DomClient {
 		return this.requestOrNull("/auth/session", { method: "GET" });
 	}
 
+	async createWorkspace(
+		body: CreateWorkspaceRequest,
+	): Promise<CreateWorkspaceResponse> {
+		return this.request("/workspaces", {
+			method: "POST",
+			body,
+			idempotencyKey: body.idempotencyKey,
+		});
+	}
+
+	async listResources(projectId: string): Promise<ListResourcesResponse> {
+		return this.request(`/projects/${projectId}/resources`, {
+			method: "GET",
+		});
+	}
+
+	async listProjects(workspaceId: string): Promise<ListProjectsResponse> {
+		return this.request(`/workspaces/${workspaceId}/projects`, {
+			method: "GET",
+		});
+	}
+
+	async listWorkspaces(): Promise<ListWorkspacesResponse> {
+		return this.request("/workspaces", { method: "GET" });
+	}
+
+	async createResource(
+		body: CreateResourceRequest,
+	): Promise<CreateResourceResponse> {
+		return this.request("/resources", {
+			method: "POST",
+			body,
+			idempotencyKey: body.idempotencyKey,
+		});
+	}
+
+	async renameResource(
+		resourceId: string,
+		body: Omit<RenameResourceRequest, "resourceId">,
+	): Promise<RenameResourceResponse> {
+		return this.request(`/resources/${resourceId}`, {
+			method: "PATCH",
+			body: { ...body, resourceId },
+			idempotencyKey: body.idempotencyKey,
+		});
+	}
+
+	async addComment(
+		resourceId: string,
+		body: Omit<AddCommentRequest, "resourceId">,
+	): Promise<AddCommentResponse> {
+		return this.request(`/resources/${resourceId}/comments`, {
+			method: "POST",
+			body: { ...body, resourceId },
+			idempotencyKey: body.idempotencyKey,
+		});
+	}
+
+	async listHistory(resourceId: string): Promise<{
+		resourceId: string;
+		items: Array<{
+			seq: number;
+			kind: string;
+			label: string | null;
+			author: string | null;
+			occurredAt: string | null;
+		}>;
+	}> {
+		return this.request(`/resources/${resourceId}/history`, { method: "GET" });
+	}
+
+	async listNotifications(): Promise<{
+		items: Array<{
+			notificationId: string;
+			kind: string;
+			payload: unknown;
+			createdAt: string | null;
+			readAt: string | null;
+		}>;
+		unreadCount: number;
+	}> {
+		return this.request(`/notifications`, { method: "GET" });
+	}
+
+	async markNotificationRead(
+		notificationId: string,
+	): Promise<{ notificationId: string; readAt: string }> {
+		return this.request(`/notifications/${notificationId}/read`, {
+			method: "POST",
+		});
+	}
+
+	async markAllNotificationsRead(): Promise<{ marked: number }> {
+		return this.request(`/notifications/read-all`, { method: "POST" });
+	}
+
+	async createNamedVersion(
+		resourceId: string,
+		label: string,
+		baseJournalSeq: number,
+	): Promise<{
+		resourceId: string;
+		versionId: string;
+		label: string;
+		baseJournalSeq: number;
+	}> {
+		return this.request(`/resources/${resourceId}/versions`, {
+			method: "POST",
+			body: { resourceId, label, baseJournalSeq },
+			idempotencyKey: crypto.randomUUID(),
+		});
+	}
+
+	async restoreVersion(
+		resourceId: string,
+		baseJournalSeq: number,
+	): Promise<{
+		resourceId: string;
+		newSeq: number;
+		label: string;
+	}> {
+		return this.request(`/resources/${resourceId}/history/restore`, {
+			method: "POST",
+			body: { baseJournalSeq },
+		});
+	}
+
+	async clearSearchHistory(): Promise<{ cleared: number }> {
+		return this.request(`/search/history`, { method: "DELETE" });
+	}
+
+	async suggestMembers(
+		workspaceId: string,
+		query: string,
+	): Promise<{ suggestions: Array<{ accountId: string; email: string }> }> {
+		return this.request(
+			`/workspaces/${workspaceId}/members/suggest?q=${encodeURIComponent(query)}`,
+			{ method: "GET" },
+		);
+	}
+
+	async proposeChangeSet(
+		resourceId: string,
+		instruction: string,
+	): Promise<{ changesetId: string; status: string }> {
+		return this.request(`/ai/propose-changeset`, {
+			method: "POST",
+			body: { resourceId, instruction },
+		});
+	}
+
+	async applyChangeSet(changesetId: string): Promise<{ status: string }> {
+		return this.request(`/changesets/${changesetId}/apply`, {
+			method: "POST",
+			body: {},
+			idempotencyKey: crypto.randomUUID(),
+		});
+	}
+
+	async searchHistory(): Promise<{
+		items: Array<{ query: string; lastUsedAt: string | null }>;
+	}> {
+		return this.request(`/search/history`, { method: "GET" });
+	}
+
+	async searchWorkspace(
+		workspaceId: string,
+		query: string,
+	): Promise<SearchWorkspaceResponse> {
+		return this.request(
+			`/workspaces/${workspaceId}/search?q=${encodeURIComponent(query)}`,
+			{
+				method: "GET",
+			},
+		);
+	}
+
+	async listComments(resourceId: string): Promise<ListCommentsResponse> {
+		return this.request(`/resources/${resourceId}/comments`, {
+			method: "GET",
+		});
+	}
+
+	async restoreResource(
+		resourceId: string,
+		body: Omit<RestoreResourceRequest, "resourceId">,
+	): Promise<RestoreResourceResponse> {
+		return this.request(`/resources/${resourceId}/restore`, {
+			method: "POST",
+			body: { ...body, resourceId },
+			idempotencyKey: body.idempotencyKey,
+		});
+	}
+
+	async trashResource(
+		resourceId: string,
+		body: Omit<TrashResourceRequest, "resourceId">,
+	): Promise<TrashResourceResponse> {
+		return this.request(`/resources/${resourceId}/trash`, {
+			method: "POST",
+			body: { ...body, resourceId },
+			idempotencyKey: body.idempotencyKey,
+		});
+	}
+
+	async appendJournalOp(
+		resourceId: string,
+		body: Omit<AppendJournalOpRequest, "resourceId">,
+	): Promise<AppendJournalOpResponse> {
+		return this.request(`/resources/${resourceId}/journal`, {
+			method: "POST",
+			body: { ...body, resourceId },
+			idempotencyKey: body.idempotencyKey,
+		});
+	}
+
+	async openResource(resourceId: string): Promise<OpenResourceResponse> {
+		return this.request(`/resources/${resourceId}`, { method: "GET" });
+	}
+
+	async getWorkspace(workspaceId: WorkspaceId): Promise<WorkspaceResponse> {
+		return this.request(`/workspaces/${workspaceId}`, { method: "GET" });
+	}
+
+	async transferOwner(
+		workspaceId: WorkspaceId,
+		body: Omit<TransferOwnerRequest, "workspaceId">,
+	): Promise<TransferOwnerResponse> {
+		return this.request(`/workspaces/${workspaceId}/owner`, {
+			method: "POST",
+			body: { ...body, workspaceId },
+			idempotencyKey: body.idempotencyKey,
+		});
+	}
+
+	async createProject(
+		workspaceId: WorkspaceId,
+		body: Omit<CreateProjectRequest, "workspaceId">,
+	): Promise<CreateProjectResponse> {
+		return this.request(`/workspaces/${workspaceId}/projects`, {
+			method: "POST",
+			body: { ...body, workspaceId },
+			idempotencyKey: body.idempotencyKey,
+		});
+	}
+
+	async createFolder(
+		projectId: ProjectId,
+		body: Omit<CreateFolderRequest, "projectId">,
+	): Promise<CreateFolderResponse> {
+		return this.request(`/projects/${projectId}/folders`, {
+			method: "POST",
+			body: { ...body, projectId },
+			idempotencyKey: body.idempotencyKey,
+		});
+	}
+
+	async moveFolder(
+		folderId: FolderId,
+		body: Omit<MoveFolderRequest, "folderId">,
+	): Promise<MoveFolderResponse> {
+		return this.request(`/folders/${folderId}/move`, {
+			method: "POST",
+			body: { ...body, folderId },
+			idempotencyKey: body.idempotencyKey,
+		});
+	}
+
+	async getProjectTree(projectId: ProjectId): Promise<ProjectTreeResponse> {
+		return this.request(`/projects/${projectId}`, { method: "GET" });
+	}
+
 	private async request<T>(
 		path: string,
-		init: { method: string; body?: object },
+		init: { method: string; body?: object; idempotencyKey?: IdempotencyKey },
 	): Promise<T> {
 		const response = await this.fetch(path, init);
 		if (!response.ok) {
@@ -146,7 +480,7 @@ export class DomClient {
 
 	private async requestOrNull<T>(
 		path: string,
-		init: { method: string; body?: object },
+		init: { method: string; body?: object; idempotencyKey?: IdempotencyKey },
 	): Promise<T | null> {
 		const response = await this.fetch(path, init);
 		if (!response.ok) {
@@ -161,13 +495,17 @@ export class DomClient {
 
 	private async fetch(
 		path: string,
-		init: { method: string; body?: object },
+		init: { method: string; body?: object; idempotencyKey?: IdempotencyKey },
 	): Promise<Response> {
+		const headers: Record<string, string> = {
+			"content-type": "application/json",
+		};
+		if (init.idempotencyKey !== undefined) {
+			headers["Idempotency-Key"] = init.idempotencyKey;
+		}
 		return window.fetch(`${this.baseUrl}${path}`, {
 			method: init.method,
-			headers: {
-				"content-type": "application/json",
-			},
+			headers,
 			body: init.body === undefined ? undefined : JSON.stringify(init.body),
 			credentials: "same-origin",
 		});

@@ -164,6 +164,14 @@ def _session_payload(session: Session) -> dict[str, str]:
     }
 
 
+def _as_dict(value: object) -> dict:
+    return value if isinstance(value, dict) else {}
+
+
+def _as_list(value: object) -> list:
+    return value if isinstance(value, list) else []
+
+
 def _session_from_payload(
     payload: dict[str, str], account_id: UUID, status: SessionStatus
 ) -> Session:
@@ -235,11 +243,11 @@ def _login_from_payload(payload: dict[str, object]) -> LoginResult:
             else None
         ),
     )
-    session_payload = dict(payload["session"])  # type: ignore[arg-type]
+    session_payload = _as_dict(payload["session"])
     session = _session_from_payload(session_payload, account_id, SessionStatus.ACTIVE)
     replaced = [
-        _session_from_payload(dict(item), account_id, SessionStatus.REPLACED)
-        for item in payload.get("replaced_sessions", [])  # type: ignore[arg-type]
+        _session_from_payload(_as_dict(item), account_id, SessionStatus.REPLACED)
+        for item in _as_list(payload.get("replaced_sessions", []))
     ]
     return LoginResult(
         account=account,

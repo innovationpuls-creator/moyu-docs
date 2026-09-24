@@ -1,0 +1,19 @@
+{
+	"name": "@dom/editor-core",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"description": "Canonical content-node model (arch 02): the document tree the editor/Yjs operate on; validation + text projection live here.",
+	"types": "./src/index.ts",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run"
+	},
+	"devDependencies": {
+		"typescript": "^5.9.3",
+		"vitest": "^3.2.4"
+	}
+}

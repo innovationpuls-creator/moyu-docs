@@ -1,0 +1,36 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/integrations/rotate-api-key.schema.json",
+	"title": "RotateApiKey",
+	"description": "FR-INT-003. Issue a fresh integration key and revoke the old one atomically.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"label": {
+			"type": "string"
+		}
+	},
+	"required": ["label"],
+	"$defs": {
+		"RotateApiKeyResponse": {
+			"title": "RotateApiKeyResponse",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"keyId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/UserId"
+				},
+				"revokedKeyId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/UserId"
+				},
+				"label": {
+					"type": "string"
+				},
+				"privateKeyHex": {
+					"type": "string"
+				}
+			},
+			"required": ["keyId", "revokedKeyId", "label", "privateKeyHex"]
+		}
+	}
+}

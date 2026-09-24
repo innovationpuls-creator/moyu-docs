@@ -3,12 +3,11 @@ info:
   title: DOM Client API
   version: 1.0.0
   description: >
-    Official client HTTP contract for Account / Auth / Session (doc 28 §40).
-    This document describes only the HTTP surface: routes, operationId, headers and
-    error-response assembly. Payload shapes are referenced from the canonical JSON
-    Schemas under /contracts by relative path and are never restated inline
-    (doc 28 §4); code generation is driven by contracts/registry.yaml, not by this
-    document's paths (doc 28 §2.1).
+    Official client HTTP contract for Account/Auth/Session and Workspace/Project/Folder
+    metadata lifecycle (docs 09 and 28). This document describes only the HTTP surface:
+    routes, operationId, headers and error-response assembly. Payload shapes are
+    referenced from canonical JSON Schemas under /contracts and are never restated
+    inline; code generation is driven by contracts/registry.yaml, not paths.
 servers:
   - url: https://api.dom.internal
     description: Production
@@ -308,4 +307,1635 @@ paths:
               schema:
                 $ref: "../queries/auth/get-account-status.schema.json"
         "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/resources:
+    post:
+      operationId: CreateResource
+      summary: Create a Resource in an authorized Project (FR-RC-001)
+      tags: [resource]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/resource/create-resource.schema.json"
+      responses:
+        "201":
+          description: Resource created
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/resource/create-resource.schema.json#/$defs/CreateResourceResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+
+  /v1/resources/{resourceId}/journal:
+    post:
+      operationId: AppendJournalOp
+      summary: Append one content op to a Resource journal (FR-RC-002)
+      tags: [resource]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/resource/append-journal-op.schema.json"
+      responses:
+        "200":
+          description: Op appended
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/resource/append-journal-op.schema.json#/$defs/AppendJournalOpResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+
+  /v1/resources/{resourceId}:
+    get:
+      operationId: OpenResource
+      summary: Open a Resource's metadata and latest snapshot (FR-RC-001/006)
+      tags: [resource]
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Resource metadata + latest materialized snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/resource/open-resource.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+    patch:
+      operationId: RenameResource
+      summary: Rename an authorized Resource (FR-RC-004)
+      tags: [resource]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/resource/rename-resource.schema.json"
+      responses:
+        "200":
+          description: Resource renamed
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/resource/rename-resource.schema.json#/$defs/RenameResourceResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+
+  /v1/resources/{resourceId}/restore:
+    post:
+      operationId: RestoreResource
+      summary: Restore a Trashed Resource to Active (FR-RC-005)
+      tags: [resource]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/resource/restore-resource.schema.json"
+      responses:
+        "200":
+          description: Resource restored
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/resource/restore-resource.schema.json#/$defs/RestoreResourceResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+
+  /v1/resources/{resourceId}/export:
+    get:
+      operationId: ExportResource
+      summary: Export one Resource as a versioned exchange document (FR-IE-001)
+      tags: [importexport]
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Exchange document
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/importexport/export-resource.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/resources/{resourceId}/import:
+    post:
+      operationId: ImportResource
+      summary: Import an exchange document into a Resource (FR-IE-002)
+      tags: [importexport]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/importexport/import-resource.schema.json"
+      responses:
+        "200":
+          description: Imported as a new checkpoint
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/importexport/import-resource.schema.json#/$defs/ImportResourceResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+
+  /v1/comments/{commentId}:
+    patch:
+      operationId: EditComment
+      summary: Author edits their comment body (FR-CMT-003)
+      tags: [comments]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/comments/edit-comment.schema.json"
+      responses:
+        "200":
+          description: Comment edited
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/comments/edit-comment.schema.json#/$defs/EditCommentResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - name: commentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+    delete:
+      operationId: DeleteComment
+      summary: Author soft-deletes their comment (FR-CMT-004)
+      tags: [comments]
+      parameters:
+        - name: commentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Comment deleted
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/comments/delete-comment.schema.json#/$defs/DeleteCommentResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/resources/{resourceId}/comments:
+    post:
+      operationId: AddComment
+      summary: Append one flat-thread comment to a Resource (FR-CMT-001)
+      tags: [comments]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/comments/add-comment.schema.json"
+      responses:
+        "201":
+          description: Comment appended
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/comments/add-comment.schema.json#/$defs/AddCommentResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+    get:
+      operationId: ListComments
+      summary: List flat-thread comments of a Resource (FR-CMT-002)
+      tags: [comments]
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Comments oldest-first
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/comments/list-comments.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/resources/{resourceId}/versions:
+    post:
+      operationId: CreateNamedVersion
+      summary: Label a revision for later restore (FR-HS-003)
+      tags: [history]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/history/create-named-version.schema.json"
+      responses:
+        "200":
+          description: Version labeled
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/history/create-named-version.schema.json#/$defs/CreateNamedVersionResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+
+  /v1/resources/{resourceId}/history:
+    get:
+      operationId: ListVersions
+      summary: Version timeline (FR-HS-001)
+      tags: [history]
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Timeline nodes oldest-first
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  resourceId:
+                    type: string
+                    format: uuid
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      properties:
+                        seq: { "type": "integer" }
+                        kind: { "type": "string" }
+                        label: { "type": ["string", "null"] }
+                        author: { "type": ["string", "null"] }
+                        occurredAt: { "type": ["string", "null"] }
+                      required: [seq, kind, label, author, occurredAt]
+                required: [resourceId, items]
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+    post:
+      operationId: RestoreVersion
+      summary: Restore at a version = a NEW current (FR-HS-002)
+      tags: [history]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                baseJournalSeq: { "type": "integer" }
+              required: [baseJournalSeq]
+      responses:
+        "200":
+          description: Restored as the new current
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  resourceId: { "type": "string", "format": "uuid" }
+                  newSeq: { "type": "integer" }
+                  label: { "type": "string" }
+                required: [resourceId, newSeq, label]
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+
+  /v1/resources/{resourceId}/trash:
+    post:
+      operationId: TrashResource
+      summary: Move an authorized Resource to Trashed (FR-RC-005)
+      tags: [resource]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/resource/trash-resource.schema.json"
+      responses:
+        "200":
+          description: Resource trashed
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/resource/trash-resource.schema.json#/$defs/TrashResourceResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+
+  /v1/projects/{projectId}/resources:
+    get:
+      operationId: ListResources
+      summary: List Resources of an authorized Project (FR-RC-006)
+      tags: [resource]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Resources of the Project
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/resource/list-resources.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/notifications/{notificationId}/read:
+    post:
+      operationId: MarkNotificationRead
+      summary: Mark one notification read (FR-NTF-003)
+      tags: [notifications]
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Notification marked read
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/notifications/mark-notification-read.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/integrations/api-keys/{keyId}/rotate:
+    post:
+      operationId: RotateApiKey
+      summary: Rotate an integration key (FR-INT-003)
+      tags: [integrations]
+      parameters:
+        - name: keyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/integrations/rotate-api-key.schema.json"
+      responses:
+        "200":
+          description: New key + revoked old id
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/integrations/rotate-api-key.schema.json#/$defs/RotateApiKeyResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/public/resources:
+    get:
+      operationId: GetPublicResources
+      summary: Machine-client readable resources (PUB-002)
+      tags: [public-api]
+      parameters:
+        - name: X-Dom-Key-Id
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: X-Dom-Signature
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: X-Dom-Timestamp
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Resource list
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/public-api/list-public-resources.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "429":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/public/notifications:
+    get:
+      operationId: GetPublicNotifications
+      summary: Machine-client notifications (integration-key auth, PUB-001)
+      tags: [public-api]
+      parameters:
+        - name: X-Dom-Key-Id
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: X-Dom-Signature
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: X-Dom-Timestamp
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/public-api/list-public-notifications.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "429":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/search/history:
+    delete:
+      operationId: ClearSearchHistory
+      summary: Clear the account's search history (FR-SRC-005)
+      tags: [search]
+      responses:
+        "200":
+          description: Deleted count
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/search/clear-search-history.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+    get:
+      operationId: SearchHistory
+      summary: Recent search queries, newest first (FR-SRC-002)
+      tags: [search]
+      responses:
+        "200":
+          description: Search history
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/search/search-history.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/notifications:
+    get:
+      operationId: ListNotifications
+      summary: In-app notifications, newest first (FR-NTF-001)
+      tags: [notifications]
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/notifications/list-notifications.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+    post:
+      operationId: MarkNotificationsRead
+      summary: Mark all notifications read (FR-NTF-002)
+      tags: [notifications]
+      responses:
+        "200":
+          description: Marked count
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/notifications/mark-notifications-read.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/workspaces/{workspaceId}/search/suggestions:
+    get:
+      operationId: SearchSuggestions
+      summary: Corpus prefix suggestions (FR-SRC-003)
+      tags: [search]
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Suggestion list
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/search/search-suggestions.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/workspaces/{workspaceId}/search/comments:
+    get:
+      operationId: SearchComments
+      summary: Search comment bodies in the workspace (FR-SRC-004)
+      tags: [search]
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Comment hits
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/search/search-comments.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/workspaces/{workspaceId}/members/suggest:
+    get:
+      operationId: SuggestMembers
+      summary: Mention autocomplete members (FR-NTF-004)
+      tags: [workspace]
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Member suggestions
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/workspace/member-suggestions.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/webhooks/{webhookId}/deliveries/requeue:
+    post:
+      operationId: RequeueWebhookDeliveries
+      summary: Replay the newest Failed delivery (arch 10 DLQ)
+      tags: [webhooks]
+      parameters:
+        - name: webhookId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/webhooks/requeue-deliveries.schema.json"
+      responses:
+        "200":
+          description: Replay result
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/webhooks/requeue-deliveries.schema.json#/$defs/RequeueWebhookDeliveriesResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/workspaces/{workspaceId}/webhooks:
+    post:
+      operationId: RegisterWebhook
+      summary: Register a webhook delivery URL (FR-WEB-001)
+      tags: [webhook]
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/webhook/register-webhook.schema.json"
+      responses:
+        "200":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/webhook/register-webhook.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+    get:
+      operationId: ListWebhooks
+      summary: List workspace webhooks (FR-WEB-002)
+      tags: [webhook]
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Subscription list
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/webhook/list-webhooks.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/workspaces/{workspaceId}/webhooks/{subscriptionId}/test:
+    post:
+      operationId: TestWebhook
+      summary: Deliver a webhook.test event (FR-WEB-004)
+      tags: [webhook]
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: subscriptionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Delivery report
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/webhook/test-webhook.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/workspaces/{workspaceId}/webhooks/{subscriptionId}:
+    delete:
+      operationId: RemoveWebhook
+      summary: Remove a webhook subscription (FR-WEB-003)
+      tags: [webhook]
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: subscriptionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Removed
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/webhook/remove-webhook.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/workspaces/{workspaceId}/search:
+    get:
+      operationId: SearchWorkspace
+      summary: Workspace-scoped Resource name/body search (FR-SRC-001)
+      tags: [search]
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Ranked search hits
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/search/search-workspace.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/workspaces:
+    post:
+      operationId: CreateWorkspace
+      summary: Create Workspace and request initial Owner bootstrap (FR-WRL-001/011)
+      tags: [workspace]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/workspace/create-workspace.schema.json"
+      responses:
+        "201":
+          description: Workspace created with Permission-owned initial Owner bootstrap
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/workspace/create-workspace.schema.json#/$defs/CreateWorkspaceResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+    get:
+      operationId: ListWorkspaces
+      summary: List Workspaces visible to the authenticated actor (FR-WRL-001)
+      tags: [workspace]
+      responses:
+        "200":
+          description: Visible Workspace metadata
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/workspace/list-workspaces.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/workspaces/{workspaceId}:
+    parameters:
+      - name: workspaceId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/WorkspaceId"
+    get:
+      operationId: GetWorkspace
+      summary: Get visible Workspace metadata (FR-WRL-001/002)
+      tags: [workspace]
+      responses:
+        "200":
+          description: Workspace metadata
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/workspace/get-workspace.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+    patch:
+      operationId: RenameWorkspace
+      summary: Rename Workspace with canonical sibling comparison (FR-WRL-002)
+      tags: [workspace]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/workspace/rename-workspace.schema.json"
+      responses:
+        "200":
+          description: Workspace renamed
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/workspace/rename-workspace.schema.json#/$defs/RenameWorkspaceResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+
+  /v1/workspaces/{workspaceId}/projects:
+    parameters:
+      - name: workspaceId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/WorkspaceId"
+    post:
+      operationId: CreateProject
+      summary: Create Project metadata (FR-WRL-003)
+      tags: [workspace]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/workspace/create-project.schema.json"
+      responses:
+        "201":
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/workspace/create-project.schema.json#/$defs/CreateProjectResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+    get:
+      operationId: ListProjects
+      summary: List Project metadata in a Workspace (FR-WRL-003/004)
+      tags: [workspace]
+      responses:
+        "200":
+          description: Project metadata list
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/workspace/list-projects.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/projects/{projectId}:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/ProjectId"
+    get:
+      operationId: GetProjectTree
+      summary: Get metadata-only Project Tree (FR-WRL-004)
+      tags: [workspace]
+      responses:
+        "200":
+          description: Project and Folder metadata, without Resource content
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/workspace/get-project-tree.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+    patch:
+      operationId: RenameProject
+      summary: Rename Project metadata (FR-WRL-003)
+      tags: [workspace]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/workspace/rename-project.schema.json"
+      responses:
+        "200":
+          description: Project renamed
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/workspace/rename-project.schema.json#/$defs/RenameProjectResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+
+  /v1/projects/{projectId}/archive:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/ProjectId"
+    post:
+      operationId: ArchiveProject
+      summary: Archive Project as read-only metadata (FR-WRL-007)
+      tags: [workspace]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/workspace/archive-project.schema.json"
+      responses:
+        "200":
+          description: Project archived
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/workspace/archive-project.schema.json#/$defs/ArchiveProjectResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+
+  /v1/projects/{projectId}/unarchive:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/ProjectId"
+    post:
+      operationId: UnarchiveProject
+      summary: Restore Project from Archive (FR-WRL-007)
+      tags: [workspace]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/workspace/unarchive-project.schema.json"
+      responses:
+        "200":
+          description: Project unarchived
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/workspace/unarchive-project.schema.json#/$defs/UnarchiveProjectResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+
+  /v1/projects/{projectId}/trash:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/ProjectId"
+    post:
+      operationId: TrashProject
+      summary: Trash Project subtree by ancestor lifecycle (FR-WRL-008)
+      tags: [workspace]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/workspace/trash-project.schema.json"
+      responses:
+        "200":
+          description: Project and descendants marked effectively Trashed by ancestor lifecycle
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/workspace/trash-project.schema.json#/$defs/TrashProjectResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+
+  /v1/projects/{projectId}/restore:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/ProjectId"
+    post:
+      operationId: RestoreProject
+      summary: Restore Project subtree by ancestor lifecycle (FR-WRL-008)
+      tags: [workspace]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/workspace/restore-project.schema.json"
+      responses:
+        "200":
+          description: Project and descendants restored to effective Active state
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/workspace/restore-project.schema.json#/$defs/RestoreProjectResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+
+  /v1/projects/{projectId}/folders:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/ProjectId"
+    post:
+      operationId: CreateFolder
+      summary: Create Folder metadata (FR-WRL-005)
+      tags: [workspace]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/workspace/create-folder.schema.json"
+      responses:
+        "201":
+          description: Folder metadata created
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/workspace/create-folder.schema.json#/$defs/CreateFolderResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+    get:
+      operationId: ListFolderChildren
+      summary: List immediate Folder children (FR-WRL-004/005)
+      tags: [workspace]
+      parameters:
+        - name: parentFolderId
+          in: query
+          required: false
+          schema:
+            $ref: "../ids/ids.schema.json#/$defs/FolderId"
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Immediate Folder metadata children
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/workspace/list-folder-children.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/folders/{folderId}:
+    parameters:
+      - name: folderId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/FolderId"
+    patch:
+      operationId: RenameFolder
+      summary: Rename Folder metadata (FR-WRL-005)
+      tags: [workspace]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/workspace/rename-folder.schema.json"
+      responses:
+        "200":
+          description: Folder renamed
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/workspace/rename-folder.schema.json#/$defs/RenameFolderResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+
+  /v1/folders/{folderId}/move:
+    parameters:
+      - name: folderId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/FolderId"
+    post:
+      operationId: MoveFolder
+      summary: Move Folder within the same Project (FR-WRL-006)
+      tags: [workspace]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/workspace/move-folder.schema.json"
+      responses:
+        "200":
+          description: Folder moved within its Project
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/workspace/move-folder.schema.json#/$defs/MoveFolderResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+
+  /v1/folders/{folderId}/trash:
+    parameters:
+      - name: folderId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/FolderId"
+    post:
+      operationId: TrashFolder
+      summary: Trash Folder subtree by ancestor lifecycle (FR-WRL-008)
+      tags: [workspace]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/workspace/trash-folder.schema.json"
+      responses:
+        "200":
+          description: Folder and descendants marked effectively Trashed by ancestor lifecycle
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/workspace/trash-folder.schema.json#/$defs/TrashFolderResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+
+  /v1/folders/{folderId}/restore:
+    parameters:
+      - name: folderId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/FolderId"
+    post:
+      operationId: RestoreFolder
+      summary: Restore Folder subtree with root fallback and safe name (FR-WRL-008)
+      tags: [workspace]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/workspace/restore-folder.schema.json"
+      responses:
+        "200":
+          description: Folder subtree restored to the original or approved fallback position
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/workspace/restore-folder.schema.json#/$defs/RestoreFolderResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+
+  /v1/workspaces/{workspaceId}/owner:
+    parameters:
+      - name: workspaceId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/WorkspaceId"
+    post:
+      operationId: TransferWorkspaceOwner
+      summary: Transfer Workspace Owner through Permission-owned membership (FR-WRL-011)
+      tags: [permission]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/permission/transfer-workspace-owner.schema.json"
+      responses:
+        "200":
+          description: Owner transfer committed atomically without rewriting Project Owner rows
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/permission/transfer-workspace-owner.schema.json#/$defs/TransferWorkspaceOwnerResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+
+  /v1/auth/my-workspace-ownership:
+    get:
+      operationId: HasSoleWorkspaceOwnership
+      summary: Check whether the authenticated Account is a sole Workspace Owner (FR-WRL-009/011)
+      description: Permission-owned query through Auth's existing WorkspaceOwnershipQueryPort. The actor is derived from the authenticated Session; no accountId is accepted from the request.
+      tags: [auth]
+      responses:
+        "200":
+          description: Sole-owner status for the authenticated Account
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/permission/has-sole-workspace-ownership.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
           $ref: "#/components/responses/ErrorEnvelopeResponse"

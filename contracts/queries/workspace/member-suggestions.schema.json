@@ -1,0 +1,24 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/workspace/member-suggestions.schema.json",
+	"title": "SuggestMembersResponse",
+	"description": "FR-NTF-004. Workspace member email suggestions (mention autocomplete).",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"workspaceId": { "$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId" },
+		"suggestions": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"accountId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+					"email": { "type": "string" }
+				},
+				"required": ["accountId", "email"]
+			}
+		}
+	},
+	"required": ["workspaceId", "suggestions"]
+}

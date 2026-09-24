@@ -1,0 +1,32 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/comments/add-comment.schema.json",
+	"title": "AddComment",
+	"description": "FR-CMT-001. Append one flat-thread comment to a Resource (read access required). Anchor defaults to ResourceAnchor.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+		"threadId": { "$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId" },
+		"body": { "type": "string", "minLength": 1 },
+		"anchor": { "type": "object" },
+		"idempotencyKey": {
+			"$ref": "../../ids/ids.schema.json#/$defs/IdempotencyKey"
+		}
+	},
+	"required": ["resourceId", "body", "idempotencyKey"],
+	"$defs": {
+		"AddCommentResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"commentId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+				"threadId": { "$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId" },
+				"body": { "type": "string" },
+				"createdAt": { "type": "string", "format": "date-time" }
+			},
+			"required": ["commentId", "threadId", "body", "createdAt"],
+			"title": "AddCommentResponse"
+		}
+	}
+}

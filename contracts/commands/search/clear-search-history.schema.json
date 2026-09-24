@@ -1,0 +1,12 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/search/clear-search-history.schema.json",
+	"title": "ClearSearchHistoryResponse",
+	"description": "FR-SRC-005. Clear the account's search history (no body).",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"cleared": { "type": "integer" }
+	},
+	"required": ["cleared"]
+}

@@ -1,0 +1,36 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/workspace/trash-project.schema.json",
+	"title": "TrashProject",
+	"description": "FR-WRL-008. Trash a Project by changing authoritative ancestor lifecycle state; all descendants inherit Trashed without per-descendant writes. No Purge or physical cleanup is performed.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+		"idempotencyKey": {
+			"$ref": "../../ids/ids.schema.json#/$defs/IdempotencyKey"
+		}
+	},
+	"required": ["projectId", "idempotencyKey"],
+	"$defs": {
+		"TrashProjectResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+				"lifecycle": { "const": "Trashed" },
+				"effectiveDescendantLifecycle": { "const": "Trashed" },
+				"trashedAt": { "type": "string", "format": "date-time" },
+				"purgeEligibleAt": { "type": "string", "format": "date-time" }
+			},
+			"required": [
+				"projectId",
+				"lifecycle",
+				"effectiveDescendantLifecycle",
+				"trashedAt",
+				"purgeEligibleAt"
+			],
+			"title": "TrashProjectResponse"
+		}
+	}
+}

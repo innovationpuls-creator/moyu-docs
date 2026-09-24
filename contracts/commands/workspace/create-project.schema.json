@@ -1,0 +1,32 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/workspace/create-project.schema.json",
+	"title": "CreateProject",
+	"description": "FR-WRL-003. Create Project metadata under a Workspace. Permission supplies inherited authorization; independent Project Owner membership remains Permission-owned.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"workspaceId": { "$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId" },
+		"name": { "type": "string", "minLength": 1, "maxLength": 120 },
+		"idempotencyKey": {
+			"$ref": "../../ids/ids.schema.json#/$defs/IdempotencyKey"
+		}
+	},
+	"required": ["workspaceId", "name", "idempotencyKey"],
+	"$defs": {
+		"CreateProjectResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+				"workspaceId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId"
+				},
+				"name": { "type": "string" },
+				"createdAt": { "type": "string", "format": "date-time" }
+			},
+			"required": ["projectId", "workspaceId", "name", "createdAt"],
+			"title": "CreateProjectResponse"
+		}
+	}
+}

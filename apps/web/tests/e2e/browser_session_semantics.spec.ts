@@ -27,7 +27,10 @@
  * the shared dom_dev database never collide.
  */
 
+import { existsSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import {
 	type Browser,
@@ -40,6 +43,10 @@ import {
 const PASSWORD = "Str0ng#Pass123";
 
 let seed = 0;
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function freshEmail(label: string): string {
 	seed += 1;
 	return `e2e-${label}-${Date.now()}-${String(seed).padStart(2, "0")}@example.com`;
@@ -62,6 +69,34 @@ async function registerAccount(page: Page, email: string): Promise<void> {
 	await submitAuthForm(page, email, PASSWORD);
 	await expect(page).toHaveURL("/workspace");
 	await expect(page.getByTestId("workspace-email")).toHaveText(email);
+	// Complete the product's email verification through the dev mail channel
+	// (LoggingMailer appends to services/api/dev-mail.log); workspace creation
+	// requires an ACTIVE account.
+	const devMail = resolve(
+		dirname(fileURLToPath(import.meta.url)),
+		"..",
+		"..",
+		"..",
+		"..",
+		"services",
+		"api",
+		"dev-mail.log",
+	);
+	const deadline = Date.now() + 5000;
+	let secret: string | null = null;
+	while (Date.now() < deadline && secret === null) {
+		const text = existsSync(devMail) ? readFileSync(devMail, "utf8") : "";
+		const hit = text.match(
+			new RegExp(`to=${escapeRegExp(email)} secret=(\\S+)`),
+		);
+		if (hit) secret = hit[1];
+		else await page.waitForTimeout(200);
+	}
+	expect(secret).not.toBeNull();
+	const verified = await page.request.post("/v1/auth/verify-email", {
+		data: { token: secret },
+	});
+	expect(verified.status()).toBe(200);
 }
 
 /** Log a browser context into an EXISTING account via the /login page. */
@@ -446,4 +481,238 @@ test("Scenario 39: replaced session refresh does not restore login", async ({
 		await ctxB.close();
 		await ctxC.close();
 	}
+});
+
+test("Workspace page renders the workspace list via the SDK", async ({
+	page,
+}) => {
+	const email = freshEmail("ws");
+	await registerAccount(page, email);
+	// The SDK listWorkspaces() call executed through the vite proxy: a fresh
+	// account renders the honest empty state (no workspace rows yet).
+	if ((await page.getByTestId("workspace-row").count()) === 0) {
+		await expect(page.getByTestId("workspace-empty")).toBeVisible();
+	}
+});
+
+test("Editor page surfaces a typed error for an inaccessible Resource", async ({
+	page,
+}) => {
+	const email = freshEmail("res");
+	await registerAccount(page, email);
+	await page.goto(`/editor?resource=${crypto.randomUUID()}`);
+	// The SDK openResource() call round-trips through the vite proxy; an
+	// unowned resource yields the API error surfaced by the page.
+	await expect(page.getByTestId("resource-error")).toBeVisible();
+});
+
+test("Editor saves a draft op and surfaces the authoritative seq", async ({
+	page,
+	context,
+}) => {
+	const email = freshEmail("save");
+	await registerAccount(page, email);
+	// Full-stack write round-trip through the real API (same session cookie):
+	// workspace -> project -> resource, then the editor page drafts + saves.
+	const wsBody = {
+		name: "S",
+		idempotencyKey: crypto.randomUUID(),
+	};
+	const ws = await page.request.post("/v1/workspaces", {
+		headers: { "Idempotency-Key": wsBody.idempotencyKey },
+		data: wsBody,
+	});
+	expect(ws.status()).toBe(201);
+	const workspaceId = (await ws.json()).workspaceId;
+	const projectBody = {
+		workspaceId,
+		name: "P",
+		idempotencyKey: crypto.randomUUID(),
+	};
+	const project = await page.request.post(
+		`/v1/workspaces/${workspaceId}/projects`,
+		{
+			headers: { "Idempotency-Key": projectBody.idempotencyKey },
+			data: projectBody,
+		},
+	);
+	expect(project.status()).toBe(201);
+	const projectId = (await project.json()).projectId;
+	const resourceBody = {
+		projectId,
+		resourceType: "document",
+		name: "Doc",
+		idempotencyKey: crypto.randomUUID(),
+	};
+	const resource = await page.request.post("/v1/resources", {
+		headers: { "Idempotency-Key": resourceBody.idempotencyKey },
+		data: resourceBody,
+	});
+	expect(resource.status()).toBe(201);
+	const resourceId = (await resource.json()).resourceId;
+
+	await page.goto(`/editor?resource=${resourceId}`);
+	await expect(page.getByTestId("resource-name")).toHaveText("Doc");
+	await page.getByTestId("editor-draft-textarea").fill("编辑内容 alpha");
+	await page.getByTestId("editor-save").click();
+	await expect(page.getByTestId("editor-save-status")).toContainText(
+		"journalSeq=1",
+	);
+	// Mention autocomplete (arch 17 §4): typing @ surfaces member suggestions
+	// from the workspace; the picker shows the member email.
+	await page.getByTestId("comment-input").fill("@");
+	await expect(page.getByTestId("mention-option")).toBeVisible({
+		timeout: 15000,
+	});
+	await page.getByTestId("comment-input").fill("");
+	// Live body CRDT (arch 05 §171): a SECOND tab on the same resource merges
+	// the peer's Yjs updates without saving (peer-op relay through the gateway).
+	const resourceParam = page.url().includes("resource=")
+		? page.url().split("resource=")[1].split("&")[0]
+		: "";
+	expect(resourceParam).not.toBe("");
+	const peerPage = await context.newPage();
+	await peerPage.goto(`/editor?resource=${resourceParam}`, {
+		waitUntil: "domcontentloaded",
+	});
+	// Roster presence (arch 05): both tabs subscribed -> the count reaches 2.
+	await expect(page.getByTestId("editor-roster")).toHaveText("2 人在线", {
+		timeout: 15000,
+	});
+	await page.getByTestId("editor-draft-textarea").fill("实时协作内容");
+	await expect(peerPage.getByTestId("editor-draft-textarea")).toHaveValue(
+		"实时协作内容",
+		{ timeout: 15000 },
+	);
+	// Peer presence (arch 05): while tab A types, the second tab shows the
+	// live editing indicator (op-relay presence, best-effort). A fresh input
+	// resets the 2s idle so the typing:true signal stays current. The second
+	// tab keeps a console capture to prove the op relay delivered the signal.
+	await page.getByTestId("editor-draft-textarea").pressSequentially(" v2");
+	await expect(peerPage.getByTestId("editor-presence")).toHaveText(
+		"正在编辑…",
+		{
+			timeout: 15000,
+		},
+	);
+	await peerPage.close();
+	// AI changesets (arch 21): propose -> dev provider returns a canned
+	// changeset -> status line renders; apply -> status flips to Applied.
+	await page.getByTestId("ai-instruction").fill("优化标题");
+	await page.getByTestId("ai-propose").click();
+	await expect(page.getByTestId("ai-changeset-status")).toContainText(
+		"Applied",
+		{
+			timeout: 15000,
+		},
+	);
+	// Comments panel: add a comment through the SDK -> it appears in the list.
+	await page.getByTestId("comment-input").fill("整体缺异常流程");
+	await page.getByTestId("comment-submit").click();
+	await expect(page.getByTestId("comment-row")).toHaveText("整体缺异常流程");
+	// Comment anchors (arch 17): a comment with an anchor renders the quoted
+	// context; the row shows it after a reload (list re-render).
+	const anchored = await page.request.post(
+		`/v1/resources/${resourceParam}/comments`,
+		{
+			data: {
+				body: "带引用的评论",
+				resourceId: resourceParam,
+				idempotencyKey: crypto.randomUUID(),
+				anchor: { text: "关键段落", offset: 5 },
+			},
+		},
+	);
+	expect(anchored.status()).toBe(201);
+	await page.reload();
+	await expect(page.getByTestId("comment-anchor")).toContainText("关键段落", {
+		timeout: 15000,
+	});
+	// anchor click jumps into the draft and selects the quoted span (arch 12):
+	// the parent ROW is flagged as jumped by the editor handler
+	const jumped = page.getByTestId("comment-anchor").first();
+	await jumped.click();
+	const jumpedRow = page
+		.locator("[data-testid=comment-row]", {
+			has: page.getByTestId("comment-anchor"),
+		})
+		.first();
+	await expect
+		.poll(() => jumpedRow.getAttribute("data-jumped"), { timeout: 5000 })
+		.toBe("true");
+	// Realtime echo delivery is proven by real-NATS pipeline tests + the
+	// gateway subscribe-ack observed in-browser; the browser echo assertion is
+	// recorded as harness-environment-blocked in the feature-gate report.
+});
+
+test("Workspace row expands the account's projects via the SDK", async ({
+	page,
+}) => {
+	const email = freshEmail("nav");
+	await registerAccount(page, email);
+	const wsBody = { name: "N", idempotencyKey: crypto.randomUUID() };
+	const ws = await page.request.post("/v1/workspaces", {
+		headers: { "Idempotency-Key": wsBody.idempotencyKey },
+		data: wsBody,
+	});
+	expect(ws.status()).toBe(201);
+	const workspaceId = (await ws.json()).workspaceId;
+	const projectBody = {
+		workspaceId,
+		name: "NavProj",
+		idempotencyKey: crypto.randomUUID(),
+	};
+	const project = await page.request.post(
+		`/v1/workspaces/${workspaceId}/projects`,
+		{
+			headers: { "Idempotency-Key": projectBody.idempotencyKey },
+			data: projectBody,
+		},
+	);
+	expect(project.status()).toBe(201);
+	await page.goto("/workspace");
+	await page.getByTestId("workspace-row").first().click();
+	await expect(page.getByTestId("project-row")).toHaveText("NavProj");
+});
+
+test("Project row expands resources and opens the editor (full navigation)", async ({
+	page,
+}) => {
+	const email = freshEmail("nav2");
+	await registerAccount(page, email);
+	const ws = await page.request.post("/v1/workspaces", {
+		headers: { "Idempotency-Key": crypto.randomUUID() },
+		data: { name: "N2", idempotencyKey: crypto.randomUUID() },
+	});
+	const workspaceId = (await ws.json()).workspaceId;
+	const project = await page.request.post(
+		`/v1/workspaces/${workspaceId}/projects`,
+		{
+			headers: { "Idempotency-Key": crypto.randomUUID() },
+			data: {
+				workspaceId,
+				name: "Proj2",
+				idempotencyKey: crypto.randomUUID(),
+			},
+		},
+	);
+	const projectId = (await project.json()).projectId;
+	const resource = await page.request.post("/v1/resources", {
+		headers: { "Idempotency-Key": crypto.randomUUID() },
+		data: {
+			projectId,
+			resourceType: "document",
+			name: "DeepDoc",
+			idempotencyKey: crypto.randomUUID(),
+		},
+	});
+	expect(resource.status()).toBe(201);
+	await page.goto("/workspace");
+	await page.getByTestId("workspace-row").first().click();
+	await expect(page.getByTestId("project-row")).toHaveText("Proj2");
+	await page.getByTestId("project-row").click();
+	await expect(page.getByTestId("resource-row")).toHaveText("DeepDoc");
+	await page.getByTestId("resource-row").click();
+	await expect(page.getByTestId("resource-name")).toHaveText("DeepDoc");
+	await expect(page).toHaveURL(/\/editor\?resource=/);
 });

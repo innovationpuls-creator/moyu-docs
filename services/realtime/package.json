@@ -13,7 +13,9 @@
 	"dependencies": {
 		"@dom/contracts": "workspace:*",
 		"ioredis": "^5.8.1",
-		"ws": "^8.18.0"
+		"nats": "^2.29.3",
+		"ws": "^8.18.0",
+		"yjs": "^13.6.32"
 	},
 	"devDependencies": {
 		"@types/node": "^24.0.0",

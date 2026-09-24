@@ -1,0 +1,31 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/search/search-workspace.schema.json",
+	"title": "SearchWorkspaceResponse",
+	"description": "FR-SRC-001. Workspace-scoped Resource name/body search (member authority).",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"workspaceId": { "$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId" },
+		"query": { "type": "string" },
+		"items": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+					"name": { "type": "string" },
+					"resourceType": {
+						"type": "string",
+						"enum": ["document", "code", "markdown", "text"]
+					},
+					"score": { "type": "number" },
+					"snippet": { "type": ["string", "null"] }
+				},
+				"required": ["resourceId", "name", "resourceType", "score"]
+			}
+		}
+	},
+	"required": ["workspaceId", "query", "items"]
+}

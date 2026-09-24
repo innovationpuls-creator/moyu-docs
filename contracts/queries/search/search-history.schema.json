@@ -1,0 +1,23 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/search/search-history.schema.json",
+	"title": "SearchHistoryResponse",
+	"description": "FR-SRC-002. The account's recent search queries, newest first, de-duplicated.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"items": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"query": { "type": "string" },
+					"lastUsedAt": { "type": ["string", "null"] }
+				},
+				"required": ["query", "lastUsedAt"]
+			}
+		}
+	},
+	"required": ["items"]
+}

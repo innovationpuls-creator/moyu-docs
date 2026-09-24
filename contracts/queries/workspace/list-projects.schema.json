@@ -1,0 +1,40 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/workspace/list-projects.schema.json",
+	"title": "ListProjectsResponse",
+	"description": "FR-WRL-003/004. List authorized Project metadata in a Workspace; Resource content is never included.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"workspaceId": { "$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId" },
+		"items": { "type": "array", "items": { "$ref": "#/$defs/ProjectSummary" } },
+		"nextCursor": { "type": ["string", "null"] }
+	},
+	"required": ["workspaceId", "items", "nextCursor"],
+	"$defs": {
+		"ProjectSummary": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+				"workspaceId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId"
+				},
+				"name": { "type": "string" },
+				"lifecycle": {
+					"type": "string",
+					"enum": ["Active", "Archived", "Trashed", "Purging", "Purged"]
+				},
+				"updatedAt": { "type": "string", "format": "date-time" }
+			},
+			"required": [
+				"projectId",
+				"workspaceId",
+				"name",
+				"lifecycle",
+				"updatedAt"
+			],
+			"title": "ProjectSummary"
+		}
+	}
+}

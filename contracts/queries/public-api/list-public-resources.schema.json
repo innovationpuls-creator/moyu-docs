@@ -1,0 +1,25 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/public-api/list-public-resources.schema.json",
+	"title": "GetPublicResourcesResponse",
+	"description": "PUB-002. Machine-client readable resource list (integration-key auth).",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"items": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+					"resourceType": { "type": "string" },
+					"name": { "type": "string" },
+					"updatedAt": { "type": ["string", "null"] }
+				},
+				"required": ["resourceId", "resourceType", "name", "updatedAt"]
+			}
+		}
+	},
+	"required": ["items"]
+}

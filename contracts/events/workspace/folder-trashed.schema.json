@@ -1,0 +1,47 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/events/workspace/folder-trashed.schema.json",
+	"title": "FolderTrashed",
+	"description": "FR-WRL-008. Fact that Folder ancestor lifecycle transitioned to Trashed; descendants inherit without per-descendant writes. Does not claim Resource session closure or physical cleanup.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"eventId": { "$ref": "../../ids/ids.schema.json#/$defs/EventId" },
+		"eventType": { "const": "FolderTrashed" },
+		"schemaVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+		"occurredAt": { "type": "string", "format": "date-time" },
+		"producer": { "type": "string", "minLength": 1 },
+		"payload": { "$ref": "#/$defs/FolderTrashedPayload" }
+	},
+	"required": [
+		"eventId",
+		"eventType",
+		"schemaVersion",
+		"occurredAt",
+		"producer",
+		"payload"
+	],
+	"$defs": {
+		"FolderTrashedPayload": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"workspaceId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId"
+				},
+				"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+				"folderId": { "$ref": "../../ids/ids.schema.json#/$defs/FolderId" },
+				"actorAccountId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+				"purgeEligibleAt": { "type": "string", "format": "date-time" }
+			},
+			"required": [
+				"workspaceId",
+				"projectId",
+				"folderId",
+				"actorAccountId",
+				"purgeEligibleAt"
+			],
+			"title": "FolderTrashedPayload"
+		}
+	}
+}

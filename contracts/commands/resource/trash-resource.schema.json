@@ -1,0 +1,30 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/resource/trash-resource.schema.json",
+	"title": "TrashResource",
+	"description": "FR-RC-005. Move one authorized Resource to Trashed; the sibling name stays reserved until physical purge.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+		"idempotencyKey": {
+			"$ref": "../../ids/ids.schema.json#/$defs/IdempotencyKey"
+		}
+	},
+	"required": ["resourceId", "idempotencyKey"],
+	"$defs": {
+		"TrashResourceResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+				"lifecycle": {
+					"type": "string",
+					"enum": ["Active", "Trashed", "Purging", "Purged"]
+				}
+			},
+			"required": ["resourceId", "lifecycle"],
+			"title": "TrashResourceResponse"
+		}
+	}
+}

@@ -1,0 +1,32 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/resource/open-resource.schema.json",
+	"title": "OpenResourceResponse",
+	"description": "FR-RC-001/006. Read one authorized Resource's metadata and latest materialized snapshot (checkpoint). Authority: resource ownership (Permission). 404 when the Resource is trashed/purged or not authorized.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+		"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId" },
+		"resourceType": {
+			"type": "string",
+			"enum": ["document", "code", "markdown", "text"]
+		},
+		"name": { "type": "string" },
+		"lifecycle": {
+			"type": "string",
+			"enum": ["Active", "Trashed", "Purging", "Purged"]
+		},
+		"journalSeq": { "type": "integer" },
+		"snapshot": { "type": ["object", "null"] }
+	},
+	"required": [
+		"resourceId",
+		"projectId",
+		"resourceType",
+		"name",
+		"lifecycle",
+		"journalSeq",
+		"snapshot"
+	]
+}

@@ -235,6 +235,965 @@ contracts:
     ownerModule: packages/py/core/account
     status: active
 
+  - logicalName: CreateWorkspace
+    kind: Command
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/commands/workspace/create-workspace.schema.json
+    requestRef: contracts/commands/workspace/create-workspace.schema.json
+    responseRef: contracts/commands/workspace/create-workspace.schema.json#/$defs/CreateWorkspaceResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [WORKSPACE_NAME_INVALID, WORKSPACE_PERMISSION_DENIED, WORKSPACE_AUTHORIZATION_UNAVAILABLE, WORKSPACE_CREATION_REQUIRES_ACTIVE_ACCOUNT, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/workspace
+    status: active
+
+  - logicalName: CreateResource
+    kind: Command
+    domain: resource
+    version: "1.0.0"
+    schemaPath: contracts/commands/resource/create-resource.schema.json
+    requestRef: contracts/commands/resource/create-resource.schema.json
+    responseRef: contracts/commands/resource/create-resource.schema.json#/$defs/CreateResourceResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [RESOURCE_NAME_CONFLICT, RESOURCE_PERMISSION_DENIED, RESOURCE_AUTHORIZATION_UNAVAILABLE, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/resource
+    status: active
+
+  - logicalName: RenameResource
+    kind: Command
+    domain: resource
+    version: "1.0.0"
+    schemaPath: contracts/commands/resource/rename-resource.schema.json
+    requestRef: contracts/commands/resource/rename-resource.schema.json
+    responseRef: contracts/commands/resource/rename-resource.schema.json#/$defs/RenameResourceResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_NAME_CONFLICT, RESOURCE_PERMISSION_DENIED, RESOURCE_AUTHORIZATION_UNAVAILABLE, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/resource
+    status: active
+
+  - logicalName: RestoreResource
+    kind: Command
+    domain: resource
+    version: "1.0.0"
+    schemaPath: contracts/commands/resource/restore-resource.schema.json
+    requestRef: contracts/commands/resource/restore-resource.schema.json
+    responseRef: contracts/commands/resource/restore-resource.schema.json#/$defs/RestoreResourceResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_PERMISSION_DENIED, RESOURCE_AUTHORIZATION_UNAVAILABLE, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/resource
+    status: active
+
+  - logicalName: TrashResource
+    kind: Command
+    domain: resource
+    version: "1.0.0"
+    schemaPath: contracts/commands/resource/trash-resource.schema.json
+    requestRef: contracts/commands/resource/trash-resource.schema.json
+    responseRef: contracts/commands/resource/trash-resource.schema.json#/$defs/TrashResourceResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_PERMISSION_DENIED, RESOURCE_AUTHORIZATION_UNAVAILABLE, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/resource
+    status: active
+
+  - logicalName: AppendJournalOp
+    kind: Command
+    domain: resource
+    version: "1.0.0"
+    schemaPath: contracts/commands/resource/append-journal-op.schema.json
+    requestRef: contracts/commands/resource/append-journal-op.schema.json
+    responseRef: contracts/commands/resource/append-journal-op.schema.json#/$defs/AppendJournalOpResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_PERMISSION_DENIED, RESOURCE_AUTHORIZATION_UNAVAILABLE, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/06-Persistence-Design.md
+    ownerModule: packages/py/core/resource
+    status: active
+
+  - logicalName: CreateNamedVersion
+    kind: Command
+    domain: history
+    version: "1.0.0"
+    schemaPath: contracts/commands/history/create-named-version.schema.json
+    requestRef: contracts/commands/history/create-named-version.schema.json
+    responseRef: contracts/commands/history/create-named-version.schema.json#/$defs/CreateNamedVersionResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_PERMISSION_DENIED, VERSION_LABEL_CONFLICT, RESOURCE_AUTHORIZATION_UNAVAILABLE, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/08-History-Version-Restore-Design.md
+    ownerModule: packages/py/core/history
+    status: active
+
+  - logicalName: EditComment
+    kind: Command
+    domain: comments
+    version: "1.0.0"
+    schemaPath: contracts/commands/comments/edit-comment.schema.json
+    requestRef: contracts/commands/comments/edit-comment.schema.json
+    responseRef: contracts/commands/comments/edit-comment.schema.json#/$defs/EditCommentResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [COMMENT_NOT_FOUND, COMMENT_PERMISSION_DENIED, COMMENT_BODY_INVALID, RESOURCE_AUTHORIZATION_UNAVAILABLE, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/17-Comment-Mention-Notification-Design.md
+    ownerModule: packages/py/core/comments
+    status: active
+
+  - logicalName: DeleteComment
+    kind: Command
+    domain: comments
+    version: "1.0.0"
+    schemaPath: contracts/commands/comments/delete-comment.schema.json
+    requestRef: contracts/commands/comments/delete-comment.schema.json
+    responseRef: contracts/commands/comments/delete-comment.schema.json#/$defs/DeleteCommentResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [COMMENT_NOT_FOUND, COMMENT_PERMISSION_DENIED, RESOURCE_AUTHORIZATION_UNAVAILABLE, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/17-Comment-Mention-Notification-Design.md
+    ownerModule: packages/py/core/comments
+    status: active
+
+  - logicalName: ListVersions
+    kind: Query
+    domain: history
+    version: "1.0.0"
+    schemaPath: contracts/queries/history/list-versions.schema.json
+    requestRef: none
+    responseRef: contracts/queries/history/list-versions.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_PERMISSION_DENIED, RESOURCE_AUTHORIZATION_UNAVAILABLE]
+    ownerDocument: docs/architecture/08-History-Version-Restore-Design.md
+    ownerModule: packages/py/core/history
+    status: active
+
+  - logicalName: RestoreVersion
+    kind: Command
+    domain: history
+    version: "1.0.0"
+    schemaPath: contracts/commands/history/restore-version.schema.json
+    requestRef: contracts/commands/history/restore-version.schema.json
+    responseRef: contracts/commands/history/restore-version.schema.json#/$defs/RestoreVersionResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_PERMISSION_DENIED, RESOURCE_AUTHORIZATION_UNAVAILABLE]
+    ownerDocument: docs/architecture/08-History-Version-Restore-Design.md
+    ownerModule: packages/py/core/history
+    status: active
+
+  - logicalName: MarkNotificationRead
+    kind: Command
+    domain: notifications
+    version: "1.0.0"
+    schemaPath: contracts/commands/notifications/mark-notification-read.schema.json
+    requestRef: none
+    responseRef: contracts/commands/notifications/mark-notification-read.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [NOTIFICATION_NOT_FOUND]
+    ownerDocument: docs/architecture/17-Comment-Mention-Notification-Design.md
+    ownerModule: packages/py/core/notifications
+    status: active
+
+  - logicalName: ListNotifications
+    kind: Query
+    domain: notifications
+    version: "1.0.0"
+    schemaPath: contracts/queries/notifications/list-notifications.schema.json
+    requestRef: none
+    responseRef: contracts/queries/notifications/list-notifications.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: []
+    ownerDocument: docs/architecture/17-Comment-Mention-Notification-Design.md
+    ownerModule: packages/py/core/notifications
+    status: active
+
+  - logicalName: MarkNotificationsRead
+    kind: Command
+    domain: notifications
+    version: "1.0.0"
+    schemaPath: contracts/commands/notifications/mark-notifications-read.schema.json
+    requestRef: none
+    responseRef: contracts/commands/notifications/mark-notifications-read.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: []
+    ownerDocument: docs/architecture/17-Comment-Mention-Notification-Design.md
+    ownerModule: packages/py/core/notifications
+    status: active
+
+  - logicalName: ExportResource
+    kind: Query
+    domain: importexport
+    version: "1.0.0"
+    schemaPath: contracts/queries/importexport/export-resource.schema.json
+    requestRef: none
+    responseRef: contracts/queries/importexport/export-resource.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_PERMISSION_DENIED, RESOURCE_AUTHORIZATION_UNAVAILABLE]
+    ownerDocument: docs/architecture/13-Import-Export-Design.md
+    ownerModule: packages/py/core/resource
+    status: active
+
+  - logicalName: ImportResource
+    kind: Command
+    domain: importexport
+    version: "1.0.0"
+    schemaPath: contracts/commands/importexport/import-resource.schema.json
+    requestRef: contracts/commands/importexport/import-resource.schema.json
+    responseRef: contracts/commands/importexport/import-resource.schema.json#/$defs/ImportResourceResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_PERMISSION_DENIED, RESOURCE_AUTHORIZATION_UNAVAILABLE, IMPORT_DOCUMENT_INVALID, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/13-Import-Export-Design.md
+    ownerModule: packages/py/core/resource
+    status: active
+
+  - logicalName: SearchComments
+    kind: Query
+    domain: search
+    version: "1.0.0"
+    schemaPath: contracts/queries/search/search-comments.schema.json
+    requestRef: none
+    responseRef: contracts/queries/search/search-comments.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [WORKSPACE_PERMISSION_DENIED, WORKSPACE_AUTHORIZATION_UNAVAILABLE]
+    ownerDocument: docs/architecture/11-Search-Index-Design.md
+    ownerModule: packages/py/core/search
+    status: active
+
+  - logicalName: SearchSuggestions
+    kind: Query
+    domain: search
+    version: "1.0.0"
+    schemaPath: contracts/queries/search/search-suggestions.schema.json
+    requestRef: none
+    responseRef: contracts/queries/search/search-suggestions.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [WORKSPACE_PERMISSION_DENIED, WORKSPACE_AUTHORIZATION_UNAVAILABLE]
+    ownerDocument: docs/architecture/11-Search-Index-Design.md
+    ownerModule: packages/py/core/search
+    status: active
+
+  - logicalName: RotateApiKey
+    kind: Command
+    domain: integrations
+    version: "1.0.0"
+    schemaPath: contracts/commands/integrations/rotate-api-key.schema.json
+    requestRef: contracts/commands/integrations/rotate-api-key.schema.json
+    responseRef: contracts/commands/integrations/rotate-api-key.schema.json#/$defs/RotateApiKeyResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [INTEGRATION_KEY_NOT_FOUND, INTEGRATION_KEY_LIMIT_REACHED]
+    ownerDocument: docs/architecture/20-Integration-Keys-Design.md
+    ownerModule: packages/py/core/integrations
+    status: active
+
+  - logicalName: GetPublicResources
+    kind: Query
+    domain: public-api
+    version: "1.0.0"
+    schemaPath: contracts/queries/public-api/list-public-resources.schema.json
+    requestRef: none
+    responseRef: contracts/queries/public-api/list-public-resources.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes:
+      [INTEGRATION_AUTH_REQUIRED, INTEGRATION_AUTH_UNAUTHORIZED, RATE_LIMITED]
+    ownerDocument: docs/architecture/22-Public-API-Design.md
+    ownerModule: packages/py/core/integrations
+    status: active
+
+  - logicalName: GetPublicNotifications
+    kind: Query
+    domain: public-api
+    version: "1.0.0"
+    schemaPath: contracts/queries/public-api/list-public-notifications.schema.json
+    requestRef: none
+    responseRef: contracts/queries/public-api/list-public-notifications.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes:
+      [INTEGRATION_AUTH_REQUIRED, INTEGRATION_AUTH_UNAUTHORIZED, RATE_LIMITED]
+    ownerDocument: docs/architecture/22-Public-API-Design.md
+    ownerModule: packages/py/core/integrations
+    status: active
+
+  - logicalName: SuggestMembers
+    kind: Query
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/queries/workspace/member-suggestions.schema.json
+    requestRef: none
+    responseRef: contracts/queries/workspace/member-suggestions.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [WORKSPACE_PERMISSION_DENIED, WORKSPACE_AUTHORIZATION_UNAVAILABLE]
+    ownerDocument: docs/architecture/17-Comments-Mentions-Notifications-Design.md
+    ownerModule: packages/py/core/comments
+    status: active
+
+  - logicalName: ClearSearchHistory
+    kind: Command
+    domain: search
+    version: "1.0.0"
+    schemaPath: contracts/commands/search/clear-search-history.schema.json
+    requestRef: none
+    responseRef: contracts/commands/search/clear-search-history.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: []
+    ownerDocument: docs/architecture/11-Search-Index-Design.md
+    ownerModule: packages/py/core/search
+    status: active
+
+  - logicalName: SearchHistory
+    kind: Query
+    domain: search
+    version: "1.0.0"
+    schemaPath: contracts/queries/search/search-history.schema.json
+    requestRef: none
+    responseRef: contracts/queries/search/search-history.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: []
+    ownerDocument: docs/architecture/11-Search-Index-Design.md
+    ownerModule: packages/py/core/search
+    status: active
+
+  - logicalName: RegisterWebhook
+    kind: Command
+    domain: webhook
+    version: "1.0.0"
+    schemaPath: contracts/commands/webhook/register-webhook.schema.json
+    requestRef: contracts/commands/webhook/register-webhook.schema.json
+    responseRef: contracts/commands/webhook/register-webhook.schema.json#/$defs/RegisterWebhookResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [WORKSPACE_PERMISSION_DENIED, WORKSPACE_AUTHORIZATION_UNAVAILABLE]
+    ownerDocument: docs/architecture/10-Webhooks-Design.md
+    ownerModule: packages/py/core/webhook
+    status: active
+
+  - logicalName: ListWebhooks
+    kind: Query
+    domain: webhook
+    version: "1.0.0"
+    schemaPath: contracts/queries/webhook/list-webhooks.schema.json
+    requestRef: none
+    responseRef: contracts/queries/webhook/list-webhooks.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [WORKSPACE_PERMISSION_DENIED, WORKSPACE_AUTHORIZATION_UNAVAILABLE]
+    ownerDocument: docs/architecture/10-Webhooks-Design.md
+    ownerModule: packages/py/core/webhook
+    status: active
+
+  - logicalName: TestWebhook
+    kind: Command
+    domain: webhook
+    version: "1.0.0"
+    schemaPath: contracts/commands/webhook/test-webhook.schema.json
+    requestRef: none
+    responseRef: contracts/commands/webhook/test-webhook.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [WORKSPACE_PERMISSION_DENIED, WORKSPACE_AUTHORIZATION_UNAVAILABLE, WEBHOOK_SUBSCRIPTION_NOT_FOUND]
+    ownerDocument: docs/architecture/10-Webhooks-Design.md
+    ownerModule: packages/py/core/webhook
+    status: active
+
+  - logicalName: RequeueWebhookDeliveries
+    kind: Command
+    domain: webhooks
+    version: "1.0.0"
+    schemaPath: contracts/commands/webhooks/requeue-deliveries.schema.json
+    requestRef: contracts/commands/webhooks/requeue-deliveries.schema.json
+    responseRef: contracts/commands/webhooks/requeue-deliveries.schema.json#/$defs/RequeueWebhookDeliveriesResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [WEBHOOK_SUBSCRIPTION_NOT_FOUND, WORKSPACE_PERMISSION_DENIED]
+    ownerDocument: docs/architecture/10-Webhook-Subscription-Design.md
+    ownerModule: packages/py/core/webhook
+    status: active
+
+  - logicalName: RemoveWebhook
+    kind: Command
+    domain: webhook
+    version: "1.0.0"
+    schemaPath: contracts/commands/webhook/remove-webhook.schema.json
+    requestRef: none
+    responseRef: contracts/commands/webhook/remove-webhook.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [WORKSPACE_PERMISSION_DENIED, WORKSPACE_AUTHORIZATION_UNAVAILABLE, WEBHOOK_SUBSCRIPTION_NOT_FOUND]
+    ownerDocument: docs/architecture/10-Webhooks-Design.md
+    ownerModule: packages/py/core/webhook
+    status: active
+
+  - logicalName: SearchWorkspace
+    kind: Query
+    domain: search
+    version: "1.0.0"
+    schemaPath: contracts/queries/search/search-workspace.schema.json
+    requestRef: none
+    responseRef: contracts/queries/search/search-workspace.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [WORKSPACE_PERMISSION_DENIED, WORKSPACE_AUTHORIZATION_UNAVAILABLE]
+    ownerDocument: docs/architecture/11-Search-Index-Design.md
+    ownerModule: packages/py/core/search
+    status: active
+
+  - logicalName: AddComment
+    kind: Command
+    domain: comments
+    version: "1.0.0"
+    schemaPath: contracts/commands/comments/add-comment.schema.json
+    requestRef: contracts/commands/comments/add-comment.schema.json
+    responseRef: contracts/commands/comments/add-comment.schema.json#/$defs/AddCommentResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_PERMISSION_DENIED, RESOURCE_AUTHORIZATION_UNAVAILABLE, COMMENT_BODY_INVALID, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/17-Comment-Mention-Notification-Design.md
+    ownerModule: packages/py/core/comments
+    status: active
+
+  - logicalName: ListComments
+    kind: Query
+    domain: comments
+    version: "1.0.0"
+    schemaPath: contracts/queries/comments/list-comments.schema.json
+    requestRef: none
+    responseRef: contracts/queries/comments/list-comments.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_PERMISSION_DENIED, RESOURCE_AUTHORIZATION_UNAVAILABLE]
+    ownerDocument: docs/architecture/17-Comment-Mention-Notification-Design.md
+    ownerModule: packages/py/core/comments
+    status: active
+
+  - logicalName: ListResources
+    kind: Query
+    domain: resource
+    version: "1.0.0"
+    schemaPath: contracts/queries/resource/list-resources.schema.json
+    requestRef: none
+    responseRef: contracts/queries/resource/list-resources.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_PERMISSION_DENIED, RESOURCE_AUTHORIZATION_UNAVAILABLE]
+    ownerDocument: docs/architecture/06-Persistence-Design.md
+    ownerModule: packages/py/core/resource
+    status: active
+
+  - logicalName: OpenResource
+    kind: Query
+    domain: resource
+    version: "1.0.0"
+    schemaPath: contracts/queries/resource/open-resource.schema.json
+    requestRef: none
+    responseRef: contracts/queries/resource/open-resource.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_PERMISSION_DENIED, RESOURCE_AUTHORIZATION_UNAVAILABLE]
+    ownerDocument: docs/architecture/06-Persistence-Design.md
+    ownerModule: packages/py/core/resource
+    status: active
+
+  - logicalName: ListWorkspaces
+    kind: Query
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/queries/workspace/list-workspaces.schema.json
+    requestRef: none
+    responseRef: contracts/queries/workspace/list-workspaces.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [WORKSPACE_PERMISSION_DENIED, WORKSPACE_AUTHORIZATION_UNAVAILABLE]
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/workspace
+    status: active
+  - logicalName: GetWorkspace
+    kind: Query
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/queries/workspace/get-workspace.schema.json
+    requestRef: none
+    responseRef: contracts/queries/workspace/get-workspace.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [WORKSPACE_NOT_FOUND, WORKSPACE_PERMISSION_DENIED, WORKSPACE_AUTHORIZATION_UNAVAILABLE]
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/workspace
+    status: active
+
+  - logicalName: RenameWorkspace
+    kind: Command
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/commands/workspace/rename-workspace.schema.json
+    requestRef: contracts/commands/workspace/rename-workspace.schema.json
+    responseRef: contracts/commands/workspace/rename-workspace.schema.json#/$defs/RenameWorkspaceResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [WORKSPACE_NOT_FOUND, WORKSPACE_NAME_INVALID, WORKSPACE_NAME_CONFLICT, WORKSPACE_PERMISSION_DENIED, WORKSPACE_AUTHORIZATION_UNAVAILABLE, WORKSPACE_REQUEST_MISMATCH, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/workspace
+    status: active
+
+  - logicalName: CreateProject
+    kind: Command
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/commands/workspace/create-project.schema.json
+    requestRef: contracts/commands/workspace/create-project.schema.json
+    responseRef: contracts/commands/workspace/create-project.schema.json#/$defs/CreateProjectResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [WORKSPACE_NOT_FOUND, WORKSPACE_PARENT_INVALID, WORKSPACE_NAME_INVALID, WORKSPACE_NAME_CONFLICT, WORKSPACE_PERMISSION_DENIED, WORKSPACE_AUTHORIZATION_UNAVAILABLE, WORKSPACE_REQUEST_MISMATCH, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/workspace
+    status: active
+
+  - logicalName: ListProjects
+    kind: Query
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/queries/workspace/list-projects.schema.json
+    requestRef: none
+    responseRef: contracts/queries/workspace/list-projects.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [WORKSPACE_NOT_FOUND, WORKSPACE_PERMISSION_DENIED, WORKSPACE_AUTHORIZATION_UNAVAILABLE]
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/workspace
+    status: active
+
+  - logicalName: GetProjectTree
+    kind: Query
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/queries/workspace/get-project-tree.schema.json
+    requestRef: none
+    responseRef: contracts/queries/workspace/get-project-tree.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [PROJECT_NOT_FOUND, WORKSPACE_PERMISSION_DENIED, WORKSPACE_AUTHORIZATION_UNAVAILABLE]
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/workspace
+    status: active
+
+  - logicalName: ListFolderChildren
+    kind: Query
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/queries/workspace/list-folder-children.schema.json
+    requestRef: none
+    responseRef: contracts/queries/workspace/list-folder-children.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [PROJECT_NOT_FOUND, FOLDER_NOT_FOUND, WORKSPACE_PERMISSION_DENIED, WORKSPACE_AUTHORIZATION_UNAVAILABLE]
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/workspace
+    status: active
+
+  - logicalName: RenameProject
+    kind: Command
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/commands/workspace/rename-project.schema.json
+    requestRef: contracts/commands/workspace/rename-project.schema.json
+    responseRef: contracts/commands/workspace/rename-project.schema.json#/$defs/RenameProjectResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [PROJECT_NOT_FOUND, WORKSPACE_NAME_INVALID, WORKSPACE_NAME_CONFLICT, WORKSPACE_PERMISSION_DENIED, WORKSPACE_AUTHORIZATION_UNAVAILABLE, WORKSPACE_REQUEST_MISMATCH, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/workspace
+    status: active
+
+  - logicalName: ArchiveProject
+    kind: Command
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/commands/workspace/archive-project.schema.json
+    requestRef: contracts/commands/workspace/archive-project.schema.json
+    responseRef: contracts/commands/workspace/archive-project.schema.json#/$defs/ArchiveProjectResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [PROJECT_NOT_FOUND, WORKSPACE_LIFECYCLE_CONFLICT, PROJECT_READ_ONLY, WORKSPACE_PERMISSION_DENIED, WORKSPACE_AUTHORIZATION_UNAVAILABLE, WORKSPACE_REQUEST_MISMATCH, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/workspace
+    status: active
+
+  - logicalName: UnarchiveProject
+    kind: Command
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/commands/workspace/unarchive-project.schema.json
+    requestRef: contracts/commands/workspace/unarchive-project.schema.json
+    responseRef: contracts/commands/workspace/unarchive-project.schema.json#/$defs/UnarchiveProjectResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [PROJECT_NOT_FOUND, WORKSPACE_LIFECYCLE_CONFLICT, PROJECT_READ_ONLY, WORKSPACE_PERMISSION_DENIED, WORKSPACE_AUTHORIZATION_UNAVAILABLE, WORKSPACE_REQUEST_MISMATCH, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/workspace
+    status: active
+
+  - logicalName: TrashProject
+    kind: Command
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/commands/workspace/trash-project.schema.json
+    requestRef: contracts/commands/workspace/trash-project.schema.json
+    responseRef: contracts/commands/workspace/trash-project.schema.json#/$defs/TrashProjectResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [PROJECT_NOT_FOUND, WORKSPACE_LIFECYCLE_CONFLICT, PROJECT_READ_ONLY, WORKSPACE_PERMISSION_DENIED, WORKSPACE_AUTHORIZATION_UNAVAILABLE, WORKSPACE_REQUEST_MISMATCH, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/workspace
+    status: active
+
+  - logicalName: RestoreProject
+    kind: Command
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/commands/workspace/restore-project.schema.json
+    requestRef: contracts/commands/workspace/restore-project.schema.json
+    responseRef: contracts/commands/workspace/restore-project.schema.json#/$defs/RestoreProjectResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [PROJECT_NOT_FOUND, WORKSPACE_LIFECYCLE_CONFLICT, PROJECT_READ_ONLY, WORKSPACE_PERMISSION_DENIED, WORKSPACE_AUTHORIZATION_UNAVAILABLE, WORKSPACE_REQUEST_MISMATCH, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/workspace
+    status: active
+
+  - logicalName: CreateFolder
+    kind: Command
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/commands/workspace/create-folder.schema.json
+    requestRef: contracts/commands/workspace/create-folder.schema.json
+    responseRef: contracts/commands/workspace/create-folder.schema.json#/$defs/CreateFolderResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [PROJECT_NOT_FOUND, FOLDER_NOT_FOUND, WORKSPACE_PARENT_INVALID, WORKSPACE_NAME_INVALID, WORKSPACE_NAME_CONFLICT, WORKSPACE_PERMISSION_DENIED, WORKSPACE_AUTHORIZATION_UNAVAILABLE, WORKSPACE_REQUEST_MISMATCH, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/workspace
+    status: active
+
+  - logicalName: RenameFolder
+    kind: Command
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/commands/workspace/rename-folder.schema.json
+    requestRef: contracts/commands/workspace/rename-folder.schema.json
+    responseRef: contracts/commands/workspace/rename-folder.schema.json#/$defs/RenameFolderResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [FOLDER_NOT_FOUND, WORKSPACE_NAME_INVALID, WORKSPACE_NAME_CONFLICT, WORKSPACE_PERMISSION_DENIED, WORKSPACE_AUTHORIZATION_UNAVAILABLE, WORKSPACE_REQUEST_MISMATCH, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/workspace
+    status: active
+
+  - logicalName: MoveFolder
+    kind: Command
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/commands/workspace/move-folder.schema.json
+    requestRef: contracts/commands/workspace/move-folder.schema.json
+    responseRef: contracts/commands/workspace/move-folder.schema.json#/$defs/MoveFolderResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [FOLDER_NOT_FOUND, PROJECT_NOT_FOUND, WORKSPACE_PARENT_INVALID, FOLDER_CYCLE, WORKSPACE_NAME_CONFLICT, WORKSPACE_PERMISSION_DENIED, WORKSPACE_AUTHORIZATION_UNAVAILABLE, WORKSPACE_REQUEST_MISMATCH, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/workspace
+    status: active
+
+  - logicalName: TrashFolder
+    kind: Command
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/commands/workspace/trash-folder.schema.json
+    requestRef: contracts/commands/workspace/trash-folder.schema.json
+    responseRef: contracts/commands/workspace/trash-folder.schema.json#/$defs/TrashFolderResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [FOLDER_NOT_FOUND, WORKSPACE_LIFECYCLE_CONFLICT, WORKSPACE_PERMISSION_DENIED, WORKSPACE_AUTHORIZATION_UNAVAILABLE, WORKSPACE_REQUEST_MISMATCH, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/workspace
+    status: active
+
+  - logicalName: RestoreFolder
+    kind: Command
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/commands/workspace/restore-folder.schema.json
+    requestRef: contracts/commands/workspace/restore-folder.schema.json
+    responseRef: contracts/commands/workspace/restore-folder.schema.json#/$defs/RestoreFolderResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [FOLDER_NOT_FOUND, WORKSPACE_LIFECYCLE_CONFLICT, WORKSPACE_PERMISSION_DENIED, WORKSPACE_AUTHORIZATION_UNAVAILABLE, WORKSPACE_NAME_CONFLICT, WORKSPACE_REQUEST_MISMATCH, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/workspace
+    status: active
+
+  - logicalName: TransferWorkspaceOwner
+    kind: Command
+    domain: permission
+    version: "1.0.0"
+    schemaPath: contracts/commands/permission/transfer-workspace-owner.schema.json
+    requestRef: contracts/commands/permission/transfer-workspace-owner.schema.json
+    responseRef: contracts/commands/permission/transfer-workspace-owner.schema.json#/$defs/TransferWorkspaceOwnerResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [WORKSPACE_NOT_FOUND, WORKSPACE_PERMISSION_DENIED, WORKSPACE_AUTHORIZATION_UNAVAILABLE, WORKSPACE_OWNER_TRANSFER_INVALID, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/07-Permission-Access-Control-Design.md
+    ownerModule: packages/py/core/permission
+    status: active
+
+  - logicalName: HasSoleWorkspaceOwnership
+    kind: Query
+    domain: permission
+    version: "1.0.0"
+    schemaPath: contracts/queries/permission/has-sole-workspace-ownership.schema.json
+    requestRef: none
+    responseRef: contracts/queries/permission/has-sole-workspace-ownership.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [WORKSPACE_AUTHORIZATION_UNAVAILABLE, SESSION_EXPIRED, SESSION_REPLACED, ACCOUNT_DISABLED]
+    ownerDocument: docs/architecture/07-Permission-Access-Control-Design.md
+    ownerModule: packages/py/core/permission
+    status: active
+
+  - logicalName: WorkspaceCreated
+    kind: Event
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/events/workspace/workspace-created.schema.json
+    eventSubject: event.workspace.created.v1
+    permissionCapability: none
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/workspace
+    status: active
+
+  - logicalName: ProjectArchived
+    kind: Event
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/events/workspace/project-archived.schema.json
+    eventSubject: event.workspace.project-archived.v1
+    permissionCapability: none
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/workspace
+    status: active
+
+  - logicalName: ProjectUnarchived
+    kind: Event
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/events/workspace/project-unarchived.schema.json
+    eventSubject: event.workspace.project-unarchived.v1
+    permissionCapability: none
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/workspace
+    status: active
+
+  - logicalName: ProjectTrashed
+    kind: Event
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/events/workspace/project-trashed.schema.json
+    eventSubject: event.workspace.project-trashed.v1
+    permissionCapability: none
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/workspace
+    status: active
+
+  - logicalName: ProjectRestored
+    kind: Event
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/events/workspace/project-restored.schema.json
+    eventSubject: event.workspace.project-restored.v1
+    permissionCapability: none
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/workspace
+    status: active
+
+  - logicalName: FolderCreated
+    kind: Event
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/events/workspace/folder-created.schema.json
+    eventSubject: event.workspace.folder-created.v1
+    permissionCapability: none
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/workspace
+    status: active
+
+  - logicalName: FolderRenamed
+    kind: Event
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/events/workspace/folder-renamed.schema.json
+    eventSubject: event.workspace.folder-renamed.v1
+    permissionCapability: none
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/workspace
+    status: active
+
+  - logicalName: FolderMoved
+    kind: Event
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/events/workspace/folder-moved.schema.json
+    eventSubject: event.workspace.folder-moved.v1
+    permissionCapability: none
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/workspace
+    status: active
+
+  - logicalName: FolderTrashed
+    kind: Event
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/events/workspace/folder-trashed.schema.json
+    eventSubject: event.workspace.folder-trashed.v1
+    permissionCapability: none
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/workspace
+    status: active
+
+  - logicalName: FolderRestored
+    kind: Event
+    domain: workspace
+    version: "1.0.0"
+    schemaPath: contracts/events/workspace/folder-restored.schema.json
+    eventSubject: event.workspace.folder-restored.v1
+    permissionCapability: none
+    ownerDocument: docs/architecture/09-Workspace-Project-Resource-Lifecycle-Design.md
+    ownerModule: packages/py/core/workspace
+    status: active
+
   - logicalName: SessionReplaced
     kind: Event
     domain: auth

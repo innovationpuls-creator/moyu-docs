@@ -1,0 +1,30 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/history/list-versions.schema.json",
+	"title": "ListVersionsResponse",
+	"description": "FR-HS-001. Version timeline, oldest-first.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+		"items": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"seq": { "type": "integer" },
+					"kind": {
+						"type": "string",
+						"enum": ["Checkpoint", "NamedVersion", "Restore"]
+					},
+					"label": { "type": ["string", "null"] },
+					"author": { "type": ["string", "null"] },
+					"occurredAt": { "type": ["string", "null"] }
+				},
+				"required": ["seq", "kind", "label", "author", "occurredAt"]
+			}
+		}
+	},
+	"required": ["resourceId", "items"]
+}

@@ -93,6 +93,12 @@ def _build_envelope(
     details: dict[str, Any] | None = None,
     request_id: uuid.UUID | None = None,
 ) -> ErrorEnvelope:
+    if request_id is None:
+        from api.middleware.request_context import request_id_ctx
+
+        stamped = request_id_ctx.get()
+        if stamped:
+            request_id = uuid.UUID(stamped)
     meta = _error_code_catalog().get(error_code)
     if meta is not None:
         # Registered errorCodes are canonical (doc 28 §28): the catalog's
@@ -159,6 +165,14 @@ async def _http_exception_handler(
     category, error_code = _HTTP_STATUS_TO_ERROR.get(
         exc.status_code, ("Internal", "INTERNAL_ERROR")
     )
+    # Routes may pass a catalog errorCode as ``detail`` (e.g.
+    # RESOURCE_NOT_FOUND); honor it when it is a registered code so clients
+    # get the canonical code, not a generic status mapping.
+    detail_code = str(exc.detail) if isinstance(exc.detail, str) else ""
+    catalog = _error_code_catalog()
+    if detail_code in catalog:
+        error_code = detail_code
+        category = str(catalog[detail_code]["category"])
     envelope = _build_envelope(
         category=category, error_code=error_code, message=exc.detail
     )

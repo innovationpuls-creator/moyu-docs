@@ -1,0 +1,39 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/events/workspace/project-archived.schema.json",
+	"title": "ProjectArchived",
+	"description": "FR-WRL-007. Fact that Project metadata transitioned to Archived; Resource/session effects are owned elsewhere.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"eventId": { "$ref": "../../ids/ids.schema.json#/$defs/EventId" },
+		"eventType": { "const": "ProjectArchived" },
+		"schemaVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+		"occurredAt": { "type": "string", "format": "date-time" },
+		"producer": { "type": "string", "minLength": 1 },
+		"payload": { "$ref": "#/$defs/ProjectArchivedPayload" }
+	},
+	"required": [
+		"eventId",
+		"eventType",
+		"schemaVersion",
+		"occurredAt",
+		"producer",
+		"payload"
+	],
+	"$defs": {
+		"ProjectArchivedPayload": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"workspaceId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId"
+				},
+				"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+				"actorAccountId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" }
+			},
+			"required": ["workspaceId", "projectId", "actorAccountId"],
+			"title": "ProjectArchivedPayload"
+		}
+	}
+}

@@ -1,0 +1,31 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/workspace/rename-workspace.schema.json",
+	"title": "RenameWorkspace",
+	"description": "FR-WRL-002. Preserve display input; collision key is NFC + trim of edge whitespace + case-insensitive comparison. Workspace names are not globally unique.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"workspaceId": { "$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId" },
+		"name": { "type": "string", "minLength": 1, "maxLength": 120 },
+		"idempotencyKey": {
+			"$ref": "../../ids/ids.schema.json#/$defs/IdempotencyKey"
+		}
+	},
+	"required": ["workspaceId", "name", "idempotencyKey"],
+	"$defs": {
+		"RenameWorkspaceResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"workspaceId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId"
+				},
+				"name": { "type": "string" },
+				"updatedAt": { "type": "string", "format": "date-time" }
+			},
+			"required": ["workspaceId", "name", "updatedAt"],
+			"title": "RenameWorkspaceResponse"
+		}
+	}
+}

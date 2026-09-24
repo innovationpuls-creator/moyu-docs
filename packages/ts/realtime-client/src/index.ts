@@ -141,3 +141,120 @@ export function connectRealtime(url: string): RealtimeClient {
 		},
 	};
 }
+
+/**
+ * RT-SDK — resource channels over the gateway socket (arch 05 §11/§14).
+ *
+ * The client is transport-only: it speaks the gateway's wire envelope
+ * (subscribe / op / presence / unsubscribe). Consensus/Yjs is out of scope
+ * here. A WebSocket-like object is injected so the client stays testable in
+ * Node without a real socket.
+ */
+
+export interface ResourceChannelMessage {
+	type:
+		| "subscribe"
+		| "op"
+		| "presence"
+		| "unsubscribe"
+		| "comment.added"
+		| "comment.edited"
+		| "comment.deleted";
+	resourceId: string;
+	payload: unknown;
+	sequence?: number;
+	occurredAt?: string;
+}
+
+export interface SocketLike {
+	send(data: string): void;
+	close(): void;
+}
+
+export class ResourceChannelClient {
+	private handlers = new Map<
+		string,
+		(message: ResourceChannelMessage) => void
+	>();
+	private rawHandler: ((message: ResourceChannelMessage) => void) | null = null;
+
+	constructor(private readonly socket: SocketLike) {}
+
+	attach(): void {
+		// The injected socket surface exposes onMessage; we keep the wiring
+		// here so feature code never touches the socket directly.
+		const anySocket = this.socket as SocketLike & {
+			onmessage: ((event: { data: string | ArrayBuffer }) => void) | null;
+		};
+		anySocket.onmessage = (event) => {
+			const data =
+				typeof event.data === "string"
+					? event.data
+					: new TextDecoder().decode(event.data);
+			const raw = JSON.parse(data) as ResourceChannelMessage & {
+				kind?: string;
+			};
+			// The gateway wire discriminates with ``kind``; map to ``type``.
+			const message: ResourceChannelMessage = {
+				type: raw.type ?? (raw.kind as ResourceChannelMessage["type"]),
+				resourceId: raw.resourceId,
+				payload: raw.payload,
+				sequence: raw.sequence,
+				occurredAt: raw.occurredAt,
+			};
+			this.route(message);
+		};
+	}
+
+	subscribe(resourceId: string): void {
+		this.send({ type: "subscribe", resourceId, payload: {} });
+	}
+
+	unsubscribe(resourceId: string): void {
+		this.send({ type: "unsubscribe", resourceId, payload: {} });
+	}
+
+	/** Client-originated op (arch 05 §171): Yjs updates relay to peer
+	 * subscribers of the same resource by the gateway. */
+	publishOp(resourceId: string, payload: unknown): void {
+		this.send({ type: "op", resourceId, payload });
+	}
+
+	/** Incremental sync request (arch 05 §172): the gateway merges the
+	 * resource backlog and replays exactly the missing tail for our
+	 * state-vector. */
+	publishSync(resourceId: string, stateVectorBase64: string): void {
+		this.send({
+			type: "op",
+			resourceId,
+			payload: { kind: "sync", stateVector: stateVectorBase64 },
+		});
+	}
+
+	onResource(
+		resourceId: string,
+		handler: (message: ResourceChannelMessage) => void,
+	): () => void {
+		this.handlers.set(resourceId, handler);
+		return () => {
+			this.handlers.delete(resourceId);
+		};
+	}
+
+	onAny(handler: (message: ResourceChannelMessage) => void): void {
+		this.rawHandler = handler;
+	}
+
+	close(): void {
+		this.socket.close();
+	}
+
+	private route(message: ResourceChannelMessage): void {
+		this.handlers.get(message.resourceId)?.(message);
+		this.rawHandler?.(message);
+	}
+
+	private send(message: ResourceChannelMessage): void {
+		this.socket.send(JSON.stringify(message));
+	}
+}

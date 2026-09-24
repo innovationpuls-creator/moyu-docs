@@ -1,0 +1,30 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/resource/restore-resource.schema.json",
+	"title": "RestoreResource",
+	"description": "FR-RC-005. Restore one authorized Trashed Resource to Active (the sibling name stays reserved until physical purge).",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+		"idempotencyKey": {
+			"$ref": "../../ids/ids.schema.json#/$defs/IdempotencyKey"
+		}
+	},
+	"required": ["resourceId", "idempotencyKey"],
+	"$defs": {
+		"RestoreResourceResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+				"lifecycle": {
+					"type": "string",
+					"enum": ["Active", "Trashed", "Purging", "Purged"]
+				}
+			},
+			"required": ["resourceId", "lifecycle"],
+			"title": "RestoreResourceResponse"
+		}
+	}
+}

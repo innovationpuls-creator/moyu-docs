@@ -228,6 +228,744 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/v1/resources": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Create a Resource in an authorized Project (FR-RC-001) */
+		post: operations["CreateResource"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/resources/{resourceId}/journal": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Append one content op to a Resource journal (FR-RC-002) */
+		post: operations["AppendJournalOp"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/resources/{resourceId}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Open a Resource's metadata and latest snapshot (FR-RC-001/006) */
+		get: operations["OpenResource"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		/** Rename an authorized Resource (FR-RC-004) */
+		patch: operations["RenameResource"];
+		trace?: never;
+	};
+	"/v1/resources/{resourceId}/restore": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Restore a Trashed Resource to Active (FR-RC-005) */
+		post: operations["RestoreResource"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/resources/{resourceId}/export": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Export one Resource as a versioned exchange document (FR-IE-001) */
+		get: operations["ExportResource"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/resources/{resourceId}/import": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Import an exchange document into a Resource (FR-IE-002) */
+		post: operations["ImportResource"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/comments/{commentId}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		/** Author soft-deletes their comment (FR-CMT-004) */
+		delete: operations["DeleteComment"];
+		options?: never;
+		head?: never;
+		/** Author edits their comment body (FR-CMT-003) */
+		patch: operations["EditComment"];
+		trace?: never;
+	};
+	"/v1/resources/{resourceId}/comments": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** List flat-thread comments of a Resource (FR-CMT-002) */
+		get: operations["ListComments"];
+		put?: never;
+		/** Append one flat-thread comment to a Resource (FR-CMT-001) */
+		post: operations["AddComment"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/resources/{resourceId}/versions": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Label a revision for later restore (FR-HS-003) */
+		post: operations["CreateNamedVersion"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/resources/{resourceId}/history": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Version timeline (FR-HS-001) */
+		get: operations["ListVersions"];
+		put?: never;
+		/** Restore at a version = a NEW current (FR-HS-002) */
+		post: operations["RestoreVersion"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/resources/{resourceId}/trash": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Move an authorized Resource to Trashed (FR-RC-005) */
+		post: operations["TrashResource"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/projects/{projectId}/resources": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** List Resources of an authorized Project (FR-RC-006) */
+		get: operations["ListResources"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/notifications/{notificationId}/read": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Mark one notification read (FR-NTF-003) */
+		post: operations["MarkNotificationRead"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/integrations/api-keys/{keyId}/rotate": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Rotate an integration key (FR-INT-003) */
+		post: operations["RotateApiKey"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/public/resources": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Machine-client readable resources (PUB-002) */
+		get: operations["GetPublicResources"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/public/notifications": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Machine-client notifications (integration-key auth, PUB-001) */
+		get: operations["GetPublicNotifications"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/search/history": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Recent search queries, newest first (FR-SRC-002) */
+		get: operations["SearchHistory"];
+		put?: never;
+		post?: never;
+		/** Clear the account's search history (FR-SRC-005) */
+		delete: operations["ClearSearchHistory"];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/notifications": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** In-app notifications, newest first (FR-NTF-001) */
+		get: operations["ListNotifications"];
+		put?: never;
+		/** Mark all notifications read (FR-NTF-002) */
+		post: operations["MarkNotificationsRead"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/workspaces/{workspaceId}/search/suggestions": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Corpus prefix suggestions (FR-SRC-003) */
+		get: operations["SearchSuggestions"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/workspaces/{workspaceId}/search/comments": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Search comment bodies in the workspace (FR-SRC-004) */
+		get: operations["SearchComments"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/workspaces/{workspaceId}/members/suggest": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Mention autocomplete members (FR-NTF-004) */
+		get: operations["SuggestMembers"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/webhooks/{webhookId}/deliveries/requeue": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Replay the newest Failed delivery (arch 10 DLQ) */
+		post: operations["RequeueWebhookDeliveries"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/workspaces/{workspaceId}/webhooks": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** List workspace webhooks (FR-WEB-002) */
+		get: operations["ListWebhooks"];
+		put?: never;
+		/** Register a webhook delivery URL (FR-WEB-001) */
+		post: operations["RegisterWebhook"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/workspaces/{workspaceId}/webhooks/{subscriptionId}/test": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Deliver a webhook.test event (FR-WEB-004) */
+		post: operations["TestWebhook"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/workspaces/{workspaceId}/webhooks/{subscriptionId}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		/** Remove a webhook subscription (FR-WEB-003) */
+		delete: operations["RemoveWebhook"];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/workspaces/{workspaceId}/search": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Workspace-scoped Resource name/body search (FR-SRC-001) */
+		get: operations["SearchWorkspace"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/workspaces": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** List Workspaces visible to the authenticated actor (FR-WRL-001) */
+		get: operations["ListWorkspaces"];
+		put?: never;
+		/** Create Workspace and request initial Owner bootstrap (FR-WRL-001/011) */
+		post: operations["CreateWorkspace"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/workspaces/{workspaceId}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components["schemas"]["WorkspaceId"];
+			};
+			cookie?: never;
+		};
+		/** Get visible Workspace metadata (FR-WRL-001/002) */
+		get: operations["GetWorkspace"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		/** Rename Workspace with canonical sibling comparison (FR-WRL-002) */
+		patch: operations["RenameWorkspace"];
+		trace?: never;
+	};
+	"/v1/workspaces/{workspaceId}/projects": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components["schemas"]["WorkspaceId"];
+			};
+			cookie?: never;
+		};
+		/** List Project metadata in a Workspace (FR-WRL-003/004) */
+		get: operations["ListProjects"];
+		put?: never;
+		/** Create Project metadata (FR-WRL-003) */
+		post: operations["CreateProject"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/projects/{projectId}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				projectId: components["schemas"]["ProjectId"];
+			};
+			cookie?: never;
+		};
+		/** Get metadata-only Project Tree (FR-WRL-004) */
+		get: operations["GetProjectTree"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		/** Rename Project metadata (FR-WRL-003) */
+		patch: operations["RenameProject"];
+		trace?: never;
+	};
+	"/v1/projects/{projectId}/archive": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				projectId: components["schemas"]["ProjectId"];
+			};
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Archive Project as read-only metadata (FR-WRL-007) */
+		post: operations["ArchiveProject"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/projects/{projectId}/unarchive": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				projectId: components["schemas"]["ProjectId"];
+			};
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Restore Project from Archive (FR-WRL-007) */
+		post: operations["UnarchiveProject"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/projects/{projectId}/trash": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				projectId: components["schemas"]["ProjectId"];
+			};
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Trash Project subtree by ancestor lifecycle (FR-WRL-008) */
+		post: operations["TrashProject"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/projects/{projectId}/restore": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				projectId: components["schemas"]["ProjectId"];
+			};
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Restore Project subtree by ancestor lifecycle (FR-WRL-008) */
+		post: operations["RestoreProject"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/projects/{projectId}/folders": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				projectId: components["schemas"]["ProjectId"];
+			};
+			cookie?: never;
+		};
+		/** List immediate Folder children (FR-WRL-004/005) */
+		get: operations["ListFolderChildren"];
+		put?: never;
+		/** Create Folder metadata (FR-WRL-005) */
+		post: operations["CreateFolder"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/folders/{folderId}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				folderId: components["schemas"]["FolderId"];
+			};
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		/** Rename Folder metadata (FR-WRL-005) */
+		patch: operations["RenameFolder"];
+		trace?: never;
+	};
+	"/v1/folders/{folderId}/move": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				folderId: components["schemas"]["FolderId"];
+			};
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Move Folder within the same Project (FR-WRL-006) */
+		post: operations["MoveFolder"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/folders/{folderId}/trash": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				folderId: components["schemas"]["FolderId"];
+			};
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Trash Folder subtree by ancestor lifecycle (FR-WRL-008) */
+		post: operations["TrashFolder"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/folders/{folderId}/restore": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				folderId: components["schemas"]["FolderId"];
+			};
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Restore Folder subtree with root fallback and safe name (FR-WRL-008) */
+		post: operations["RestoreFolder"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/workspaces/{workspaceId}/owner": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components["schemas"]["WorkspaceId"];
+			};
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Transfer Workspace Owner through Permission-owned membership (FR-WRL-011) */
+		post: operations["TransferWorkspaceOwner"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/auth/my-workspace-ownership": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Check whether the authenticated Account is a sole Workspace Owner (FR-WRL-009/011)
+		 * @description Permission-owned query through Auth's existing WorkspaceOwnershipQueryPort. The actor is derived from the authenticated Session; no accountId is accepted from the request.
+		 */
+		get: operations["HasSoleWorkspaceOwnership"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -602,6 +1340,1096 @@ export interface components {
 			executeAfter: string | null;
 			canCancelDeletion: boolean;
 		};
+		/**
+		 * WorkspaceId
+		 * Format: uuid
+		 */
+		WorkspaceId: string;
+		/**
+		 * IdempotencyKey
+		 * Format: uuid
+		 */
+		IdempotencyKey: string;
+		/**
+		 * CreateResource
+		 * @description FR-RC-001. Create a Resource inside an authorized Project (the Project's Workspace Owner). Sibling names (normalized, incl. Trashed/Purged) are reserved.
+		 */
+		"create-resource.schema": {
+			projectId: components["schemas"]["WorkspaceId"];
+			/** @enum {string} */
+			resourceType: "document" | "code" | "markdown" | "text";
+			name: string;
+			idempotencyKey: components["schemas"]["IdempotencyKey"];
+			$defs: {
+				/** CreateResourceResponse */
+				CreateResourceResponse: {
+					resourceId: components["schemas"]["UserId"];
+					projectId: components["schemas"]["WorkspaceId"];
+					/** @enum {string} */
+					resourceType: "document" | "code" | "markdown" | "text";
+					name: string;
+					/** @enum {string} */
+					lifecycle: "Active" | "Trashed" | "Purging" | "Purged";
+					/** Format: date-time */
+					createdAt: string;
+				};
+			};
+		};
+		/** CreateResourceResponse */
+		CreateResourceResponse: {
+			resourceId: components["schemas"]["UserId"];
+			projectId: components["schemas"]["WorkspaceId"];
+			/** @enum {string} */
+			resourceType: "document" | "code" | "markdown" | "text";
+			name: string;
+			/** @enum {string} */
+			lifecycle: "Active" | "Trashed" | "Purging" | "Purged";
+			/** Format: date-time */
+			createdAt: string;
+		};
+		/**
+		 * AppendJournalOp
+		 * @description FR-RC-002. Append one content op to a Resource's journal (authorized by ownership). The op is sha256 of the transported update; client provides expectedSeq to make concurrency explicit.
+		 */
+		"append-journal-op.schema": {
+			resourceId: components["schemas"]["UserId"];
+			expectedSeq?: number;
+			update: string;
+			idempotencyKey: components["schemas"]["IdempotencyKey"];
+			$defs: {
+				/** AppendJournalOpResponse */
+				AppendJournalOpResponse: {
+					resourceId: components["schemas"]["UserId"];
+					journalSeq: number;
+					updateSha256: string;
+				};
+			};
+		};
+		/** AppendJournalOpResponse */
+		AppendJournalOpResponse: {
+			resourceId: components["schemas"]["UserId"];
+			journalSeq: number;
+			updateSha256: string;
+		};
+		/**
+		 * OpenResourceResponse
+		 * @description FR-RC-001/006. Read one authorized Resource's metadata and latest materialized snapshot (checkpoint). Authority: resource ownership (Permission). 404 when the Resource is trashed/purged or not authorized.
+		 */
+		"open-resource.schema": {
+			resourceId: components["schemas"]["UserId"];
+			projectId: components["schemas"]["WorkspaceId"];
+			/** @enum {string} */
+			resourceType: "document" | "code" | "markdown" | "text";
+			name: string;
+			/** @enum {string} */
+			lifecycle: "Active" | "Trashed" | "Purging" | "Purged";
+			journalSeq: number;
+			snapshot: Record<string, never> | null;
+		};
+		/**
+		 * RenameResource
+		 * @description FR-RC-004. Rename one authorized Resource; sibling names (normalized, incl. Trashed/Purged) stay reserved.
+		 */
+		"rename-resource.schema": {
+			resourceId: components["schemas"]["UserId"];
+			name: string;
+			idempotencyKey: components["schemas"]["IdempotencyKey"];
+			$defs: {
+				/** RenameResourceResponse */
+				RenameResourceResponse: {
+					resourceId: components["schemas"]["UserId"];
+					name: string;
+				};
+			};
+		};
+		/** RenameResourceResponse */
+		RenameResourceResponse: {
+			resourceId: components["schemas"]["UserId"];
+			name: string;
+		};
+		/**
+		 * RestoreResource
+		 * @description FR-RC-005. Restore one authorized Trashed Resource to Active (the sibling name stays reserved until physical purge).
+		 */
+		"restore-resource.schema": {
+			resourceId: components["schemas"]["UserId"];
+			idempotencyKey: components["schemas"]["IdempotencyKey"];
+			$defs: {
+				/** RestoreResourceResponse */
+				RestoreResourceResponse: {
+					resourceId: components["schemas"]["UserId"];
+					/** @enum {string} */
+					lifecycle: "Active" | "Trashed" | "Purging" | "Purged";
+				};
+			};
+		};
+		/** RestoreResourceResponse */
+		RestoreResourceResponse: {
+			resourceId: components["schemas"]["UserId"];
+			/** @enum {string} */
+			lifecycle: "Active" | "Trashed" | "Purging" | "Purged";
+		};
+		/**
+		 * ExportResourceResponse
+		 * @description FR-IE-001. Export one Resource as a versioned DOM exchange document (metadata + latest snapshot).
+		 */
+		"export-resource.schema": {
+			/** @constant */
+			kind: "dom.resource.export.v1";
+			/** @constant */
+			schemaVersion: "1.0.0";
+			/** Format: date-time */
+			exportedAt: string;
+			resource: {
+				resourceId: components["schemas"]["UserId"];
+				/** @enum {string} */
+				resourceType: "document" | "code" | "markdown" | "text";
+				name: string;
+			};
+			content: {
+				snapshot: Record<string, never> | null;
+				journalSeq: number;
+			};
+		};
+		/**
+		 * ImportResource
+		 * @description FR-IE-002. Import one exchange document INTO an existing Resource: the imported snapshot becomes a new checkpoint and the import is recorded as a journal op.
+		 */
+		"import-resource.schema": {
+			resourceId: components["schemas"]["UserId"];
+			document: Record<string, never>;
+			idempotencyKey: components["schemas"]["IdempotencyKey"];
+			$defs: {
+				/** ImportResourceResponse */
+				ImportResourceResponse: {
+					resourceId: components["schemas"]["UserId"];
+					journalSeq: number;
+				};
+			};
+		};
+		/** ImportResourceResponse */
+		ImportResourceResponse: {
+			resourceId: components["schemas"]["UserId"];
+			journalSeq: number;
+		};
+		/** DeleteCommentResponse */
+		DeleteCommentResponse: {
+			commentId: components["schemas"]["UserId"];
+			/** @constant */
+			deleted: true;
+		};
+		/**
+		 * EditComment
+		 * @description FR-CMT-003. Author edits their own comment body.
+		 */
+		"edit-comment.schema": {
+			commentId: components["schemas"]["UserId"];
+			body: string;
+			idempotencyKey: components["schemas"]["IdempotencyKey"];
+			$defs: {
+				/** EditCommentResponse */
+				EditCommentResponse: {
+					commentId: components["schemas"]["UserId"];
+					body: string;
+				};
+			};
+		};
+		/** EditCommentResponse */
+		EditCommentResponse: {
+			commentId: components["schemas"]["UserId"];
+			body: string;
+		};
+		/**
+		 * ListCommentsResponse
+		 * @description FR-CMT-002. List flat-thread comments of a Resource, oldest first.
+		 */
+		"list-comments.schema": {
+			resourceId: components["schemas"]["UserId"];
+			items: {
+				commentId: components["schemas"]["UserId"];
+				threadId: components["schemas"]["WorkspaceId"];
+				authorAccountId: components["schemas"]["UserId"];
+				body: string;
+				anchor: Record<string, never>;
+				/** Format: date-time */
+				createdAt: string;
+			}[];
+		};
+		/**
+		 * AddComment
+		 * @description FR-CMT-001. Append one flat-thread comment to a Resource (read access required). Anchor defaults to ResourceAnchor.
+		 */
+		"add-comment.schema": {
+			resourceId: components["schemas"]["UserId"];
+			threadId?: components["schemas"]["WorkspaceId"];
+			body: string;
+			anchor?: Record<string, never>;
+			idempotencyKey: components["schemas"]["IdempotencyKey"];
+			$defs: {
+				/** AddCommentResponse */
+				AddCommentResponse: {
+					commentId: components["schemas"]["UserId"];
+					threadId: components["schemas"]["WorkspaceId"];
+					body: string;
+					/** Format: date-time */
+					createdAt: string;
+				};
+			};
+		};
+		/** AddCommentResponse */
+		AddCommentResponse: {
+			commentId: components["schemas"]["UserId"];
+			threadId: components["schemas"]["WorkspaceId"];
+			body: string;
+			/** Format: date-time */
+			createdAt: string;
+		};
+		/**
+		 * CreateNamedVersion
+		 * @description FR-HS-003. Label a revision for later restore.
+		 */
+		"create-named-version.schema": {
+			resourceId: components["schemas"]["UserId"];
+			label: string;
+			baseJournalSeq: number;
+			idempotencyKey: components["schemas"]["IdempotencyKey"];
+			$defs: {
+				/** CreateNamedVersionResponse */
+				CreateNamedVersionResponse: {
+					resourceId: components["schemas"]["UserId"];
+					versionId: components["schemas"]["UserId"];
+					label: string;
+					baseJournalSeq: number;
+				};
+			};
+		};
+		/** CreateNamedVersionResponse */
+		CreateNamedVersionResponse: {
+			resourceId: components["schemas"]["UserId"];
+			versionId: components["schemas"]["UserId"];
+			label: string;
+			baseJournalSeq: number;
+		};
+		/**
+		 * TrashResource
+		 * @description FR-RC-005. Move one authorized Resource to Trashed; the sibling name stays reserved until physical purge.
+		 */
+		"trash-resource.schema": {
+			resourceId: components["schemas"]["UserId"];
+			idempotencyKey: components["schemas"]["IdempotencyKey"];
+			$defs: {
+				/** TrashResourceResponse */
+				TrashResourceResponse: {
+					resourceId: components["schemas"]["UserId"];
+					/** @enum {string} */
+					lifecycle: "Active" | "Trashed" | "Purging" | "Purged";
+				};
+			};
+		};
+		/** TrashResourceResponse */
+		TrashResourceResponse: {
+			resourceId: components["schemas"]["UserId"];
+			/** @enum {string} */
+			lifecycle: "Active" | "Trashed" | "Purging" | "Purged";
+		};
+		/**
+		 * ListResourcesResponse
+		 * @description FR-RC-006. List Resources of an authorized Project (workspace-member authority). Trashed/Purged rows carry their lifecycle; navigation surfaces Active only.
+		 */
+		"list-resources.schema": {
+			projectId: components["schemas"]["WorkspaceId"];
+			items: {
+				resourceId: components["schemas"]["UserId"];
+				name: string;
+				/** @enum {string} */
+				resourceType: "document" | "code" | "markdown" | "text";
+				/** @enum {string} */
+				lifecycle: "Active" | "Trashed" | "Purging" | "Purged";
+			}[];
+		};
+		/**
+		 * MarkNotificationReadResponse
+		 * @description FR-NTF-003. Mark one notification read (no body).
+		 */
+		"mark-notification-read.schema": {
+			/** Format: uuid */
+			notificationId: string;
+			readAt: string;
+		};
+		/**
+		 * RotateApiKey
+		 * @description FR-INT-003. Issue a fresh integration key and revoke the old one atomically.
+		 */
+		"rotate-api-key.schema": {
+			label: string;
+			$defs: {
+				/** RotateApiKeyResponse */
+				RotateApiKeyResponse: {
+					keyId: components["schemas"]["UserId"];
+					revokedKeyId: components["schemas"]["UserId"];
+					label: string;
+					privateKeyHex: string;
+				};
+			};
+		};
+		/** RotateApiKeyResponse */
+		RotateApiKeyResponse: {
+			keyId: components["schemas"]["UserId"];
+			revokedKeyId: components["schemas"]["UserId"];
+			label: string;
+			privateKeyHex: string;
+		};
+		/**
+		 * GetPublicResourcesResponse
+		 * @description PUB-002. Machine-client readable resource list (integration-key auth).
+		 */
+		"list-public-resources.schema": {
+			items: {
+				resourceId: components["schemas"]["UserId"];
+				resourceType: string;
+				name: string;
+				updatedAt: string | null;
+			}[];
+		};
+		/**
+		 * GetPublicNotificationsResponse
+		 * @description PUB-001. Machine-client notifications list, authenticated by an integration key (Ed25519 signature headers; no session).
+		 */
+		"list-public-notifications.schema": {
+			items: {
+				notificationId: components["schemas"]["UserId"];
+				kind: string;
+				payload: Record<string, never>;
+				readAt: string | null;
+			}[];
+		};
+		/**
+		 * SearchHistoryResponse
+		 * @description FR-SRC-002. The account's recent search queries, newest first, de-duplicated.
+		 */
+		"search-history.schema": {
+			items: {
+				query: string;
+				lastUsedAt: string | null;
+			}[];
+		};
+		/**
+		 * ClearSearchHistoryResponse
+		 * @description FR-SRC-005. Clear the account's search history (no body).
+		 */
+		"clear-search-history.schema": {
+			cleared: number;
+		};
+		/**
+		 * ListNotificationsResponse
+		 * @description FR-NTF-001. In-app notifications, newest first.
+		 */
+		"list-notifications.schema": {
+			items: {
+				notificationId: components["schemas"]["UserId"];
+				kind: string;
+				payload: Record<string, never>;
+				createdAt: string | null;
+				readAt: string | null;
+			}[];
+			unreadCount: number;
+		};
+		/**
+		 * MarkNotificationsReadResponse
+		 * @description FR-NTF-002. Mark all notifications read (no body).
+		 */
+		"mark-notifications-read.schema": {
+			marked: number;
+		};
+		/**
+		 * SearchSuggestionsResponse
+		 * @description FR-SRC-003. Corpus prefix suggestions within a workspace.
+		 */
+		"search-suggestions.schema": {
+			workspaceId: components["schemas"]["WorkspaceId"];
+			prefix: string;
+			suggestions: string[];
+		};
+		/**
+		 * SearchCommentsResponse
+		 * @description FR-SRC-004. Search undeleted comment bodies within a workspace.
+		 */
+		"search-comments.schema": {
+			workspaceId: components["schemas"]["WorkspaceId"];
+			query: string;
+			items: {
+				commentId: components["schemas"]["UserId"];
+				threadId: components["schemas"]["UserId"];
+				resourceId: components["schemas"]["UserId"];
+				resourceName: string;
+				body: string;
+			}[];
+		};
+		/**
+		 * SuggestMembersResponse
+		 * @description FR-NTF-004. Workspace member email suggestions (mention autocomplete).
+		 */
+		"member-suggestions.schema": {
+			workspaceId: components["schemas"]["WorkspaceId"];
+			suggestions: {
+				accountId: components["schemas"]["UserId"];
+				email: string;
+			}[];
+		};
+		/**
+		 * RequeueWebhookDeliveries
+		 * @description Arch 10 dead-letter replay: requeue the newest Failed delivery as a fresh Queued task.
+		 */
+		"requeue-deliveries.schema": {
+			webhookId: components["schemas"]["UserId"];
+			$defs: {
+				/** RequeueWebhookDeliveriesResponse */
+				RequeueWebhookDeliveriesResponse: {
+					requeued: number;
+					remainingFailed: number;
+				};
+			};
+		};
+		/** RequeueWebhookDeliveriesResponse */
+		RequeueWebhookDeliveriesResponse: {
+			requeued: number;
+			remainingFailed: number;
+		};
+		/**
+		 * ListWebhooksResponse
+		 * @description FR-WEB-002. Workspace webhook subscriptions, newest first (no body).
+		 */
+		"list-webhooks.schema": {
+			workspaceId: components["schemas"]["WorkspaceId"];
+			items: {
+				subscriptionId: components["schemas"]["UserId"];
+				url: string;
+				status: string;
+				createdAt: string | null;
+			}[];
+		};
+		/**
+		 * RegisterWebhook
+		 * @description FR-WEB-001. Register a workspace webhook delivery URL.
+		 */
+		"register-webhook.schema": {
+			url: string;
+			$defs: {
+				/** RegisterWebhookResponse */
+				RegisterWebhookResponse: {
+					subscriptionId: components["schemas"]["UserId"];
+				};
+			};
+		};
+		/**
+		 * TestWebhookResponse
+		 * @description FR-WEB-004. Deliver a webhook.test event to the endpoint and report the result (no body).
+		 */
+		"test-webhook.schema": {
+			delivered: boolean;
+			statusCode: number;
+		};
+		/**
+		 * RemoveWebhookResponse
+		 * @description FR-WEB-003. Remove a workspace webhook subscription (no body).
+		 */
+		"remove-webhook.schema": {
+			removed: boolean;
+		};
+		/**
+		 * SearchWorkspaceResponse
+		 * @description FR-SRC-001. Workspace-scoped Resource name/body search (member authority).
+		 */
+		"search-workspace.schema": {
+			workspaceId: components["schemas"]["WorkspaceId"];
+			query: string;
+			items: {
+				resourceId: components["schemas"]["UserId"];
+				name: string;
+				/** @enum {string} */
+				resourceType: "document" | "code" | "markdown" | "text";
+				score: number;
+				snippet?: string | null;
+			}[];
+		};
+		/**
+		 * ListWorkspacesResponse
+		 * @description FR-WRL-003. List Workspace metadata records the authenticated Account is a member of (Owner or Member), newest first. Authority: Permission membership.
+		 */
+		"list-workspaces.schema": {
+			workspaces: {
+				workspaceId: components["schemas"]["WorkspaceId"];
+				name: string;
+				/** @enum {string} */
+				membershipKind: "Owner" | "Member";
+				/** @enum {string} */
+				lifecycle: "Active" | "DeletionPending" | "Deleted";
+				/** Format: date-time */
+				createdAt: string;
+			}[];
+		};
+		/**
+		 * CreateWorkspace
+		 * @description FR-WRL-001/011. Create a Workspace. Permission-owned bootstrap must atomically establish the requesting Account as its initial sole Workspace Owner; Lifecycle never writes membership rows.
+		 */
+		"create-workspace.schema": {
+			name: string;
+			idempotencyKey: components["schemas"]["IdempotencyKey"];
+			$defs: {
+				/** CreateWorkspaceResponse */
+				CreateWorkspaceResponse: {
+					workspaceId: components["schemas"]["WorkspaceId"];
+					name: string;
+					ownerAccountId: components["schemas"]["UserId"];
+					/** Format: date-time */
+					createdAt: string;
+				};
+			};
+		};
+		/** CreateWorkspaceResponse */
+		CreateWorkspaceResponse: {
+			workspaceId: components["schemas"]["WorkspaceId"];
+			name: string;
+			ownerAccountId: components["schemas"]["UserId"];
+			/** Format: date-time */
+			createdAt: string;
+		};
+		/**
+		 * GetWorkspaceResponse
+		 * @description FR-WRL-001/002. Read one authorized Workspace metadata record by stable identity.
+		 */
+		"get-workspace.schema": {
+			workspaceId: components["schemas"]["WorkspaceId"];
+			name: string;
+			ownerAccountId: components["schemas"]["UserId"];
+			/** @enum {string} */
+			lifecycle: "Active" | "DeletionPending" | "Deleted";
+			/** Format: date-time */
+			createdAt: string;
+			/** Format: date-time */
+			updatedAt: string;
+		};
+		/**
+		 * RenameWorkspace
+		 * @description FR-WRL-002. Preserve display input; collision key is NFC + trim of edge whitespace + case-insensitive comparison. Workspace names are not globally unique.
+		 */
+		"rename-workspace.schema": {
+			workspaceId: components["schemas"]["WorkspaceId"];
+			name: string;
+			idempotencyKey: components["schemas"]["IdempotencyKey"];
+			$defs: {
+				/** RenameWorkspaceResponse */
+				RenameWorkspaceResponse: {
+					workspaceId: components["schemas"]["WorkspaceId"];
+					name: string;
+					/** Format: date-time */
+					updatedAt: string;
+				};
+			};
+		};
+		/** RenameWorkspaceResponse */
+		RenameWorkspaceResponse: {
+			workspaceId: components["schemas"]["WorkspaceId"];
+			name: string;
+			/** Format: date-time */
+			updatedAt: string;
+		};
+		/**
+		 * ProjectId
+		 * Format: uuid
+		 */
+		ProjectId: string;
+		/** ProjectSummary */
+		ProjectSummary: {
+			projectId: components["schemas"]["ProjectId"];
+			workspaceId: components["schemas"]["WorkspaceId"];
+			name: string;
+			/** @enum {string} */
+			lifecycle: "Active" | "Archived" | "Trashed" | "Purging" | "Purged";
+			/** Format: date-time */
+			updatedAt: string;
+		};
+		/**
+		 * ListProjectsResponse
+		 * @description FR-WRL-003/004. List authorized Project metadata in a Workspace; Resource content is never included.
+		 */
+		"list-projects.schema": {
+			workspaceId: components["schemas"]["WorkspaceId"];
+			items: components["schemas"]["ProjectSummary"][];
+			nextCursor: string | null;
+			$defs: {
+				/** ProjectSummary */
+				ProjectSummary: {
+					projectId: components["schemas"]["ProjectId"];
+					workspaceId: components["schemas"]["WorkspaceId"];
+					name: string;
+					/** @enum {string} */
+					lifecycle: "Active" | "Archived" | "Trashed" | "Purging" | "Purged";
+					/** Format: date-time */
+					updatedAt: string;
+				};
+			};
+		};
+		/**
+		 * CreateProject
+		 * @description FR-WRL-003. Create Project metadata under a Workspace. Permission supplies inherited authorization; independent Project Owner membership remains Permission-owned.
+		 */
+		"create-project.schema": {
+			workspaceId: components["schemas"]["WorkspaceId"];
+			name: string;
+			idempotencyKey: components["schemas"]["IdempotencyKey"];
+			$defs: {
+				/** CreateProjectResponse */
+				CreateProjectResponse: {
+					projectId: components["schemas"]["ProjectId"];
+					workspaceId: components["schemas"]["WorkspaceId"];
+					name: string;
+					/** Format: date-time */
+					createdAt: string;
+				};
+			};
+		};
+		/** CreateProjectResponse */
+		CreateProjectResponse: {
+			projectId: components["schemas"]["ProjectId"];
+			workspaceId: components["schemas"]["WorkspaceId"];
+			name: string;
+			/** Format: date-time */
+			createdAt: string;
+		};
+		/**
+		 * ProjectLifecycle
+		 * @enum {string}
+		 */
+		ProjectLifecycle: "Active" | "Archived" | "Trashed" | "Purging" | "Purged";
+		/**
+		 * FolderId
+		 * Format: uuid
+		 */
+		FolderId: string;
+		/**
+		 * FolderLifecycle
+		 * @enum {string}
+		 */
+		FolderLifecycle: "Active" | "Trashed" | "Deleted";
+		/** ProjectSummary */
+		"$defs-ProjectSummary": {
+			name: string;
+			lifecycle: components["schemas"]["ProjectLifecycle"];
+		};
+		/** FolderSummary */
+		FolderSummary: {
+			folderId: components["schemas"]["FolderId"];
+			parentFolderId: components["schemas"]["FolderId"] | null;
+			name: string;
+			lifecycle: components["schemas"]["FolderLifecycle"];
+			hasChildren: boolean;
+		};
+		/**
+		 * GetProjectTreeResponse
+		 * @description FR-WRL-004. Metadata-only, lazy-load-capable Project Tree; this Query never loads Resource content.
+		 */
+		"get-project-tree.schema": {
+			workspaceId: components["schemas"]["WorkspaceId"];
+			projectId: components["schemas"]["ProjectId"];
+			project: components["schemas"]["$defs-ProjectSummary"];
+			folders: components["schemas"]["FolderSummary"][];
+			nextCursor: string | null;
+			$defs: {
+				/**
+				 * ProjectLifecycle
+				 * @enum {string}
+				 */
+				ProjectLifecycle:
+					| "Active"
+					| "Archived"
+					| "Trashed"
+					| "Purging"
+					| "Purged";
+				/**
+				 * FolderLifecycle
+				 * @enum {string}
+				 */
+				FolderLifecycle: "Active" | "Trashed" | "Deleted";
+				/** ProjectSummary */
+				ProjectSummary: {
+					name: string;
+					lifecycle: components["schemas"]["ProjectLifecycle"];
+				};
+				/** FolderSummary */
+				FolderSummary: {
+					folderId: components["schemas"]["FolderId"];
+					parentFolderId: components["schemas"]["FolderId"] | null;
+					name: string;
+					lifecycle: components["schemas"]["FolderLifecycle"];
+					hasChildren: boolean;
+				};
+			};
+		};
+		/**
+		 * RenameProject
+		 * @description FR-WRL-003. Rename Project metadata; sibling collision comparison is canonical and display value is preserved.
+		 */
+		"rename-project.schema": {
+			projectId: components["schemas"]["ProjectId"];
+			name: string;
+			idempotencyKey: components["schemas"]["IdempotencyKey"];
+			$defs: {
+				/** RenameProjectResponse */
+				RenameProjectResponse: {
+					projectId: components["schemas"]["ProjectId"];
+					name: string;
+					/** Format: date-time */
+					updatedAt: string;
+				};
+			};
+		};
+		/** RenameProjectResponse */
+		RenameProjectResponse: {
+			projectId: components["schemas"]["ProjectId"];
+			name: string;
+			/** Format: date-time */
+			updatedAt: string;
+		};
+		/**
+		 * ArchiveProject
+		 * @description FR-WRL-007. Archive is reversible and makes a Project read-only; it is not Trash.
+		 */
+		"archive-project.schema": {
+			projectId: components["schemas"]["ProjectId"];
+			idempotencyKey: components["schemas"]["IdempotencyKey"];
+			$defs: {
+				/** ArchiveProjectResponse */
+				ArchiveProjectResponse: {
+					projectId: components["schemas"]["ProjectId"];
+					/** @constant */
+					lifecycle: "Archived";
+					/** Format: date-time */
+					updatedAt: string;
+				};
+			};
+		};
+		/** ArchiveProjectResponse */
+		ArchiveProjectResponse: {
+			projectId: components["schemas"]["ProjectId"];
+			/** @constant */
+			lifecycle: "Archived";
+			/** Format: date-time */
+			updatedAt: string;
+		};
+		/**
+		 * UnarchiveProject
+		 * @description FR-WRL-007. Restore an Archived Project to Active; current Permission determines subsequent capabilities.
+		 */
+		"unarchive-project.schema": {
+			projectId: components["schemas"]["ProjectId"];
+			idempotencyKey: components["schemas"]["IdempotencyKey"];
+			$defs: {
+				/** UnarchiveProjectResponse */
+				UnarchiveProjectResponse: {
+					projectId: components["schemas"]["ProjectId"];
+					/** @constant */
+					lifecycle: "Active";
+					/** Format: date-time */
+					updatedAt: string;
+				};
+			};
+		};
+		/** UnarchiveProjectResponse */
+		UnarchiveProjectResponse: {
+			projectId: components["schemas"]["ProjectId"];
+			/** @constant */
+			lifecycle: "Active";
+			/** Format: date-time */
+			updatedAt: string;
+		};
+		/**
+		 * TrashProject
+		 * @description FR-WRL-008. Trash a Project by changing authoritative ancestor lifecycle state; all descendants inherit Trashed without per-descendant writes. No Purge or physical cleanup is performed.
+		 */
+		"trash-project.schema": {
+			projectId: components["schemas"]["ProjectId"];
+			idempotencyKey: components["schemas"]["IdempotencyKey"];
+			$defs: {
+				/** TrashProjectResponse */
+				TrashProjectResponse: {
+					projectId: components["schemas"]["ProjectId"];
+					/** @constant */
+					lifecycle: "Trashed";
+					/** @constant */
+					effectiveDescendantLifecycle: "Trashed";
+					/** Format: date-time */
+					trashedAt: string;
+					/** Format: date-time */
+					purgeEligibleAt: string;
+				};
+			};
+		};
+		/** TrashProjectResponse */
+		TrashProjectResponse: {
+			projectId: components["schemas"]["ProjectId"];
+			/** @constant */
+			lifecycle: "Trashed";
+			/** @constant */
+			effectiveDescendantLifecycle: "Trashed";
+			/** Format: date-time */
+			trashedAt: string;
+			/** Format: date-time */
+			purgeEligibleAt: string;
+		};
+		/**
+		 * RestoreProject
+		 * @description FR-WRL-008. Restore Project ancestor lifecycle and all descendant metadata state atomically; preserve stable IDs, use current Permission, and never purge content.
+		 */
+		"restore-project.schema": {
+			projectId: components["schemas"]["ProjectId"];
+			idempotencyKey: components["schemas"]["IdempotencyKey"];
+			$defs: {
+				/** RestoreProjectResponse */
+				RestoreProjectResponse: {
+					projectId: components["schemas"]["ProjectId"];
+					/** @constant */
+					lifecycle: "Active";
+					restoredDescendantCount: number;
+					/** Format: date-time */
+					restoredAt: string;
+				};
+			};
+		};
+		/** RestoreProjectResponse */
+		RestoreProjectResponse: {
+			projectId: components["schemas"]["ProjectId"];
+			/** @constant */
+			lifecycle: "Active";
+			restoredDescendantCount: number;
+			/** Format: date-time */
+			restoredAt: string;
+		};
+		/** FolderSummary */
+		"$defs-FolderSummary": {
+			folderId: components["schemas"]["FolderId"];
+			name: string;
+			/** @enum {string} */
+			lifecycle: "Active" | "Trashed" | "Deleted";
+			hasChildren: boolean;
+		};
+		/**
+		 * ListFolderChildrenResponse
+		 * @description FR-WRL-004/005. List immediate Folder metadata children only; no Resource content is returned.
+		 */
+		"list-folder-children.schema": {
+			projectId: components["schemas"]["ProjectId"];
+			parentFolderId: components["schemas"]["FolderId"] | null;
+			items: components["schemas"]["$defs-FolderSummary"][];
+			nextCursor: string | null;
+			$defs: {
+				/** FolderSummary */
+				FolderSummary: {
+					folderId: components["schemas"]["FolderId"];
+					name: string;
+					/** @enum {string} */
+					lifecycle: "Active" | "Trashed" | "Deleted";
+					hasChildren: boolean;
+				};
+			};
+		};
+		/**
+		 * CreateFolder
+		 * @description FR-WRL-005. Create Folder metadata. Parent, when present, must be in the same Project.
+		 */
+		"create-folder.schema": {
+			projectId: components["schemas"]["ProjectId"];
+			parentFolderId: components["schemas"]["FolderId"] | null;
+			name: string;
+			idempotencyKey: components["schemas"]["IdempotencyKey"];
+			$defs: {
+				/** CreateFolderResponse */
+				CreateFolderResponse: {
+					folderId: components["schemas"]["FolderId"];
+					projectId: components["schemas"]["ProjectId"];
+					parentFolderId: components["schemas"]["FolderId"] | null;
+					name: string;
+					/** Format: date-time */
+					createdAt: string;
+				};
+			};
+		};
+		/** CreateFolderResponse */
+		CreateFolderResponse: {
+			folderId: components["schemas"]["FolderId"];
+			projectId: components["schemas"]["ProjectId"];
+			parentFolderId: components["schemas"]["FolderId"] | null;
+			name: string;
+			/** Format: date-time */
+			createdAt: string;
+		};
+		/**
+		 * RenameFolder
+		 * @description FR-WRL-005. Rename Folder metadata while preserving its stable Folder identity.
+		 */
+		"rename-folder.schema": {
+			folderId: components["schemas"]["FolderId"];
+			name: string;
+			idempotencyKey: components["schemas"]["IdempotencyKey"];
+			$defs: {
+				/** RenameFolderResponse */
+				RenameFolderResponse: {
+					folderId: components["schemas"]["FolderId"];
+					projectId: components["schemas"]["ProjectId"];
+					parentFolderId: components["schemas"]["FolderId"] | null;
+					name: string;
+					/** Format: date-time */
+					updatedAt: string;
+				};
+			};
+		};
+		/** RenameFolderResponse */
+		RenameFolderResponse: {
+			folderId: components["schemas"]["FolderId"];
+			projectId: components["schemas"]["ProjectId"];
+			parentFolderId: components["schemas"]["FolderId"] | null;
+			name: string;
+			/** Format: date-time */
+			updatedAt: string;
+		};
+		/**
+		 * MoveFolder
+		 * @description FR-WRL-006. Move Folder within the same Project only; reject cycles and cross-Project parents transactionally.
+		 */
+		"move-folder.schema": {
+			folderId: components["schemas"]["FolderId"];
+			destinationParentFolderId: components["schemas"]["FolderId"] | null;
+			idempotencyKey: components["schemas"]["IdempotencyKey"];
+			$defs: {
+				/** MoveFolderResponse */
+				MoveFolderResponse: {
+					folderId: components["schemas"]["FolderId"];
+					projectId: components["schemas"]["ProjectId"];
+					parentFolderId: components["schemas"]["FolderId"] | null;
+					/** Format: date-time */
+					updatedAt: string;
+				};
+			};
+		};
+		/** MoveFolderResponse */
+		MoveFolderResponse: {
+			folderId: components["schemas"]["FolderId"];
+			projectId: components["schemas"]["ProjectId"];
+			parentFolderId: components["schemas"]["FolderId"] | null;
+			/** Format: date-time */
+			updatedAt: string;
+		};
+		/**
+		 * TrashFolder
+		 * @description FR-WRL-008. Trash a Folder by changing authoritative ancestor lifecycle state; all descendants inherit Trashed without per-descendant writes. No Purge or physical cleanup is performed.
+		 */
+		"trash-folder.schema": {
+			folderId: components["schemas"]["FolderId"];
+			idempotencyKey: components["schemas"]["IdempotencyKey"];
+			$defs: {
+				/** TrashFolderResponse */
+				TrashFolderResponse: {
+					folderId: components["schemas"]["FolderId"];
+					/** @constant */
+					lifecycle: "Trashed";
+					/** @constant */
+					effectiveDescendantLifecycle: "Trashed";
+					/** Format: date-time */
+					trashedAt: string;
+					/** Format: date-time */
+					purgeEligibleAt: string;
+				};
+			};
+		};
+		/** TrashFolderResponse */
+		TrashFolderResponse: {
+			folderId: components["schemas"]["FolderId"];
+			/** @constant */
+			lifecycle: "Trashed";
+			/** @constant */
+			effectiveDescendantLifecycle: "Trashed";
+			/** Format: date-time */
+			trashedAt: string;
+			/** Format: date-time */
+			purgeEligibleAt: string;
+		};
+		/**
+		 * RestoreFolder
+		 * @description FR-WRL-008. Restore Folder ancestor lifecycle and all descendant metadata state atomically. A missing/inaccessible old parent falls back to Project root; a sibling conflict generates `Name (restored N).ext`, lowest available positive N, preserving final extension. Current Permission is reevaluated; no Purge occurs.
+		 */
+		"restore-folder.schema": {
+			folderId: components["schemas"]["FolderId"];
+			idempotencyKey: components["schemas"]["IdempotencyKey"];
+			$defs: {
+				/** RestoreFolderResponse */
+				RestoreFolderResponse: {
+					folderId: components["schemas"]["FolderId"];
+					projectId: components["schemas"]["ProjectId"];
+					parentFolderId: components["schemas"]["FolderId"] | null;
+					name: string;
+					/** @constant */
+					lifecycle: "Active";
+					restoredDescendantCount: number;
+					/** Format: date-time */
+					restoredAt: string;
+				};
+			};
+		};
+		/** RestoreFolderResponse */
+		RestoreFolderResponse: {
+			folderId: components["schemas"]["FolderId"];
+			projectId: components["schemas"]["ProjectId"];
+			parentFolderId: components["schemas"]["FolderId"] | null;
+			name: string;
+			/** @constant */
+			lifecycle: "Active";
+			restoredDescendantCount: number;
+			/** Format: date-time */
+			restoredAt: string;
+		};
+		/**
+		 * TransferWorkspaceOwner
+		 * @description FR-WRL-011 Permission-owned command contract. Transfer Workspace Owner only to an existing Workspace member. Permission atomically retains the former Owner as a normal member, removes inherited Workspace-wide Project management, preserves independent Project Owner rows, and maintains one authoritative Workspace Owner. This schema specifies the boundary only; no Permission storage adapter is implemented by Lifecycle.
+		 */
+		"transfer-workspace-owner.schema": {
+			workspaceId: components["schemas"]["WorkspaceId"];
+			newOwnerAccountId: components["schemas"]["UserId"];
+			idempotencyKey: components["schemas"]["IdempotencyKey"];
+			$defs: {
+				/** TransferWorkspaceOwnerResponse */
+				TransferWorkspaceOwnerResponse: {
+					workspaceId: components["schemas"]["WorkspaceId"];
+					previousOwnerAccountId: components["schemas"]["UserId"];
+					newOwnerAccountId: components["schemas"]["UserId"];
+					/** @constant */
+					previousOwnerRemainsMember: true;
+					/** @constant */
+					independentProjectOwnerRowsChanged: false;
+					/** Format: date-time */
+					transferredAt: string;
+				};
+			};
+		};
+		/** TransferWorkspaceOwnerResponse */
+		TransferWorkspaceOwnerResponse: {
+			workspaceId: components["schemas"]["WorkspaceId"];
+			previousOwnerAccountId: components["schemas"]["UserId"];
+			newOwnerAccountId: components["schemas"]["UserId"];
+			/** @constant */
+			previousOwnerRemainsMember: true;
+			/** @constant */
+			independentProjectOwnerRowsChanged: false;
+			/** Format: date-time */
+			transferredAt: string;
+		};
+		/**
+		 * HasSoleWorkspaceOwnershipResponse
+		 * @description FR-WRL-009/011 Permission-owned owner query adapter behind Auth WorkspaceOwnershipQueryPort. Evaluates the same authoritative membership source as Workspace create/transfer. The API actor is the authenticated account; no account ID is accepted from the request body.
+		 */
+		"has-sole-workspace-ownership.schema": {
+			hasSoleWorkspaceOwnership: boolean;
+			workspaceId: components["schemas"]["WorkspaceId"] | null;
+		};
 	};
 	responses: {
 		/** @description Canonical error envelope (doc 28 §29) */
@@ -947,6 +2775,1570 @@ export interface operations {
 				};
 			};
 			401: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	CreateResource: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["create-resource.schema"];
+			};
+		};
+		responses: {
+			/** @description Resource created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["CreateResourceResponse"];
+				};
+			};
+			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	AppendJournalOp: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				resourceId: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["append-journal-op.schema"];
+			};
+		};
+		responses: {
+			/** @description Op appended */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["AppendJournalOpResponse"];
+				};
+			};
+			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	OpenResource: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				resourceId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Resource metadata + latest materialized snapshot */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["open-resource.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	RenameResource: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				resourceId: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["rename-resource.schema"];
+			};
+		};
+		responses: {
+			/** @description Resource renamed */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["RenameResourceResponse"];
+				};
+			};
+			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	RestoreResource: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				resourceId: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["restore-resource.schema"];
+			};
+		};
+		responses: {
+			/** @description Resource restored */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["RestoreResourceResponse"];
+				};
+			};
+			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	ExportResource: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				resourceId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Exchange document */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["export-resource.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	ImportResource: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				resourceId: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["import-resource.schema"];
+			};
+		};
+		responses: {
+			/** @description Imported as a new checkpoint */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ImportResourceResponse"];
+				};
+			};
+			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	DeleteComment: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				commentId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Comment deleted */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["DeleteCommentResponse"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	EditComment: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				commentId: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["edit-comment.schema"];
+			};
+		};
+		responses: {
+			/** @description Comment edited */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["EditCommentResponse"];
+				};
+			};
+			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	ListComments: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				resourceId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Comments oldest-first */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["list-comments.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	AddComment: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				resourceId: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["add-comment.schema"];
+			};
+		};
+		responses: {
+			/** @description Comment appended */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["AddCommentResponse"];
+				};
+			};
+			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	CreateNamedVersion: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				resourceId: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["create-named-version.schema"];
+			};
+		};
+		responses: {
+			/** @description Version labeled */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["CreateNamedVersionResponse"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	ListVersions: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				resourceId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Timeline nodes oldest-first */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** Format: uuid */
+						resourceId: string;
+						items: {
+							seq: number;
+							kind: string;
+							label: string | null;
+							author: string | null;
+							occurredAt: string | null;
+						}[];
+					};
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	RestoreVersion: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				resourceId: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": {
+					baseJournalSeq: number;
+				};
+			};
+		};
+		responses: {
+			/** @description Restored as the new current */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** Format: uuid */
+						resourceId: string;
+						newSeq: number;
+						label: string;
+					};
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	TrashResource: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				resourceId: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["trash-resource.schema"];
+			};
+		};
+		responses: {
+			/** @description Resource trashed */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["TrashResourceResponse"];
+				};
+			};
+			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	ListResources: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				projectId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Resources of the Project */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["list-resources.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	MarkNotificationRead: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				notificationId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Notification marked read */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["mark-notification-read.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	RotateApiKey: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				keyId: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["rotate-api-key.schema"];
+			};
+		};
+		responses: {
+			/** @description New key + revoked old id */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["RotateApiKeyResponse"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	GetPublicResources: {
+		parameters: {
+			query?: never;
+			header: {
+				"X-Dom-Key-Id": string;
+				"X-Dom-Signature": string;
+				"X-Dom-Timestamp": string;
+			};
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Resource list */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["list-public-resources.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			429: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	GetPublicNotifications: {
+		parameters: {
+			query?: never;
+			header: {
+				"X-Dom-Key-Id": string;
+				"X-Dom-Signature": string;
+				"X-Dom-Timestamp": string;
+			};
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Notifications */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["list-public-notifications.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			429: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	SearchHistory: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Search history */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["search-history.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	ClearSearchHistory: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Deleted count */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["clear-search-history.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	ListNotifications: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Notifications */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["list-notifications.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	MarkNotificationsRead: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Marked count */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["mark-notifications-read.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	SearchSuggestions: {
+		parameters: {
+			query: {
+				q: string;
+			};
+			header?: never;
+			path: {
+				workspaceId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Suggestion list */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["search-suggestions.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	SearchComments: {
+		parameters: {
+			query: {
+				q: string;
+			};
+			header?: never;
+			path: {
+				workspaceId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Comment hits */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["search-comments.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	SuggestMembers: {
+		parameters: {
+			query: {
+				q: string;
+			};
+			header?: never;
+			path: {
+				workspaceId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Member suggestions */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["member-suggestions.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	RequeueWebhookDeliveries: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				webhookId: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["requeue-deliveries.schema"];
+			};
+		};
+		responses: {
+			/** @description Replay result */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["RequeueWebhookDeliveriesResponse"];
+				};
+			};
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	ListWebhooks: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Subscription list */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["list-webhooks.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	RegisterWebhook: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["register-webhook.schema"];
+			};
+		};
+		responses: {
+			/** @description Registered */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["register-webhook.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	TestWebhook: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: string;
+				subscriptionId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Delivery report */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["test-webhook.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	RemoveWebhook: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: string;
+				subscriptionId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Removed */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["remove-webhook.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	SearchWorkspace: {
+		parameters: {
+			query: {
+				q: string;
+			};
+			header?: never;
+			path: {
+				workspaceId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Ranked search hits */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["search-workspace.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	ListWorkspaces: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Visible Workspace metadata */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["list-workspaces.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	CreateWorkspace: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["create-workspace.schema"];
+			};
+		};
+		responses: {
+			/** @description Workspace created with Permission-owned initial Owner bootstrap */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["CreateWorkspaceResponse"];
+				};
+			};
+			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	GetWorkspace: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components["schemas"]["WorkspaceId"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Workspace metadata */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["get-workspace.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	RenameWorkspace: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				workspaceId: components["schemas"]["WorkspaceId"];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["rename-workspace.schema"];
+			};
+		};
+		responses: {
+			/** @description Workspace renamed */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["RenameWorkspaceResponse"];
+				};
+			};
+			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	ListProjects: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components["schemas"]["WorkspaceId"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Project metadata list */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["list-projects.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	CreateProject: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				workspaceId: components["schemas"]["WorkspaceId"];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["create-project.schema"];
+			};
+		};
+		responses: {
+			/** @description Project created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["CreateProjectResponse"];
+				};
+			};
+			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	GetProjectTree: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				projectId: components["schemas"]["ProjectId"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Project and Folder metadata, without Resource content */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["get-project-tree.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	RenameProject: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				projectId: components["schemas"]["ProjectId"];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["rename-project.schema"];
+			};
+		};
+		responses: {
+			/** @description Project renamed */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["RenameProjectResponse"];
+				};
+			};
+			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	ArchiveProject: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				projectId: components["schemas"]["ProjectId"];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["archive-project.schema"];
+			};
+		};
+		responses: {
+			/** @description Project archived */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ArchiveProjectResponse"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	UnarchiveProject: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				projectId: components["schemas"]["ProjectId"];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["unarchive-project.schema"];
+			};
+		};
+		responses: {
+			/** @description Project unarchived */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["UnarchiveProjectResponse"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	TrashProject: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				projectId: components["schemas"]["ProjectId"];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["trash-project.schema"];
+			};
+		};
+		responses: {
+			/** @description Project and descendants marked effectively Trashed by ancestor lifecycle */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["TrashProjectResponse"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	RestoreProject: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				projectId: components["schemas"]["ProjectId"];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["restore-project.schema"];
+			};
+		};
+		responses: {
+			/** @description Project and descendants restored to effective Active state */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["RestoreProjectResponse"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	ListFolderChildren: {
+		parameters: {
+			query?: {
+				parentFolderId?: components["schemas"]["FolderId"];
+				cursor?: string;
+			};
+			header?: never;
+			path: {
+				projectId: components["schemas"]["ProjectId"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Immediate Folder metadata children */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["list-folder-children.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	CreateFolder: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				projectId: components["schemas"]["ProjectId"];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["create-folder.schema"];
+			};
+		};
+		responses: {
+			/** @description Folder metadata created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["CreateFolderResponse"];
+				};
+			};
+			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	RenameFolder: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				folderId: components["schemas"]["FolderId"];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["rename-folder.schema"];
+			};
+		};
+		responses: {
+			/** @description Folder renamed */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["RenameFolderResponse"];
+				};
+			};
+			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	MoveFolder: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				folderId: components["schemas"]["FolderId"];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["move-folder.schema"];
+			};
+		};
+		responses: {
+			/** @description Folder moved within its Project */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["MoveFolderResponse"];
+				};
+			};
+			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	TrashFolder: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				folderId: components["schemas"]["FolderId"];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["trash-folder.schema"];
+			};
+		};
+		responses: {
+			/** @description Folder and descendants marked effectively Trashed by ancestor lifecycle */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["TrashFolderResponse"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	RestoreFolder: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				folderId: components["schemas"]["FolderId"];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["restore-folder.schema"];
+			};
+		};
+		responses: {
+			/** @description Folder subtree restored to the original or approved fallback position */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["RestoreFolderResponse"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	TransferWorkspaceOwner: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				workspaceId: components["schemas"]["WorkspaceId"];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["transfer-workspace-owner.schema"];
+			};
+		};
+		responses: {
+			/** @description Owner transfer committed atomically without rewriting Project Owner rows */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["TransferWorkspaceOwnerResponse"];
+				};
+			};
+			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	HasSoleWorkspaceOwnership: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Sole-owner status for the authenticated Account */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["has-sole-workspace-ownership.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
 		};
 	};
 }
