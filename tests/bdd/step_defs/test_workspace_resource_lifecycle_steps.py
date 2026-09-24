@@ -1,8 +1,4 @@
-"""Executable BDD probe for the known Workspace route.
-
-All other lifecycle scenarios remain in the feature with FR tags and are
-marked pending-contract-binding until Task 4 publishes their API contracts.
-"""
+"""Shared pytest-bdd bindings for Workspace lifecycle API scenarios."""
 
 from __future__ import annotations
 
@@ -760,74 +756,144 @@ def then_restore_id_unchanged(bdd_context: BDDContext) -> None:
 
 
 @given(
-    'a trashed Folder named "Design.md" has a sibling collision at its '
-    "original location"
+    'a trashed Folder named "Café.md" falls back to the Project root where a '
+    'canonically equivalent name collides and "Café (restored 1).md" is '
+    "already reserved"
 )
 def given_restore_collision(bdd_context: BDDContext) -> None:
-    given_active_project_descendants(bdd_context)
+    given_active_account_owns_workspace(bdd_context)
+    response = bdd_context.run(
+        bdd_context.device("A").post(
+            f"/v1/workspaces/{bdd_context.workspace_id}/projects",
+            json={
+                "workspaceId": bdd_context.workspace_id,
+                "name": "Restore Collision",
+                "idempotencyKey": str(uuid.uuid4()),
+            },
+        )
+    )
+    assert response.status_code == 201
+    bdd_context.project_id = response.json()["projectId"]
+
     response = bdd_context.run(
         bdd_context.device("A").post(
             f"/v1/projects/{bdd_context.project_id}/folders",
             json={
                 "projectId": bdd_context.project_id,
                 "parentFolderId": None,
-                "name": "Design.md",
+                "name": "Restore Source",
+                "idempotencyKey": str(uuid.uuid4()),
+            },
+        )
+    )
+    assert response.status_code == 201
+    original_parent_id = response.json()["folderId"]
+
+    response = bdd_context.run(
+        bdd_context.device("A").post(
+            f"/v1/projects/{bdd_context.project_id}/folders",
+            json={
+                "projectId": bdd_context.project_id,
+                "parentFolderId": original_parent_id,
+                "name": "Café.md",
                 "idempotencyKey": str(uuid.uuid4()),
             },
         )
     )
     assert response.status_code == 201
     bdd_context.collision_folder_id = response.json()["folderId"]
-    response = bdd_context.run(
-        bdd_context.device("A").post(
-            f"/v1/folders/{bdd_context.collision_folder_id}/trash",
-            json={
-                "folderId": bdd_context.collision_folder_id,
-                "idempotencyKey": str(uuid.uuid4()),
-            },
+    bdd_context.folder_id = bdd_context.collision_folder_id
+
+    for folder_id in (bdd_context.collision_folder_id, original_parent_id):
+        response = bdd_context.run(
+            bdd_context.device("A").post(
+                f"/v1/folders/{folder_id}/trash",
+                json={"folderId": folder_id, "idempotencyKey": str(uuid.uuid4())},
+            )
         )
-    )
-    assert response.status_code == 200
-    bdd_context.run(
-        bdd_context.db_session.execute(
-            text(
-                "UPDATE core.folders SET parent_folder_id = :parent "
-                "WHERE folder_id = :folder_id"
-            ),
-            {
-                "parent": bdd_context.folder_id,
-                "folder_id": bdd_context.collision_folder_id,
-            },
-        )
-    )
+        assert response.status_code == 200
+
+    # This root-level name is legal while the source name remains reserved
+    # under its now-trashed parent. Its decomposed accent, case, and edge spaces
+    # exercise the canonical NFC + trim + case-insensitive collision key.
+    destination_collision_name = " CAFE\u0301.MD "
     response = bdd_context.run(
         bdd_context.device("A").post(
             f"/v1/projects/{bdd_context.project_id}/folders",
             json={
                 "projectId": bdd_context.project_id,
-                "parentFolderId": bdd_context.folder_id,
-                "name": "Design.md",
+                "parentFolderId": None,
+                "name": destination_collision_name,
                 "idempotencyKey": str(uuid.uuid4()),
             },
         )
     )
     assert response.status_code == 201
+    bdd_context.destination_collision_folder_id = response.json()["folderId"]
+
+    response = bdd_context.run(
+        bdd_context.device("A").post(
+            f"/v1/projects/{bdd_context.project_id}/folders",
+            json={
+                "projectId": bdd_context.project_id,
+                "parentFolderId": None,
+                "name": "Café (restored 1).md",
+                "idempotencyKey": str(uuid.uuid4()),
+            },
+        )
+    )
+    assert response.status_code == 201
+    bdd_context.reserved_suffix_folder_id = response.json()["folderId"]
 
 
 @then(
-    'the system chooses the lowest free name "Design (restored N).md" in '
+    'the system chooses the lowest free name "Café (restored 2).md" in '
     "the destination sibling scope"
 )
 def then_lowest_restore_name(bdd_context: BDDContext) -> None:
     assert bdd_context.last_status == 200
-    assert bdd_context.last_body["name"] == "Design (restored 1).md"
+    assert bdd_context.last_body["name"] == "Café (restored 2).md"
+    assert bdd_context.last_body["parentFolderId"] is None
+    assert bdd_context.last_body["folderId"] == bdd_context.collision_folder_id
 
 
 @then("collision comparison uses NFC, edge trimming, and case-insensitive comparison")
 def then_collision_comparison(bdd_context: BDDContext) -> None:
-    pass
+    collision = bdd_context.run(
+        bdd_context.db_session.execute(
+            text(
+                "SELECT name FROM core.folders "
+                "WHERE folder_id=:folder_id AND parent_folder_id IS NULL"
+            ),
+            {"folder_id": bdd_context.destination_collision_folder_id},
+        )
+    ).scalar_one()
+    assert collision == " CAFE\u0301.MD "
 
 
 @then("no existing object is overwritten")
 def then_no_object_overwrite(bdd_context: BDDContext) -> None:
     assert bdd_context.last_body["folderId"] == bdd_context.collision_folder_id
+    existing_rows = bdd_context.run(
+        bdd_context.db_session.execute(
+            text(
+                "SELECT folder_id,name,lifecycle FROM core.folders "
+                "WHERE folder_id IN (:collision_id,:suffix_id)"
+            ),
+            {
+                "collision_id": bdd_context.destination_collision_folder_id,
+                "suffix_id": bdd_context.reserved_suffix_folder_id,
+            },
+        )
+    ).all()
+    actual_rows = {
+        (str(row.folder_id), row.name, str(row.lifecycle)) for row in existing_rows
+    }
+    assert actual_rows == {
+        (bdd_context.destination_collision_folder_id, " CAFE\u0301.MD ", "Active"),
+        (
+            bdd_context.reserved_suffix_folder_id,
+            "Café (restored 1).md",
+            "Active",
+        ),
+    }

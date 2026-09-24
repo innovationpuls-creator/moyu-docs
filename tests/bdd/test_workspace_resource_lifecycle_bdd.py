@@ -1,4 +1,4 @@
-"""Executable lifecycle probe; remaining scenarios await Task 4 contracts."""
+"""Executable BDD scenarios for Workspace lifecycle behavior."""
 
 from __future__ import annotations
 
@@ -113,4 +113,12 @@ def test_trash_retry_idempotent() -> None:
 
 @scenario(FEATURE, "Missing original Folder parent restores at Project root")
 def test_restore_missing_parent_to_root() -> None:
+    pass
+
+
+@scenario(
+    FEATURE,
+    "Restore collision at Project-root fallback generates the lowest safe name",
+)
+def test_restore_collision_chooses_lowest_safe_name() -> None:
     pass
