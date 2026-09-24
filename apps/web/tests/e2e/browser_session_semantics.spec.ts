@@ -733,3 +733,21 @@ test("Project row expands resources and opens the editor (full navigation)", asy
 	await expect(page.getByTestId("resource-name")).toHaveText("DeepDoc");
 	await expect(page).toHaveURL(/\/editor\?resource=/);
 });
+
+test("Registration surfaces email-verification guidance on the console", async ({
+	page,
+}) => {
+	const email = freshEmail("vfy");
+	await page.goto("/register");
+	await submitAuthForm(page, email, PASSWORD);
+	await expect(page).toHaveURL("/workspace");
+	// 未验证账户：管理台必须给出显式验证引导（注册后无前端入口即缺口）。
+	await expect(page.getByTestId("console-verify-banner")).toBeVisible();
+	await expect(page.getByTestId("console-empty-verify")).toBeVisible();
+	// 注册即自动发信，立即重发应落入冷却（RATE_LIMITED 友好化文案）。
+	await page.getByTestId("console-resend-verification").click();
+	await expect(page.getByTestId("console-verify-status")).toContainText(
+		"可重发",
+		{ timeout: 15000 },
+	);
+});

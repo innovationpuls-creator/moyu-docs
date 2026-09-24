@@ -58,7 +58,37 @@ const RESOURCE_TYPE_LABEL: Record<ResourceType, string> = {
 
 export async function renderWorkspacePage(app: HTMLElement): Promise<void> {
 	const client = new DomClient();
-	const account = await client.me();
+	let account: Awaited<ReturnType<DomClient["me"]>> | null = null;
+	try {
+		account = await client.me();
+	} catch {
+		// 网络/服务不可用：不能把网络错误误判为“无会话”而登出，给可重试错误态。
+		app.replaceChildren();
+		app.append(createPatchwork());
+		const shellErr = document.createElement("div");
+		shellErr.className = "console-shell";
+		shellErr.style.alignItems = "center";
+		shellErr.style.justifyContent = "center";
+		const card = emptyStateCard({
+			title: "服务暂时不可用",
+			description: "没能连上服务，请检查网络后重试。",
+			illustration: illustrationNoWorkspace(),
+			actions: [
+				(() => {
+					const retry = document.createElement("button");
+					retry.type = "button";
+					retry.className = "btn-create-context";
+					retry.dataset.testid = "console-retry";
+					retry.textContent = "重新加载";
+					retry.addEventListener("click", () => window.location.reload());
+					return retry;
+				})(),
+			],
+		});
+		shellErr.append(card);
+		app.append(shellErr);
+		return;
+	}
 	if (account === null) {
 		navigate("/login");
 		return;

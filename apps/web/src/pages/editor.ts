@@ -30,7 +30,28 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 	// Session gate on mount: an invalid/replaced session must not resume the
 	// editor (FR-AUTH-021 AC-021.2 — refresh of a dead session -> login page).
 	const { DomClient } = await import("@dom/client-sdk");
-	if ((await new DomClient().me()) === null) {
+	// 仅用于会话存在性判定；结构与 me() 返回值兼容即可。
+	let sessionUser: { accountStatus: string; primaryEmail: string } | null =
+		null;
+	try {
+		sessionUser = await new DomClient().me();
+	} catch {
+		// 网络/服务不可用：不误登出，显示可重试提示。
+		const unavailable = document.createElement("div");
+		unavailable.style.cssText =
+			"padding:48px;font-family:var(--font-body);color:var(--ink-secondary);text-align:center;";
+		const msg = document.createElement("p");
+		msg.dataset.testid = "editor-session-error";
+		msg.textContent = "服务暂时不可用，请检查网络后重试。";
+		const retry = document.createElement("button");
+		retry.type = "button";
+		retry.textContent = "重新加载";
+		retry.addEventListener("click", () => window.location.reload());
+		unavailable.append(msg, retry);
+		app.append(unavailable);
+		return;
+	}
+	if (sessionUser === null) {
 		navigate("/login");
 		return;
 	}
@@ -353,7 +374,6 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 		// awareness bridge (arch 05): local awareness updates ride the op
 		// relay; incoming awareness updates apply into the live doc.
 		channel.onAny((message) => {
-			console.error("[dom-editor] any", JSON.stringify(message));
 			if (
 				message.type === "subscribe" &&
 				typeof message.payload === "object" &&
@@ -380,11 +400,6 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 		rt.socket?.addEventListener("open", () => trySubscribe(), { once: true });
 		setTimeout(trySubscribe, 400);
 		channel.onResource(resourceId, (message) => {
-			console.error(
-				"[dom-editor] res",
-				message.type,
-				JSON.stringify(message.payload),
-			);
 			if (
 				message.type === "comment.added" ||
 				message.type === "comment.edited" ||
@@ -413,6 +428,8 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 			) {
 				const peers = (message.payload as { peers?: number }).peers;
 				roster.textContent = `${peers ?? 0} 人在线`;
+				// 0 人时隐藏徽标（保持原型语义：无人在线不展示空徽标）。
+				rosterBadge.style.display = (peers ?? 0) > 0 ? "inline-flex" : "none";
 				return;
 			}
 			if (
