@@ -20,6 +20,10 @@ from datetime import datetime, timezone
 
 from api.dependencies.auth import get_db_session, get_mailer, get_valkey
 from api.main import create_app
+from app_core.account.domain.account import Account
+from app_core.account.domain.token import OneTimeToken, OneTimeTokenType
+from app_infra.postgres.account_repository import PostgresAccountRepository
+from app_infra.postgres.token_repository import PostgresTokenRepository
 from httpx import ASGITransport, AsyncClient
 from redis.asyncio import Redis
 from sqlalchemy import text
@@ -64,6 +68,25 @@ async def _register(client: AsyncClient, email: str) -> int:
         "/v1/auth/register", json={"email": email, "password": VALID_PASSWORD}
     )
     return response.status_code
+
+
+async def _seed_pending_account(
+    db_session: AsyncSession,
+    email: str,
+    *,
+    last_mail_at: datetime,
+) -> str:
+    """BDD Given: a PendingVerification account with a live verification secret
+    (compat layer probe for the verification endpoints)."""
+    account = Account.create_with_email(email, at=last_mail_at)
+    await PostgresAccountRepository(db_session).save(account, "hash-placeholder")
+    token, secret = OneTimeToken.issue(
+        account_id=account.account_id,
+        token_type=OneTimeTokenType.EMAIL_VERIFICATION,
+        at=last_mail_at,
+    )
+    await PostgresTokenRepository(db_session).save(token)
+    return secret
 
 
 async def _reset_secret(mailer: CapturingMailer, email: str) -> str:
@@ -179,7 +202,7 @@ async def test_reset_password_success_revokes_old_sessions_and_changes_hash(
     assert response.status_code == 200
     body = response.json()
     assert body["messageKey"] == "PASSWORD_RESET_SUCCESS"
-    assert body["accountStatus"] == "PendingVerification"
+    assert body["accountStatus"] == "Active"
     assert new_hash != old_hash  # FR-AUTH-026.2: old password is dead
     assert int(active_sessions or 0) == 0  # FR-AUTH-026.1: all old sessions revoked
 
@@ -268,17 +291,12 @@ async def test_reset_password_rejects_email_verification_secret(
     EMAIL_VERIFICATION secret (token_type guard at the route, mirroring
     verify-email). The verification secret stays usable for verify-email —
     the guard rejects without consuming it."""
-    mailer = CapturingMailer()
-    async with _client(db_session, valkey_client, mailer=mailer) as client:
-        await _register(client, "cross-type@example.com")
-        assert any(
-            kind == "verify" and to == "cross-type@example.com"
-            for kind, to, _ in mailer.sent
-        ), "registration must have captured a verification secret"
-        verify_secret = next(
-            secret for kind, to, secret in mailer.sent if kind == "verify"
-        )
-
+    verify_secret = await _seed_pending_account(
+        db_session,
+        "cross-type@example.com",
+        last_mail_at=datetime.now(timezone.utc),
+    )
+    async with _client(db_session, valkey_client) as client:
         misuse = await client.post(
             "/v1/auth/reset-password",
             json={"token": verify_secret, "newPassword": NEW_PASSWORD},

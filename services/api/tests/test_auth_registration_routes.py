@@ -340,11 +340,11 @@ async def test_verify_email_happy_path_activates_account(
     recording_mailer: CapturingMailer,
 ) -> None:
     async with _client(db_session, valkey_client, mailer=recording_mailer) as client:
-        status, _, _ = await _register(client, "eva@example.com")
-        assert status == 201
-        assert recording_mailer.sent, "registration must have sent a mail"
-        secret = recording_mailer.sent[0][1]
-
+        # 产品已停用注册验证（注册即 Active）；验证端点作为兼容层，用
+        # BDD Given 造 Pending 账户来证明它仍可消费验证 token。
+        secret = await _seed_pending_account(
+            db_session, "eva@example.com", last_mail_at=datetime.now(timezone.utc)
+        )
         response = await client.post("/v1/auth/verify-email", json={"token": secret})
 
     assert response.status_code == 200
@@ -377,9 +377,9 @@ async def test_verify_email_replay_of_consumed_token_returns_401(
     recording_mailer: CapturingMailer,
 ) -> None:
     async with _client(db_session, valkey_client, mailer=recording_mailer) as client:
-        status, _, _ = await _register(client, "replay@example.com")
-        assert status == 201
-        secret = recording_mailer.sent[0][1]
+        secret = await _seed_pending_account(
+            db_session, "replay@example.com", last_mail_at=datetime.now(timezone.utc)
+        )
         first = await client.post("/v1/auth/verify-email", json={"token": secret})
         assert first.status_code == 200
 
@@ -446,10 +446,11 @@ async def test_resend_verification_right_after_registration_mail_is_429(
 ) -> None:
     """BDD: '用户刚刚成功触发了一封验证邮件' -> 重发被限流拒绝 (the registration
     mail itself starts the 60s cooldown)."""
+    # BDD Given: 账户刚通过注册收到过一封验证邮件（60s 冷却窗口内）。
+    await _seed_pending_account(
+        db_session, "fresh@example.com", last_mail_at=datetime.now(timezone.utc)
+    )
     async with _client(db_session, valkey_client) as client:
-        status, _, _ = await _register(client, "fresh@example.com")
-        assert status == 201
-
         response = await client.post(
             "/v1/auth/resend-verification", json={"email": "fresh@example.com"}
         )

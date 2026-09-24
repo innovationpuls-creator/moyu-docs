@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 
+from app_core.account.domain.account import Account
+from app_core.account.domain.password_policy import PasswordHasher
+from app_infra.postgres.account_repository import PostgresAccountRepository
 from httpx import Response
 from pytest_bdd import given, parsers, then, when
 from sqlalchemy import text
@@ -36,24 +40,43 @@ def given_active_account_no_workspace(bdd_context: BDDContext) -> None:
     ).scalar_one()
     bdd_context.accounts[email] = {"account_id": str(account_id), "password": password}
     bdd_context.current_email = email
-    token = bdd_context.mailer.sent[-1][1]
-    response = bdd_context.run(
-        bdd_context.device("A").post("/v1/auth/verify-email", json={"token": token})
-    )
-    _record(bdd_context, response)
-    assert response.status_code == 200
+    # 产品停用邮箱验证（2026-09）：注册即 Active。兼容回切：若 mailer 仍
+    # 捕获到验证邮件（require_verification=True 时），显式消费保持 Active。
+    if bdd_context.mailer.sent:
+        response = bdd_context.run(
+            bdd_context.device("A").post(
+                "/v1/auth/verify-email", json={"token": bdd_context.mailer.sent[-1][1]}
+            )
+        )
+        _record(bdd_context, response)
+        assert response.status_code == 200
 
 
 @given("an authenticated PendingVerification Account has no Workspace")
 def given_pending_account_no_workspace(bdd_context: BDDContext) -> None:
+    # 产品已停用注册验证（注册即 Active），PendingVerification 只存在于验证
+    # 兼容层：本场景按 BDD Given 用 DB 直接造 Pending 账户 + 登录会话，
+    # 用于证明 Workspace 创建门（非 Active 拒绝）仍生效。
     email = f"lifecycle-{uuid.uuid4().hex[:12]}@example.com"
-    response = bdd_context.run(
-        bdd_context.device("A").post(
-            "/v1/auth/register", json={"email": email, "password": "Str0ng#Passw0rd"}
+    password = "Str0ng#Passw0rd"
+    account = Account.create_with_email(email, at=datetime.now(timezone.utc))
+    bdd_context.run(
+        PostgresAccountRepository(bdd_context.db_session).save(
+            account, PasswordHasher.hash(password)
         )
     )
+    response = bdd_context.run(
+        bdd_context.device("A").post(
+            "/v1/auth/login", json={"email": email, "password": password}
+        )
+    )
+    bdd_context.accounts[email] = {
+        "account_id": str(account.account_id),
+        "password": password,
+    }
+    bdd_context.current_email = email
     _record(bdd_context, response)
-    assert response.status_code == 201
+    assert response.status_code == 200
 
 
 @given("an authenticated Active Account owns a Workspace")
@@ -571,10 +594,13 @@ def given_account_without_project_permission(bdd_context: BDDContext) -> None:
         )
     )
     assert response.status_code == 201
-    token = bdd_context.mailer.sent[-1][1]
-    bdd_context.run(
-        bdd_context.device("B").post("/v1/auth/verify-email", json={"token": token})
-    )
+    # 注册即 Active（邮箱验证已停用）；兼容回切见同文件注册步骤。
+    if bdd_context.mailer.sent:
+        bdd_context.run(
+            bdd_context.device("B").post(
+                "/v1/auth/verify-email", json={"token": bdd_context.mailer.sent[-1][1]}
+            )
+        )
 
 
 @when("the Account reads the Project Tree or attempts Folder move and Trash")

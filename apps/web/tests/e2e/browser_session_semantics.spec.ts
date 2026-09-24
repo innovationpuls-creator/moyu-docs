@@ -69,36 +69,8 @@ async function registerAccount(page: Page, email: string): Promise<void> {
 	await submitAuthForm(page, email, PASSWORD);
 	await expect(page).toHaveURL("/workspace");
 	await expect(page.getByTestId("workspace-email")).toHaveText(email);
-	// Complete the product's email verification through the dev mail channel
-	// (LoggingMailer appends to services/api/dev-mail.log); workspace creation
-	// requires an ACTIVE account.
-	const devMail = resolve(
-		dirname(fileURLToPath(import.meta.url)),
-		"..",
-		"..",
-		"..",
-		"..",
-		"services",
-		"api",
-		"dev-mail.log",
-	);
-	const deadline = Date.now() + 5000;
-	let secret: string | null = null;
-	while (Date.now() < deadline && secret === null) {
-		const text = existsSync(devMail) ? readFileSync(devMail, "utf8") : "";
-		const hit = text.match(
-			new RegExp(`to=${escapeRegExp(email)} secret=(\\S+)`),
-		);
-		if (hit) secret = hit[1];
-		else await page.waitForTimeout(200);
-	}
-	expect(secret).not.toBeNull();
-	const verified = await page.request.post("/v1/auth/verify-email", {
-		data: { token: secret },
-	});
-	expect(verified.status()).toBe(200);
+	// 邮箱验证已停用（产品决策 2026-09）：注册即 Active，无需（也无）验证邮件。
 }
-
 /** Log a browser context into an EXISTING account via the /login page. */
 async function loginDevice(page: Page, email: string): Promise<void> {
 	await page.goto("/login");
@@ -732,22 +704,4 @@ test("Project row expands resources and opens the editor (full navigation)", asy
 	await page.getByTestId("resource-row").click();
 	await expect(page.getByTestId("resource-name")).toHaveText("DeepDoc");
 	await expect(page).toHaveURL(/\/editor\?resource=/);
-});
-
-test("Registration surfaces email-verification guidance on the console", async ({
-	page,
-}) => {
-	const email = freshEmail("vfy");
-	await page.goto("/register");
-	await submitAuthForm(page, email, PASSWORD);
-	await expect(page).toHaveURL("/workspace");
-	// 未验证账户：管理台必须给出显式验证引导（注册后无前端入口即缺口）。
-	await expect(page.getByTestId("console-verify-banner")).toBeVisible();
-	await expect(page.getByTestId("console-empty-verify")).toBeVisible();
-	// 注册即自动发信，立即重发应落入冷却（RATE_LIMITED 友好化文案）。
-	await page.getByTestId("console-resend-verification").click();
-	await expect(page.getByTestId("console-verify-status")).toContainText(
-		"可重发",
-		{ timeout: 15000 },
-	);
 });

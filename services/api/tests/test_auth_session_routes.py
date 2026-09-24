@@ -25,12 +25,16 @@ from uuid import UUID
 
 from api.dependencies.auth import get_db_session, get_valkey
 from api.main import create_app
+from app_core.account.domain.account import Account
+from app_core.account.domain.password_policy import PasswordHasher
+from app_core.account.domain.token import OneTimeToken, OneTimeTokenType
 from app_core.session.domain.session import (
     Session,
     SessionInvalidationReason,
     SessionStatus,
 )
 from app_infra.postgres.account_repository import PostgresAccountRepository
+from app_infra.postgres.token_repository import PostgresTokenRepository
 from app_infra.valkey.session_cache import ValkeySessionCache
 from httpx import ASGITransport, AsyncClient
 from redis.asyncio import Redis
@@ -70,6 +74,28 @@ async def _register(client: AsyncClient, email: str) -> tuple[int, dict[str, Any
         response.json(),
         _session_cookie_value(response.headers),
     )
+
+
+async def _seed_pending_account(
+    db_session: AsyncSession,
+    email: str,
+    *,
+    last_mail_at: datetime,
+    password: str = "hash-placeholder",
+) -> str:
+    """BDD Given: a PendingVerification account with a live verification secret
+    (compat layer probe for the verification endpoints)."""
+    account = Account.create_with_email(email, at=last_mail_at)
+    await PostgresAccountRepository(db_session).save(
+        account, PasswordHasher.hash(password)
+    )
+    token, secret = OneTimeToken.issue(
+        account_id=account.account_id,
+        token_type=OneTimeTokenType.EMAIL_VERIFICATION,
+        at=last_mail_at,
+    )
+    await PostgresTokenRepository(db_session).save(token)
+    return secret
 
 
 async def _login(
@@ -114,7 +140,7 @@ async def test_login_success_rotates_cookie_and_me_returns_account(
         # registration session id — the client-provided credential is never
         # reused, and the cookie jar now points at the NEW session.
         assert status == 200
-        assert body["accountStatus"] == "PendingVerification"
+        assert body["accountStatus"] == "Active"
         assert body["recoveryModeRequired"] is False
         assert body["session"]["sessionId"] == login_session
         assert body["session"]["currentDevice"] is True
@@ -128,7 +154,7 @@ async def test_login_success_rotates_cookie_and_me_returns_account(
     me_body = me.json()
     assert me_body["accountId"] == body["accountId"]
     assert me_body["primaryEmail"] == "alice@example.com"
-    assert me_body["accountStatus"] == "PendingVerification"
+    assert me_body["accountStatus"] == "Active"
     assert me_body["inAccountRecoveryMode"] is False
 
     assert sess.status_code == 200
@@ -376,8 +402,15 @@ async def test_login_pending_verification_account_succeeds(
     db_session: AsyncSession,
     valkey_client: Redis,
 ) -> None:
+    # 登录对账户状态不设门：PendingVerification 账户也能登录（验证端点
+    # 兼容层按 BDD Given 直接造 Pending 账户）。
+    await _seed_pending_account(
+        db_session,
+        "pending-login@example.com",
+        last_mail_at=datetime.now(timezone.utc),
+        password=VALID_PASSWORD,
+    )
     async with _client(db_session, valkey_client) as client:
-        await _register(client, "pending-login@example.com")
         status, body, _ = await _login(
             client, "pending-login@example.com", VALID_PASSWORD
         )

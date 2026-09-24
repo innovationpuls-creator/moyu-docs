@@ -55,11 +55,15 @@ class RegisterAccount:
         now=lambda: datetime.now(timezone.utc),
         idempotency=None,
         shield: TimingShield | None = None,
+        require_verification: bool = True,
     ):
         self._accounts, self._sessions, self._tokens = accounts, sessions, tokens
         self._audit, self._mailer, self._now = audit, mailer, now
         self._idempotency = idempotency
         self._shield = shield or TimingShield()
+        # 邮箱验证开关（产品决策 2026-09：停用验证 = 注册即 Active）。保留
+        # True 分支与 VerifyEmail/ResendVerificationEmail 端点作为兼容层。
+        self._require_verification = require_verification
 
     async def execute(  # noqa: C901
         self,
@@ -113,29 +117,42 @@ class RegisterAccount:
         session, _ = await self._sessions.create_device_session_atomically(
             account.account_id, device_id, session
         )
-        token, secret = OneTimeToken.issue(
-            account_id=account.account_id,
-            token_type=OneTimeTokenType.EMAIL_VERIFICATION,
-            at=now,
-        )
-        await self._tokens.save(token)
         await self._audit.append(
             actor_type="Account", actor_id=account.account_id, action="AccountCreated"
         )
-        failed = False
-        try:
-            await self._mailer.send_verification(account.primary_email, secret)
-        except MailDeliveryError:
-            failed = True
+        if not self._require_verification:
+            # 停用邮箱验证：注册即 Active，不签发验证 token、不发送验证邮件。
+            account.verify_email(at=now)
+            await self._accounts.update(account)
             await self._audit.append(
                 actor_type="Account",
                 actor_id=account.account_id,
-                action="VerificationEmailDeliveryFailed",
-                metadata={"delivery": "failed"},
+                action="RegistrationActivated",
             )
-        result = RegistrationResult(
-            True, account, session, secret, failed, _REGISTER_SUCCESS_MESSAGE
-        )
+            result = RegistrationResult(
+                True, account, session, None, False, _REGISTER_SUCCESS_MESSAGE
+            )
+        else:
+            token, secret = OneTimeToken.issue(
+                account_id=account.account_id,
+                token_type=OneTimeTokenType.EMAIL_VERIFICATION,
+                at=now,
+            )
+            await self._tokens.save(token)
+            failed = False
+            try:
+                await self._mailer.send_verification(account.primary_email, secret)
+            except MailDeliveryError:
+                failed = True
+                await self._audit.append(
+                    actor_type="Account",
+                    actor_id=account.account_id,
+                    action="VerificationEmailDeliveryFailed",
+                    metadata={"delivery": "failed"},
+                )
+            result = RegistrationResult(
+                True, account, session, secret, failed, _REGISTER_SUCCESS_MESSAGE
+            )
         if idempotency_key and self._idempotency:
             await _store_result(self._idempotency, idempotency_key, result)
         return result

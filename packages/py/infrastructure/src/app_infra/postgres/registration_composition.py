@@ -22,6 +22,7 @@ def build_registration_use_case(
     mailer: VerificationMailer,
     *,
     now: Callable[[], datetime],
+    require_verification: bool = True,
 ) -> RegisterAccount:
     return RegisterAccount(
         PostgresAccountRepository(session),
@@ -31,6 +32,7 @@ def build_registration_use_case(
         mailer,
         idempotency=PostgresIdempotencyRepository(session),
         now=now,
+        require_verification=require_verification,
     )
 
 

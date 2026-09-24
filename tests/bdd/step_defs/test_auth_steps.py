@@ -329,6 +329,33 @@ def _save_token(ctx: BDDContext, token) -> None:
     ctx.run(PostgresTokenRepository(ctx.db_session).save(token))
 
 
+def _seed_pending_account(ctx: BDDContext, email: str, password: str) -> Account:
+    """BDD Given (验证兼容层场景，产品已停用注册验证)：直接以 PendingVerification
+    状态造账户 + 真实密码哈希 + 有效验证 secret（secret 进 mailer.sent，
+    供后续“签发链接/验证/重发”步骤读取）。"""
+    now = _utc_now()
+    account = Account.create_with_email(email, at=now)
+    ctx.run(
+        PostgresAccountRepository(ctx.db_session).save(
+            account, PasswordHasher.hash(password)
+        )
+    )
+    token, secret = OneTimeToken.issue(
+        account_id=account.account_id,
+        token_type=OneTimeTokenType.EMAIL_VERIFICATION,
+        at=now,
+    )
+    ctx.run(PostgresTokenRepository(ctx.db_session).save(token))
+    ctx.accounts[_norm_email(email)] = {
+        "account_id": str(account.account_id),
+        "password": password,
+    }
+    if ctx.current_email is None:
+        ctx.current_email = email
+    ctx.mailer.sent.append((email, secret))
+    return account
+
+
 def _run_purge(ctx: BDDContext, account_id: UUID) -> None:
     _flush(ctx)
     ctx.run(
@@ -470,10 +497,11 @@ def given_valid_verification_link(bdd_context: BDDContext):
 
 @given("账号此前先后申请并收到了验证链接 Link_A 与链接 Link_B")
 def given_two_verification_links(bdd_context: BDDContext):
-    # The scenario has no separate register step: establish the account here.
+    # The scenario has no separate register step: establish the account here
+    # via the verification-compat seed (Pending account + captured secret).
     email = bdd_context.current_email or _unique("two-links") + "@example.com"
     if _account_row(bdd_context, email) is None:
-        _register_account_pw(bdd_context, email, VALID_PASSWORD)
+        _seed_pending_account(bdd_context, email, VALID_PASSWORD)
     assert bdd_context.mailer.sent
     bdd_context.verification_secrets["Link_A"] = bdd_context.mailer.sent[-1][1]
     account = _account_row(bdd_context, email)
@@ -489,7 +517,7 @@ def given_two_verification_links(bdd_context: BDDContext):
 
 @given('存在状态为 "PendingVerification" 的账号')
 def given_pending_account(bdd_context: BDDContext):
-    _register_account_pw(
+    _seed_pending_account(
         bdd_context, _unique("pending") + "@example.com", VALID_PASSWORD
     )
 
@@ -517,7 +545,7 @@ def given_verification_link_expired(bdd_context: BDDContext):
 @given('用户拥有一个状态为 "PendingVerification" 的账号并已登录系统')
 def given_pending_account_logged_in(bdd_context: BDDContext):
     email = _unique("pending-logged") + "@example.com"
-    _register_account_pw(bdd_context, email, VALID_PASSWORD)
+    _seed_pending_account(bdd_context, email, VALID_PASSWORD)
     response = _login(bdd_context, "A", email, VALID_PASSWORD)
     assert response.status_code == 200
 
@@ -525,13 +553,14 @@ def given_pending_account_logged_in(bdd_context: BDDContext):
 @given(parsers.cfparse('用户在设备 A 上以 "{status}" 状态浏览系统'))
 def given_device_a_browsing(bdd_context: BDDContext, status: str):
     email = _unique("browse") + "@example.com"
-    _register_account_pw(bdd_context, email, VALID_PASSWORD)
+    if status == "Active":
+        # 产品已停用注册验证：注册即 Active，直接登录即可。
+        _register_account_pw(bdd_context, email, VALID_PASSWORD)
+    else:
+        # PendingVerification：验证兼容层的 BDD Given 用 DB seed 造账户。
+        _seed_pending_account(bdd_context, email, VALID_PASSWORD)
     response = _login(bdd_context, "A", email, VALID_PASSWORD)
     assert response.status_code == 200
-    if status == "Active":
-        secret = bdd_context.mailer.sent[-1][1]
-        _verify(bdd_context, "A", secret)
-        assert bdd_context.last_status == 200
 
 
 @given('存在状态为 "PendingVerification" 的账号且距离上次发信已超过 60 秒')
@@ -559,7 +588,10 @@ def given_resend_under_quota(bdd_context: BDDContext):
 
 @given("用户刚刚成功触发了一封验证邮件，或 24 小时内已累计触发了 5 次验证邮件")
 def given_verification_mail_just_sent(bdd_context: BDDContext):
-    _register_account_pw(bdd_context, _unique("fresh") + "@example.com", VALID_PASSWORD)
+    # 验证兼容层：seed Pending（secret 写入 mailer.sent 即视作刚发出的邮件）。
+    _seed_pending_account(
+        bdd_context, _unique("fresh") + "@example.com", VALID_PASSWORD
+    )
 
 
 @given(parsers.cfparse('系统中已存在账号 "{existing}"，不存在账号 "{missing}"'))
@@ -595,7 +627,11 @@ def given_account_email_password(
 @given(parsers.cfparse('存在状态为 "{status}" 的账号 "{email}"'))
 def given_account_status_email(bdd_context: BDDContext, status: str, email: str):
     if _account_row(bdd_context, email) is None:
-        _register_account_pw(bdd_context, email, VALID_PASSWORD)
+        if status == "PendingVerification":
+            # 验证兼容层：注册（即 Active）造不出 Pending，用 DB seed。
+            _seed_pending_account(bdd_context, email, VALID_PASSWORD)
+        else:
+            _register_account_pw(bdd_context, email, VALID_PASSWORD)
     account = _account_row(bdd_context, email)
     assert account is not None
     if status == "Active":
@@ -742,9 +778,10 @@ def given_device_a_logged_out(bdd_context: BDDContext):
 def given_logged_in_active(bdd_context: BDDContext, status: str):
     email = _unique("me") + "@example.com"
     _register_account_pw(bdd_context, email, VALID_PASSWORD)
-    secret = bdd_context.mailer.sent[-1][1]
-    verified = _verify(bdd_context, "A", secret)
-    assert verified.status_code == 200
+    # 注册即 Active（邮箱验证已停用）；兼容回切时消费验证邮件保持 Active。
+    if bdd_context.mailer.sent:
+        verified = _verify(bdd_context, "A", bdd_context.mailer.sent[-1][1])
+        assert verified.status_code == 200
     login = _login(bdd_context, "A", email, VALID_PASSWORD)
     assert login.status_code == 200
 
@@ -756,9 +793,11 @@ def given_no_authentication_session(bdd_context: BDDContext):
 
 @given('用户账号状态为 "PendingVerification"')
 def given_account_pending(bdd_context: BDDContext):
-    _register_account_pw(
-        bdd_context, _unique("capability") + "@example.com", VALID_PASSWORD
-    )
+    email = _unique("capability") + "@example.com"
+    _seed_pending_account(bdd_context, email, VALID_PASSWORD)
+    # 能力判定（me()/高风险请求）需认证会话：Pending 账户同样可登录。
+    login = _login(bdd_context, "A", email, VALID_PASSWORD)
+    assert login.status_code == 200
 
 
 @given(
@@ -929,11 +968,15 @@ def given_deletion_pending_30days(bdd_context: BDDContext):
 )
 def given_pre_status_deletion_pending(bdd_context: BDDContext, pre_status: str):
     email = _unique("pre") + "@example.com"
-    _register_account_pw(bdd_context, email, VALID_PASSWORD)
     if pre_status == "Active":
-        secret = bdd_context.mailer.sent[-1][1]
-        verified = _verify(bdd_context, "A", secret)
-        assert verified.status_code == 200
+        # 邮箱验证已停用：注册即 Active，无需（也无法）再走验证邮件。
+        _register_account_pw(bdd_context, email, VALID_PASSWORD)
+    else:
+        # PendingVerification 预置：验证兼容层场景用 DB seed 造 Pending 账户，
+        # 并建立登录会话（删除申请要求具备 recent reauthentication）。
+        _seed_pending_account(bdd_context, email, VALID_PASSWORD)
+        login = _login(bdd_context, "A", email, VALID_PASSWORD)
+        assert login.status_code == 200
     result = _delete_account(bdd_context, "A")
     assert result.status_code == 200
 
@@ -1139,7 +1182,12 @@ def when_view_main_interface(bdd_context: BDDContext):
 
 @when("用户尝试绕过界面直接向服务端提交创建 Workspace 请求")
 def when_bypass_create_workspace(bdd_context: BDDContext):
-    response = bdd_context.run(bdd_context.device("A").post("/v1/workspaces", json={}))
+    response = bdd_context.run(
+        bdd_context.device("A").post(
+            "/v1/workspaces",
+            json={"name": "Bypass Ws", "idempotencyKey": str(uuid.uuid4())},
+        )
+    )
     _record(bdd_context, response)
 
 
@@ -1152,7 +1200,12 @@ def when_verify_other_window(bdd_context: BDDContext, status: str):
 
 @when("用户再次在设备 A 上提交创建 Workspace 请求")
 def when_retry_create_workspace(bdd_context: BDDContext):
-    response = bdd_context.run(bdd_context.device("A").post("/v1/workspaces", json={}))
+    response = bdd_context.run(
+        bdd_context.device("A").post(
+            "/v1/workspaces",
+            json={"name": "Retry Ws", "idempotencyKey": str(uuid.uuid4())},
+        )
+    )
     _record(bdd_context, response)
 
 
@@ -1560,10 +1613,11 @@ def when_login_after_cooldown(bdd_context: BDDContext):
 def when_perform_audited_chain(bdd_context: BDDContext):
     email = _unique("audited") + "@example.com"
     _register_account_pw(bdd_context, email, VALID_PASSWORD)
-    # email verification -> AccountCreated + EmailVerified
-    secret = bdd_context.mailer.sent[-1][1]
-    verified = _verify(bdd_context, "A", secret)
-    assert verified.status_code == 200
+    # 邮箱验证已停用（注册即 Active → AccountCreated + RegistrationActivated）。
+    # 兼容回切：若 mailer 仍捕获到验证 secret，则显式消费保持审计链完整。
+    if bdd_context.mailer.sent:
+        verified = _verify(bdd_context, "A", bdd_context.mailer.sent[-1][1])
+        assert verified.status_code == 200
     # session replacement: device B login, then C replaces the oldest (A)
     login_b = _login(bdd_context, "B", email, VALID_PASSWORD)
     assert login_b.status_code == 200
@@ -1636,6 +1690,16 @@ def then_verification_mail_sent(bdd_context: BDDContext, email: str):
     assert any(entry[0] == _norm_email(email) for entry in bdd_context.mailer.sent), (
         f"no verification mail recorded for {email}"
     )
+
+
+@then("注册流程不依赖邮箱验证，账号即刻拥有创建 Workspace 的完整能力")
+def then_registration_full_capacity(bdd_context: BDDContext):
+    email = bdd_context.current_email
+    assert email is not None
+    assert _account_status(bdd_context, email) == "Active"
+    me = bdd_context.run(bdd_context.device("A").get("/v1/auth/me"))
+    assert me.status_code == 200
+    assert me.json()["canCreateWorkspace"] is True
 
 
 @then("系统记录账号创建的安全审计事件")
@@ -1757,28 +1821,30 @@ def then_mail_failure_still_creates(bdd_context: BDDContext):
     assert bdd_context.sessions.get("A")
     email = bdd_context.current_email
     assert email is not None
-    assert _account_status(bdd_context, email) == "PendingVerification"
-
-
-@then("系统记录邮件发送失败诊断信息")
-def then_mail_failure_audited(bdd_context: BDDContext):
-    email = bdd_context.current_email
-    assert email is not None
-    actions = _audit_actions(bdd_context, _account_id(bdd_context, email))
-    assert "VerificationEmailDeliveryFailed" in actions
+    # 邮箱验证已停用：注册即 Active，与邮件投递是否可用无关。
+    assert _account_status(bdd_context, email) == "Active"
 
 
 @then("账号处于可再次请求重新发送验证邮件的状态")
 def then_can_request_resend(bdd_context: BDDContext):
     email = bdd_context.current_email
     assert email is not None
-    # The account stays PendingVerification and the resend endpoint answers
-    # with the cooldown copy (429 RATE_LIMITED) instead of a terminal error —
-    # the state is "can request again" (after the 60s cooldown).
-    assert _account_status(bdd_context, email) == "PendingVerification"
-    _resend(bdd_context, "A", email)
-    assert bdd_context.last_status == 429
-    assert bdd_context.last_body["errorCode"] == "RATE_LIMITED"
+    # 邮箱验证已停用：注册即 Active，不再处于"待验证 → 可重发"状态窗口。
+    assert _account_status(bdd_context, email) == "Active"
+
+
+@then("系统记录注册直通激活的安全审计事件")
+def then_registration_activated_audited(bdd_context: BDDContext):
+    email = bdd_context.current_email
+    assert email is not None
+    actions = _audit_actions(bdd_context, _account_id(bdd_context, email))
+    assert "RegistrationActivated" in actions
+
+
+@then(parsers.cfparse('账号状态为 "{status}"，不再需要邮箱验证'))
+def then_account_status_no_verification(bdd_context: BDDContext, status: str):
+    email, _ = _current_credentials(bdd_context)
+    assert _account_status(bdd_context, email) == status
 
 
 @then(parsers.cfparse('账号生命周期状态变更为 "{status}"'))
@@ -1855,7 +1921,10 @@ def then_server_authoritative_reject(bdd_context: BDDContext, category: str):
     assert bdd_context.last_status in (403, 404)
     if bdd_context.last_status == 403:
         assert bdd_context.last_body["category"] == "Permission"
-        assert bdd_context.last_body["errorCode"] == "ACCOUNT_IN_RECOVERY_MODE"
+        assert bdd_context.last_body["errorCode"] in {
+            "ACCOUNT_IN_RECOVERY_MODE",
+            "WORKSPACE_CREATION_REQUIRES_ACTIVE_ACCOUNT",
+        }
     else:
         assert bdd_context.last_body["category"] == "NotFound"
 
@@ -2535,8 +2604,10 @@ def then_sole_owner_blocked(bdd_context: BDDContext, workspace: str):
 
 @then("账号生命周期状态保持不变，不进入删除流程")
 def then_lifecycle_unchanged(bdd_context: BDDContext):
+    # 产品已停用注册验证（注册即 Active）：该场景账户基线为 Active，
+    # “保持不变”断言的状态即删除申请提交前的账户状态（Active）。
     email, _ = _current_credentials(bdd_context)
-    assert _account_status(bdd_context, email) == "PendingVerification"
+    assert _account_status(bdd_context, email) == "Active"
 
 
 @then("系统开启为期 30 天的删除宽限期倒计时")
