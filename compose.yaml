@@ -8,6 +8,10 @@ services:
     environment:
       POSTGRES_USER: torch
       POSTGRES_DB: dom_dev
+      # 官方 postgres 镜像在未设密码时拒绝启动；本栈的 DATABASE_URL 全部为
+      # 无密码连接（postgresql+psycopg://torch@…），故采用 trust 认证而非
+      # 设置密码（后者需同步改 API/worker/Playwright/justfile 全部 URL）。
+      POSTGRES_HOST_AUTH_METHOD: trust
     ports:
       - "5432:5432"
     volumes:
