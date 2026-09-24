@@ -1,7 +1,7 @@
 /* ==========================================================================
        霞鹜文楷自包含字体体系 (LXGW WenKai Typography System · Fully Self-Contained)
        优先匹配 Mac 本地系统字体 ~/Library/Fonts，回退至相对路径与 Vite 静态目录 /fonts/
-       包含 Light (300) / Regular (400) / Medium (500-700) 三大字重
+       包含 Light (300) / Regular (400) / Medium (500) 三大字重
        ========================================================================== */
 @font-face {
 	font-family: "LXGW WenKai";
@@ -9,7 +9,6 @@
 		local("LXGW WenKai Light"),
 		local("霞鹜文楷 Light"),
 		local("LXGWWenKai-Light"),
-		url("/fonts/LXGWWenKai-Light.ttf") format("truetype"),
 		url("/fonts/LXGWWenKai-Light.ttf") format("truetype");
 	font-weight: 300;
 	font-style: normal;
@@ -22,7 +21,6 @@
 		local("LXGW WenKai"),
 		local("霞鹜文楷"),
 		local("LXGWWenKai-Regular"),
-		url("/fonts/LXGWWenKai-Regular.ttf") format("truetype"),
 		url("/fonts/LXGWWenKai-Regular.ttf") format("truetype");
 	font-weight: 400;
 	font-style: normal;
@@ -35,9 +33,21 @@
 		local("LXGW WenKai Medium"),
 		local("霞鹜文楷 Medium"),
 		local("LXGWWenKai-Medium"),
-		url("/fonts/LXGWWenKai-Medium.ttf") format("truetype"),
 		url("/fonts/LXGWWenKai-Medium.ttf") format("truetype");
-	font-weight: 500 800;
+	font-weight: 500;
+	font-style: normal;
+	font-display: swap;
+}
+
+/* 映射 600-800 至 Medium 500，杜绝浏览器合成劣质 Faux Bold */
+@font-face {
+	font-family: "LXGW WenKai";
+	src:
+		local("LXGW WenKai Medium"),
+		local("霞鹜文楷 Medium"),
+		local("LXGWWenKai-Medium"),
+		url("/fonts/LXGWWenKai-Medium.ttf") format("truetype");
+	font-weight: 600 800;
 	font-style: normal;
 	font-display: swap;
 }
@@ -48,7 +58,6 @@
 		local("LXGW WenKai Light"),
 		local("霞鹜文楷 Light"),
 		local("LXGWWenKai-Light"),
-		url("/fonts/LXGWWenKai-Light.ttf") format("truetype"),
 		url("/fonts/LXGWWenKai-Light.ttf") format("truetype");
 	font-weight: 300;
 	font-style: normal;
@@ -61,7 +70,6 @@
 		local("LXGW WenKai Medium"),
 		local("霞鹜文楷 Medium"),
 		local("LXGWWenKai-Medium"),
-		url("/fonts/LXGWWenKai-Medium.ttf") format("truetype"),
 		url("/fonts/LXGWWenKai-Medium.ttf") format("truetype");
 	font-weight: 500 800;
 	font-style: normal;
@@ -135,7 +143,7 @@
 	--radius-card: 28px;
 	--radius-input: 16px;
 
-	/* 字体族：以 Quicksand / Nunito 支撑西文几何钝感，以霞鹜文楷（Light / Regular / Medium）支撑中文温润人文笔触 */
+	/* 字体族：以 Quicksand / Nunito 支撑西文几何钝感，以霞鹜文楷支撑中文温润人文笔触 */
 	--font-display:
 		"Quicksand", "LXGW WenKai Medium", "LXGW WenKai", "霞鹜文楷", -apple-system,
 		sans-serif;
@@ -153,15 +161,28 @@
 	--ease-float: cubic-bezier(0.45, 0.05, 0.55, 0.95);
 }
 
-/* A 组认证页作用域重置（不污染 workspace/editor） */
-body.auth-surface * {
+/* ==========================================================================
+       全局隐藏属性保障与 A 组认证页作用域重置
+       ========================================================================== */
+[hidden],
+.field-hint[hidden] {
+	/* biome-ignore lint/complexity/noImportantStyles: 确保原生 hidden 属性拥有最高优先级，杜绝 display:flex 意外显露未触发校验提示 */
+	display: none !important;
+}
+
+/* A 组认证页作用域重置（使用 :where 保持 0 权重，杜绝覆盖类选择器的 padding/margin） */
+:where(body.auth-surface) *,
+:where(body.auth-surface) *::before,
+:where(body.auth-surface) *::after {
 	box-sizing: border-box;
 	margin: 0;
 	padding: 0;
 }
 
-body {
+body.auth-surface {
+	box-sizing: border-box;
 	min-height: 100vh;
+	margin: 0;
 	font-family: var(--font-body);
 	color: var(--ink-primary);
 	background-color: var(--canvas-bg);
@@ -176,6 +197,17 @@ body {
 	position: relative;
 	overflow-x: hidden;
 	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	font-synthesis: none;
+}
+
+/* 关键修复：确保 #app 占满宽度并在水平/垂直方向居中舞台，杜绝 flex 缩小至 min-content 导致舞台坍塌 */
+body.auth-surface #app {
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
 }
 
 /* 离线通告条 (Offline Notice Banner) */
@@ -218,7 +250,7 @@ body {
 	border-radius: var(--radius-stage);
 	box-shadow: var(--shadow-stage);
 	overflow: hidden;
-	margin-top: 48px;
+	margin: 48px auto 0;
 	position: relative;
 	transition: all 300ms var(--ease-buoyant);
 }
@@ -370,8 +402,8 @@ body {
 	flex-direction: column;
 	justify-content: space-between;
 	padding: 56px 52px;
-	/* 移除一切硬分界线 (Blur the boundary) */
 	border-right: none;
+	min-height: 100%;
 }
 
 .art-content-top {
@@ -462,6 +494,7 @@ body {
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
+	min-height: 100%;
 	transition: background 250ms ease;
 }
 
@@ -594,6 +627,18 @@ body {
 	border-color: #e2d5c3;
 	color: var(--ink-muted);
 	cursor: not-allowed;
+}
+
+/* 覆盖浏览器自动填充时的死蓝底色，保持温润米白质感 */
+.auth-input:-webkit-autofill,
+.auth-input:-webkit-autofill:hover,
+.auth-input:-webkit-autofill:focus,
+.auth-input:-webkit-autofill:active {
+	/* biome-ignore lint/complexity/noImportantStyles: 覆盖浏览器 WebKit 自动填充默认底色需使用 !important */
+	-webkit-box-shadow: 0 0 0 1000px rgba(251, 245, 235, 1) inset !important;
+	/* biome-ignore lint/complexity/noImportantStyles: 覆盖浏览器 WebKit 自动填充默认文字颜色需使用 !important */
+	-webkit-text-fill-color: var(--ink-primary) !important;
+	transition: background-color 5000s ease-in-out 0s;
 }
 
 /* 44px x 44px 触控靶区与 SVG 眼睛切换 */
@@ -788,8 +833,10 @@ body {
 	text-decoration: none;
 	margin-left: 4px;
 	cursor: pointer;
+	transition: color 150ms ease;
 }
 
 .card-footer a:hover {
+	color: var(--accent-coral-active);
 	text-decoration: underline;
 }
