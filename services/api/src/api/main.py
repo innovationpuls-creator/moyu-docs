@@ -10,10 +10,12 @@ Tests pass ``debug=True`` (cookies not Secure, dependency overrides) and use
 
 from __future__ import annotations
 
+import os
 from collections.abc import Mapping
 from typing import Any
 
 from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from api.config import settings
 from api.logging import configure_logging
@@ -71,6 +73,33 @@ def create_app(
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(MetricsMiddleware)
     register_error_handlers(app)
+
+    # Cross-origin access (requested by owner): explicit-origin allowlist only
+    # (credentials are sent by the browser, so "*" is forbidden). The web app
+    # itself is same-origin via the Vite/nginx /v1 proxy and needs no CORS;
+    # this exists for local demo surfaces and explicit cross-origin deployments.
+    # Configure with CORS_ALLOW_ORIGINS="https://a.example,https://b.example";
+    # debug defaults cover the standard Vite dev ports.
+    cors_origins = [
+        origin.strip()
+        for origin in os.getenv("CORS_ALLOW_ORIGINS", "").split(",")
+        if origin.strip()
+    ]
+    if not cors_origins and settings.debug:
+        cors_origins = [
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:5174",
+            "http://127.0.0.1:5174",
+        ]
+    if cors_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=cors_origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
 
     app.include_router(auth_registration_router, prefix="/v1/auth")
     app.include_router(auth_session_router, prefix="/v1/auth")

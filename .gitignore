@@ -102,3 +102,6 @@ test-results/
 .Trashes
 Thumbs.db
 ehthumbs.db
+
+# 原型/演示 HTML（不提交）
+demohtml/

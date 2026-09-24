@@ -66,8 +66,6 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 		| import("@dom/realtime-client").ResourceChannelClient
 		| undefined;
 	const firstResourceId = resourceId ?? "";
-	let presenceText = "";
-	let remoteCursor: number | undefined;
 	// bounded per-peer cursor feed (identity = the presence peerId)
 	const peerCursors = new Map<string, { text: string; cursor: number }>();
 	const encodeAwarenessUpdateAndPublish = (
@@ -293,8 +291,6 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 			) {
 				const typing = (message.payload as { typing?: boolean }).typing;
 				const cursor = (message.payload as { cursor?: number }).cursor;
-				remoteCursor = cursor;
-				presenceText = draft.value;
 				const peerId = (message.payload as { peerId?: string }).peerId;
 				if (peerId && cursor !== undefined) {
 					peerCursors.set(peerId, { text: draft.value, cursor });
@@ -661,16 +657,14 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 	richBold.type = "button";
 	richBold.addEventListener("click", () => {
 		if (!pmView) return;
+		const view = pmView;
 		void Promise.all([
 			import("prosemirror-commands"),
 			import("@dom/editor-core/pm-schema"),
 		]).then(([commands, m]) => {
-			commands.toggleMark(m.schema.marks.strong)(
-				pmView!.state,
-				pmView!.dispatch,
-			);
+			commands.toggleMark(m.schema.marks.strong)(view.state, view.dispatch);
 			commitRich();
-			pmView?.focus();
+			view.focus();
 		});
 	});
 	const richItalic = document.createElement("button");
@@ -678,13 +672,14 @@ export async function renderEditorPage(app: HTMLElement): Promise<void> {
 	richItalic.type = "button";
 	richItalic.addEventListener("click", () => {
 		if (!pmView) return;
+		const view = pmView;
 		void Promise.all([
 			import("prosemirror-commands"),
 			import("@dom/editor-core/pm-schema"),
 		]).then(([commands, m]) => {
-			commands.toggleMark(m.schema.marks.em)(pmView!.state, pmView!.dispatch);
+			commands.toggleMark(m.schema.marks.em)(view.state, view.dispatch);
 			commitRich();
-			pmView?.focus();
+			view.focus();
 		});
 	});
 	richToolbar.append(richBold, richItalic);
