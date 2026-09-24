@@ -20,6 +20,14 @@ import type { LoginWithPasswordResponse } from "@dom/contracts/commands/auth/log
 import type { LogoutResponse } from "@dom/contracts/commands/auth/logout";
 import type { RegisterWithEmail } from "@dom/contracts/commands/auth/register-with-email";
 import type { RegisterWithEmailResponse } from "@dom/contracts/commands/auth/register-with-email-response";
+import type { RequestPasswordReset } from "@dom/contracts/commands/auth/request-password-reset";
+import type { RequestPasswordResetResponse } from "@dom/contracts/commands/auth/request-password-reset-response";
+import type { ResendEmailVerification } from "@dom/contracts/commands/auth/resend-email-verification";
+import type { ResendEmailVerificationResponse } from "@dom/contracts/commands/auth/resend-email-verification-response";
+import type { ResetPassword } from "@dom/contracts/commands/auth/reset-password";
+import type { ResetPasswordResponse } from "@dom/contracts/commands/auth/reset-password-response";
+import type { VerifyEmail } from "@dom/contracts/commands/auth/verify-email";
+import type { VerifyEmailResponse } from "@dom/contracts/commands/auth/verify-email-response";
 import type { AuthErrorCategory } from "@dom/contracts/errors/error-envelope";
 import type { GetCurrentAccountResponse } from "@dom/contracts/queries/auth/get-current-account";
 import type { GetCurrentSessionResponse } from "@dom/contracts/queries/auth/get-current-session";
@@ -193,6 +201,29 @@ export class DomClient {
 
 	async session(): Promise<GetCurrentSessionResponse | null> {
 		return this.requestOrNull("/auth/session", { method: "GET" });
+	}
+
+	async verifyEmail(body: VerifyEmail): Promise<VerifyEmailResponse> {
+		return this.request("/auth/verify-email", { method: "POST", body });
+	}
+
+	async resendVerification(
+		body: ResendEmailVerification,
+	): Promise<ResendEmailVerificationResponse> {
+		return this.request("/auth/resend-verification", {
+			method: "POST",
+			body,
+		});
+	}
+
+	async requestPasswordReset(
+		body: RequestPasswordReset,
+	): Promise<RequestPasswordResetResponse> {
+		return this.request("/auth/forgot-password", { method: "POST", body });
+	}
+
+	async resetPassword(body: ResetPassword): Promise<ResetPasswordResponse> {
+		return this.request("/auth/reset-password", { method: "POST", body });
 	}
 
 	async createWorkspace(

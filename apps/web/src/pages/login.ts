@@ -1,61 +1,237 @@
 /**
- * /login page: email + password -> DomClient.login. On successful login the
- * server sets the HttpOnly session cookie; the page then navigates to
- * /workspace. A valid existing session (e.g. from a previous refresh) skips
- * the form entirely and goes straight to /workspace (FR-AUTH-021).
+ * /login 页（A 组 · 墨屿 · Moyu Docs 视觉基线）。
+ *
+ * E2E 契约（browser_session_semantics.spec.ts）：data-testid
+ * login-form / email-input / password-input / login-submit；密码框回车即提交；
+ * 登录成功后跳 /workspace。已有会话访问时经 me() 直接恢复（FR-AUTH-021）。
+ * 错误映射按 spec §5.1 / §7：INVALID_CREDENTIALS 统一防枚举文案、账号禁用单独提示、
+ * RATE_LIMITED = 连续 5 次错误后的 15 分钟临时锁定（LOGIN_LOCKOUT_SECONDS=900）。
  */
 
-import { DomClient } from "@dom/client-sdk";
+import { DomApiError, DomClient } from "@dom/client-sdk";
 import {
-	emailInput,
-	errorText,
-	fieldRow,
-	passwordInput,
-	submitButton,
-} from "../lib/forms";
+	type AuthShell,
+	bindOffline,
+	cardHeader,
+	createAuthShell,
+	feedbackBar,
+	fieldHint,
+	formatLockout,
+	formGroup,
+	gentleShake,
+	passwordToggle,
+	primaryButton,
+	setLoading,
+	startCountdown,
+	textInput,
+} from "../components/auth";
 import { navigate } from "../main";
 
-export function renderLoginPage(app: HTMLElement): void {
+const LOCKOUT_SECONDS = 15 * 60; // LOGIN_LOCKOUT_SECONDS = 900（FR-AUTH-035）
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export async function renderLoginPage(app: HTMLElement): Promise<void> {
 	const client = new DomClient();
-	void (async () => {
-		// Refresh/restart recovery: an already-valid session resumes directly.
-		if ((await client.me()) !== null) {
-			navigate("/workspace");
+	// 已有有效会话（刷新/重启恢复）直接进入工作台；会话探测失败（如 API
+	// 未就绪/网络抖动）按"无会话"渲染表单，错误由提交动作如实呈现。
+	let hadSession = false;
+	try {
+		hadSession = (await client.me()) !== null;
+	} catch {
+		hadSession = false;
+	}
+	if (hadSession) {
+		navigate("/workspace");
+		return;
+	}
+	app.replaceChildren();
+
+	const shell: AuthShell = createAuthShell();
+	const { card, notice } = shell;
+
+	const form = document.createElement("form");
+	form.dataset.testid = "login-form";
+	form.noValidate = true;
+
+	const feedbackSlot = document.createElement("div");
+
+	// 工作邮箱
+	const emailGroup = formGroup("工作邮箱", { forId: "loginEmail" });
+	const email = textInput({
+		testId: "email-input",
+		type: "email",
+		placeholder: "alex.smith@company.com",
+		autocomplete: "email",
+		required: true,
+	});
+	email.id = "loginEmail";
+	emailGroup.wrapper.append(email);
+	const emailHint = fieldHint("error", "请输入有效的邮箱地址");
+	emailGroup.group.append(emailHint);
+
+	// 登录密码（行内"忘记密码？"链接）
+	const passwordGroup = formGroup("登录密码", {
+		forId: "loginPwd",
+		link: { text: "忘记密码？", href: "/forgot-password" },
+	});
+	const password = textInput({
+		testId: "password-input",
+		type: "password",
+		placeholder: "••••••••••••",
+		autocomplete: "current-password",
+		required: true,
+	});
+	password.id = "loginPwd";
+	passwordGroup.wrapper.append(password, passwordToggle(password));
+	const passwordHint = fieldHint("error", "请输入登录密码");
+	passwordGroup.group.append(passwordHint);
+
+	const submit = primaryButton("登　入　空　间", "login-submit");
+
+	const footer = document.createElement("div");
+	footer.className = "card-footer";
+	footer.append(document.createTextNode("还没有账户？"));
+	const toRegister = document.createElement("a");
+	toRegister.textContent = "免费创建新空间";
+	toRegister.href = "/register";
+	footer.append(toRegister);
+
+	form.append(
+		cardHeader("登录账户", "请输入您的工作邮箱与密码以恢复您的工作会话"),
+		feedbackSlot,
+		emailGroup.group,
+		passwordGroup.group,
+		submit,
+		footer,
+	);
+	card.append(form);
+	app.append(shell.root);
+
+	let busy = false;
+	let offline = false;
+	let lockoutUntil: number | null = null;
+	let cooldownStop: (() => void) | null = null;
+
+	const setError = (
+		kind: "danger" | "warning" | "success",
+		text: string,
+	): void => {
+		feedbackSlot.replaceChildren(feedbackBar(kind, text));
+	};
+
+	const syncSubmit = (): void => {
+		const locked = lockoutUntil !== null && Date.now() < lockoutUntil;
+		submit.disabled = busy || offline || locked;
+		password.disabled = locked || busy;
+		if (locked && lockoutUntil !== null) {
+			const remaining = Math.max(
+				0,
+				Math.ceil((lockoutUntil - Date.now()) / 1000),
+			);
+			submit.replaceChildren();
+			const span = document.createElement("span");
+			span.textContent = `账号临时锁定 (${formatLockout(remaining)})`;
+			submit.append(span);
+		} else if (!busy) {
+			setLoading(submit, false, "登　入　空　间");
+		}
+	};
+
+	const clearHints = (): void => {
+		emailHint.hidden = true;
+		passwordHint.hidden = true;
+		email.classList.remove("has-error");
+		password.classList.remove("has-error");
+	};
+
+	const startLockout = (): void => {
+		lockoutUntil = Date.now() + LOCKOUT_SECONDS * 1000;
+		cooldownStop = startCountdown(LOCKOUT_SECONDS, () => {
+			if (lockoutUntil !== null && Date.now() < lockoutUntil) {
+				syncSubmit();
+			} else {
+				lockoutUntil = null;
+				syncSubmit();
+			}
+		});
+		setError(
+			"warning",
+			"连续输入错误次数较多，为保障安全账号已临时锁定，请在倒计时结束后重试。",
+		);
+		syncSubmit();
+	};
+
+	form.addEventListener("submit", (event) => {
+		event.preventDefault();
+		if (busy) return;
+		clearHints();
+		let focusTarget: HTMLInputElement | null = null;
+		if (email.value.trim() === "") {
+			emailHint.textContent = "请填写您的邮箱";
+			emailHint.hidden = false;
+			email.classList.add("has-error");
+			focusTarget = email;
+		} else if (!EMAIL_RE.test(email.value.trim())) {
+			emailHint.textContent = "请输入有效的邮箱地址";
+			emailHint.hidden = false;
+			email.classList.add("has-error");
+			focusTarget = email;
+		}
+		if (password.value === "") {
+			passwordHint.hidden = false;
+			password.classList.add("has-error");
+			if (focusTarget === null) focusTarget = password;
+		}
+		if (focusTarget !== null) {
+			gentleShake(card);
+			focusTarget.focus();
 			return;
 		}
-		app.replaceChildren();
 
-		const heading = document.createElement("h1");
-		heading.textContent = "登录";
-
-		const form = document.createElement("form");
-		form.dataset.testid = "login-form";
-		const email = emailInput();
-		const password = passwordInput();
-		const error = errorText();
-		const submit = submitButton("登录", "login-submit");
-		form.append(
-			fieldRow("邮箱", email),
-			fieldRow("密码", password),
-			error,
-			submit,
-		);
-
-		form.addEventListener("submit", (event) => {
-			event.preventDefault();
-			void (async () => {
-				error.hidden = true;
-				try {
-					await client.login({ email: email.value, password: password.value });
-					navigate("/workspace");
-				} catch (cause) {
-					error.textContent =
-						cause instanceof Error ? cause.message : "登录失败，请重试";
-					error.hidden = false;
+		busy = true;
+		setLoading(submit, true, "登　入　空　间");
+		void (async () => {
+			try {
+				await client.login({
+					email: email.value.trim(),
+					password: password.value,
+				});
+				navigate("/workspace");
+			} catch (cause) {
+				busy = false;
+				if (cause instanceof DomApiError) {
+					switch (cause.errorCode) {
+						case "INVALID_CREDENTIALS":
+							setError("danger", "邮箱或密码不正确，请慢慢检查后再试一次。");
+							password.value = "";
+							password.focus();
+							break;
+						case "ACCOUNT_DISABLED":
+							setError(
+								"danger",
+								"该账号已被停用，请联系您的工作区管理员协助处理。",
+							);
+							break;
+						case "RATE_LIMITED":
+							startLockout();
+							break;
+						default:
+							setError("danger", cause.message || "登录失败，请稍后再试。");
+					}
+				} else {
+					setError("danger", "登录失败，请稍后再试。");
 				}
-			})();
-		});
+				syncSubmit();
+			}
+		})();
+	});
 
-		app.append(heading, form);
-	})();
+	const unbind = bindOffline(notice, (isOffline) => {
+		offline = isOffline;
+		syncSubmit();
+	});
+	window.addEventListener("beforeunload", () => {
+		unbind();
+		cooldownStop?.();
+	});
 }
