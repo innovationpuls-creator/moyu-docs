@@ -1,6 +1,5 @@
-# 架构 / 产品 / 行为 / 计划文档正式纳入版本控制
-# AGENTS.md、docs/architecture/、docs/product/、docs/behavior/、docs/adr/、
-# docs/superpowers/plans/、docs/runbooks/ 必须进 Git，不再 ignore。
+# 项目文档不纳入版本控制
+/docs/
 
 # CI / 部署编排与迁移必须进 Git，不得 ignore：
 # .github/、compose.yaml、Dockerfile*、migrations/、contracts/ 及
