@@ -27,3 +27,5 @@ class AppendJournalOpResponse(BaseModel):
     resourceId: UUID = Field(..., title="UserId")
     journalSeq: int
     updateSha256: str
+    acceptedWatermark: conint(ge=0)
+    durableWatermark: conint(ge=0)

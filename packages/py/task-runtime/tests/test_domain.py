@@ -1,13 +1,15 @@
 import pytest
+from app_core.operations.task.domain import (
+    Priority,
+    Task,
+    TaskState,
+    TaskTransitionError,
+)
 from task_runtime.domain import (
     AttemptState,
     CancelRequested,
     Lease,
-    Priority,
     RetryPolicy,
-    Task,
-    TaskState,
-    TaskTransitionError,
 )
 
 

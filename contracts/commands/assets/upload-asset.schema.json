@@ -1,0 +1,40 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/assets/upload-asset.schema.json",
+	"title": "UploadAsset",
+	"description": "Upload one immutable binary Asset for a Resource. The HTTP body is multipart/form-data; the file is never written into the Resource Y.Doc. Requests require Idempotency-Key; the same key and same actor, Resource, bytes, MIME type, and original name replay the original Asset, while a different request returns IDEMPOTENCY_KEY_CONFLICT.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/ResourceId" },
+		"file": { "$ref": "#/$defs/UploadAssetBody/properties/file" },
+		"mime": { "$ref": "#/$defs/UploadAssetBody/properties/mime" }
+	},
+	"required": ["resourceId", "file"],
+	"$defs": {
+		"UploadAssetBody": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"file": {
+					"type": "string",
+					"format": "binary",
+					"description": "The file bytes sent as the multipart field named file."
+				},
+				"mime": { "type": ["string", "null"], "maxLength": 128 }
+			},
+			"required": ["file"]
+		},
+		"UploadAssetResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"assetId": { "$ref": "../../ids/ids.schema.json#/$defs/AssetId" },
+				"sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+				"sizeBytes": { "type": "integer", "minimum": 0 }
+			},
+			"required": ["assetId", "sha256", "sizeBytes"],
+			"title": "UploadAssetResponse"
+		}
+	}
+}

@@ -20,13 +20,18 @@ from app_core.operations.task import (
     ReconcileTasks,
     ResumeTask,
 )
+from app_core.operations.task.domain import (
+    Priority,
+    Task,
+    TaskState,
+    TaskTransitionError,
+)
 from app_infra.postgres.engine import engine
 from app_infra.postgres.task.effect_repository import PostgresTaskEffectRepository
 from app_infra.postgres.task.task_repository import PostgresTaskRepository
 from app_infra.postgres.test_database_guard import require_isolated_database
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-from task_runtime.domain import Priority, Task, TaskState, TaskTransitionError
 
 DATABASE_URL = "postgresql+psycopg://torch@localhost:5432/dom_workspace_lifecycle_test"
 
@@ -162,6 +167,12 @@ async def test_lost_delivery_state_is_reconcilable(db_session: AsyncSession) -> 
 async def test_priority_fairness_has_background_candidate(
     db_session: AsyncSession,
 ) -> None:
+    await db_session.execute(
+        text(
+            "UPDATE work.tasks SET next_attempt_at=now()+interval '1 day' "
+            "WHERE state IN ('Queued','Retrying')"
+        )
+    )
     repository = PostgresTaskRepository(db_session)
     background = Task.create("background", priority=Priority.BACKGROUND)
     background.queue()

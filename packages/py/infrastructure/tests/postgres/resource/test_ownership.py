@@ -98,8 +98,68 @@ async def test_ownership_grant_transfer_and_authorize() -> None:
         assert first.epoch == 1
         assert second.epoch == 2  # transfer bumps epoch (arch 29 §45)
         async with session.begin():
+            assert not await ownership.authorize(
+                other, resource.resource_id, "resource.update"
+            )
+            await session.execute(
+                text(
+                    "INSERT INTO core.project_members "
+                    "(project_id,account_id,role,membership_kind,created_at,"
+                    "updated_at) "
+                    "VALUES (:project_id,:account_id,'Edit','Member',now(),now())"
+                ),
+                {"project_id": project_id, "account_id": other},
+            )
             assert await ownership.authorize(
                 other, resource.resource_id, "resource.update"
+            )
+            assert await ownership.authorize(
+                owner_id, resource.resource_id, "resource.update"
+            )
+    finally:
+        await session.close()
+        await connection.close()
+
+
+@pytest.mark.asyncio
+async def test_authorization_respects_project_and_resource_lifecycle() -> None:
+    connection = await engine.connect()
+    session = AsyncSession(connection)
+    try:
+        async with session.begin():
+            project_id, owner_id = await _seed_project(session)
+            resource = await PostgresResourceRepository(session).create(
+                project_id=project_id,
+                resource_type="document",
+                name="Lifecycle document",
+                normalized_name="lifecycle-document",
+            )
+        ownership = PostgresResourceOwnershipRepository(session)
+        async with session.begin():
+            assert await ownership.authorize(
+                owner_id, resource.resource_id, "resource.update"
+            )
+            await session.execute(
+                text(
+                    "UPDATE core.projects SET lifecycle='Archived' WHERE project_id=:id"
+                ),
+                {"id": project_id},
+            )
+            assert await ownership.authorize(
+                owner_id, resource.resource_id, "resource.read"
+            )
+            assert not await ownership.authorize(
+                owner_id, resource.resource_id, "resource.update"
+            )
+            await session.execute(
+                text(
+                    "UPDATE core.resources SET lifecycle='Trashed' "
+                    "WHERE resource_id=:id"
+                ),
+                {"id": resource.resource_id},
+            )
+            assert not await ownership.authorize(
+                owner_id, resource.resource_id, "resource.read"
             )
             assert not await ownership.authorize(
                 owner_id, resource.resource_id, "resource.update"

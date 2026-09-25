@@ -7,6 +7,7 @@
  * state vector based) so independent replicas converge to one state.
  */
 
+import { IndexeddbPersistence } from "y-indexeddb";
 import * as Y from "yjs";
 
 export interface DocumentHandle {
@@ -17,6 +18,117 @@ export interface DocumentHandle {
 	text(): string;
 	/** State-vector anchor for incremental sync (arch 05 §172). */
 	stateVector(): Uint8Array;
+}
+
+export interface LocalDocumentIdentity {
+	accountId: string;
+	resourceId: string;
+}
+
+export interface PersistedDocumentHandle extends DocumentHandle {
+	readonly identity: Readonly<LocalDocumentIdentity>;
+	/**
+	 * Stop local persistence and destroy the in-memory document. Cached updates
+	 * remain in IndexedDB for the next open.
+	 */
+	dispose(): Promise<void>;
+	/**
+	 * Permanently remove this document's IndexedDB data. The caller must make
+	 * the unsynced-data-loss decision explicitly before invoking this method.
+	 */
+	clearLocalData(options: {
+		confirmDiscardUnsyncedChanges: true;
+	}): Promise<void>;
+}
+
+function persistenceName(identity: LocalDocumentIdentity): string {
+	if (!identity.accountId.trim() || !identity.resourceId.trim()) {
+		throw new TypeError("accountId and resourceId must be non-empty");
+	}
+	return `dom:yjs:v1:account:${encodeURIComponent(identity.accountId)}:resource:${encodeURIComponent(identity.resourceId)}`;
+}
+
+/**
+ * Open a locally persisted Y.Doc, resolving only after IndexedDB has hydrated
+ * it. Callers must await this function before starting network synchronization.
+ * An optional server snapshot is merged after local hydration and is never used
+ * to replace local state.
+ */
+export async function openPersistedDocument(
+	identity: LocalDocumentIdentity,
+	seedUpdate?: Uint8Array,
+): Promise<PersistedDocumentHandle> {
+	if (typeof indexedDB === "undefined") {
+		throw new Error("IndexedDB is unavailable in this runtime");
+	}
+
+	const name = persistenceName(identity);
+	const handle = createDocument();
+	const persistence = new IndexeddbPersistence(name, handle.doc);
+
+	try {
+		// Only `whenSynced` may resolve this wait. The database-open promise is
+		// observed solely to surface a rejected open; a successful open does not
+		// mean cached updates have finished hydrating the document.
+		await new Promise<void>((resolve, reject) => {
+			persistence.whenSynced.then(() => resolve(), reject);
+			void persistence._db.catch(reject);
+		});
+		if (seedUpdate && seedUpdate.byteLength > 0) {
+			handle.applyRemoteUpdate(seedUpdate);
+		}
+	} catch (error) {
+		try {
+			await persistence.destroy();
+		} catch (cleanupError) {
+			handle.doc.destroy();
+			throw new AggregateError(
+				[error, cleanupError],
+				"Local document hydration and cleanup both failed",
+			);
+		}
+		handle.doc.destroy();
+		throw error;
+	}
+
+	let terminalState: "active" | "disposed" = "active";
+	let terminalPromise: Promise<void> | undefined;
+	const localIdentity = Object.freeze({
+		accountId: identity.accountId,
+		resourceId: identity.resourceId,
+	});
+
+	return {
+		...handle,
+		identity: localIdentity,
+		async dispose(): Promise<void> {
+			if (terminalState === "disposed") {
+				return terminalPromise;
+			}
+			terminalState = "disposed";
+			terminalPromise = persistence
+				.destroy()
+				.finally(() => handle.doc.destroy());
+			return terminalPromise;
+		},
+		async clearLocalData(options): Promise<void> {
+			if (options?.confirmDiscardUnsyncedChanges !== true) {
+				throw new Error(
+					"Clearing local document data requires explicit confirmation",
+				);
+			}
+			if (terminalState === "disposed") {
+				throw new Error(
+					"Cannot clear local data after the document has been disposed",
+				);
+			}
+			terminalState = "disposed";
+			terminalPromise = persistence
+				.clearData()
+				.finally(() => handle.doc.destroy());
+			return terminalPromise;
+		},
+	};
 }
 
 export function createDocument(seedUpdate?: Uint8Array): DocumentHandle {

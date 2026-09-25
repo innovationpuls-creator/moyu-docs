@@ -1,0 +1,25 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/permission/remove-project-member.schema.json",
+	"title": "RemoveProjectMember",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+		"accountId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" }
+	},
+	"required": ["projectId", "accountId"],
+	"$defs": {
+		"RemoveProjectMemberResponse": {
+			"title": "RemoveProjectMemberResponse",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"removed": { "const": true },
+				"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+				"accountId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" }
+			},
+			"required": ["removed", "projectId", "accountId"]
+		}
+	}
+}

@@ -13,17 +13,38 @@ from app_contracts.commands.comments.edit_comment import (
     EditComment as EditCommentRequest,
 )
 from app_contracts.commands.comments.edit_comment import EditCommentResponse
+from app_contracts.commands.comments.reopen_comment_thread import (
+    ReopenCommentThreadResponse,
+)
+from app_contracts.commands.comments.resolve_comment_thread import (
+    ResolveCommentThreadResponse,
+)
 from app_contracts.queries.comments.list_comments import (
-    Item,
+    Item as CommentListItem,
+)
+from app_contracts.queries.comments.list_comments import (
     ListCommentsResponse,
+)
+from app_contracts.queries.comments.list_comments import (
+    Status as CommentThreadStatusValue,
 )
 from app_core.comments.application import AddComment as AddCommentUseCase
 from app_core.comments.application import DeleteComment as DeleteCommentUseCase
 from app_core.comments.application import EditComment as EditCommentUseCase
 from app_core.comments.application import ListComments as ListCommentsUseCase
+from app_core.comments.application import (
+    ReopenCommentThread as ReopenCommentThreadUseCase,
+)
+from app_core.comments.application import (
+    ResolveCommentThread as ResolveCommentThreadUseCase,
+)
 from app_core.comments.domain import (
     CommentPermissionDeniedError,
+    CommentThreadNotFoundError,
+    CommentThreadStateConflictError,
+    CommentThreadTransition,
     EmptyCommentBodyError,
+    ResolvedCommentThreadError,
 )
 from app_core.notifications.application import NotifyMentionedUsers
 from app_core.session.domain.session import Session
@@ -57,6 +78,36 @@ from api.infra.broadcast import BroadcastRelayUnavailable, get_broadcast_publish
 router = APIRouter()
 
 
+async def _publish_thread_transition(
+    publisher: NatsResourceBroadcastPublisher,
+    transition: CommentThreadTransition,
+    event_type: str,
+) -> None:
+    if not transition.changed:
+        return
+    thread = transition.thread
+    try:
+        await publisher.publish(
+            thread.resource_id,
+            event_type,
+            {
+                "threadId": str(thread.thread_id),
+                "resourceId": str(thread.resource_id),
+                "status": thread.status.value,
+                "resolvedBy": str(thread.resolved_by)
+                if thread.resolved_by is not None
+                else None,
+                "resolvedAt": thread.resolved_at.isoformat()
+                if thread.resolved_at is not None
+                else None,
+            },
+        )
+    except BroadcastRelayUnavailable:
+        __import__("logging").getLogger("dom.api.comments").warning(
+            "comment relay unavailable; thread transition persisted without event"
+        )
+
+
 @router.post(
     "/resources/{resource_id}/comments",
     response_model=AddCommentResponse,
@@ -83,6 +134,10 @@ async def add_comment(
             thread_id=body.threadId,
             anchor=dict(body.anchor) if body.anchor is not None else None,
         )
+    except ResolvedCommentThreadError:
+        raise HTTPException(status_code=409, detail="COMMENT_THREAD_RESOLVED")
+    except CommentThreadNotFoundError:
+        raise HTTPException(status_code=404, detail="COMMENT_THREAD_NOT_FOUND")
     except CommentPermissionDeniedError:
         raise HTTPException(status_code=403, detail="RESOURCE_PERMISSION_DENIED")
     except EmptyCommentBodyError:
@@ -147,24 +202,35 @@ async def list_comments(
     current: Annotated[Session, Depends(get_current_session)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> ListCommentsResponse:
-    use_case = ListCommentsUseCase(PostgresCommentsRepository(session))
+    use_case = ListCommentsUseCase(
+        PostgresCommentsRepository(session),
+        PostgresResourceOwnershipRepository(session),
+    )
     if await PostgresResourceRepository(session).get(resource_id) is None:
         raise HTTPException(status_code=404, detail="RESOURCE_NOT_FOUND")
-    comments = await use_case.execute(resource_id)
-    return ListCommentsResponse(
-        resourceId=resource_id,
-        items=[
-            Item(
-                commentId=c.comment_id,
-                threadId=c.thread_id,
-                authorAccountId=c.author_account_id,
-                body=c.body,
-                anchor=c.anchor,
-                createdAt=c.created_at or datetime.now(UTC),
+    try:
+        comments = await use_case.execute(current.account_id, resource_id)
+    except CommentPermissionDeniedError:
+        raise HTTPException(status_code=403, detail="RESOURCE_PERMISSION_DENIED")
+    items: list[CommentListItem] = []
+    for comment in comments:
+        if comment.thread_status is None or comment.thread_created_by is None:
+            raise RuntimeError("comment list projection is missing thread state")
+        items.append(
+            CommentListItem(
+                commentId=comment.comment_id,
+                threadId=comment.thread_id,
+                authorAccountId=comment.author_account_id,
+                body=comment.body,
+                anchor=comment.anchor,
+                createdAt=comment.created_at or datetime.now(UTC),
+                status=CommentThreadStatusValue(comment.thread_status.value),
+                createdBy=comment.thread_created_by,
+                resolvedAt=comment.thread_resolved_at,
+                resolvedBy=comment.thread_resolved_by,
             )
-            for c in comments
-        ],
-    )
+        )
+    return ListCommentsResponse(resourceId=resource_id, items=items)
 
 
 @router.patch("/comments/{comment_id}", response_model=EditCommentResponse)
@@ -232,3 +298,84 @@ async def delete_comment(
             "comment relay unavailable; delete persisted without event"
         )
     return DeleteCommentResponse(commentId=comment.comment_id, deleted=True)
+
+
+@router.post(
+    "/resources/{resource_id}/comments/threads/{thread_id}/resolve",
+    response_model=ResolveCommentThreadResponse,
+)
+async def resolve_comment_thread(
+    resource_id: UUID,
+    thread_id: UUID,
+    current: Annotated[Session, Depends(get_current_session)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    publisher: Annotated[
+        NatsResourceBroadcastPublisher, Depends(get_broadcast_publisher)
+    ],
+) -> ResolveCommentThreadResponse:
+    use_case = ResolveCommentThreadUseCase(
+        PostgresCommentsRepository(session),
+        PostgresResourceOwnershipRepository(session),
+    )
+    try:
+        transition = await use_case.execute(current.account_id, resource_id, thread_id)
+    except CommentThreadNotFoundError:
+        raise HTTPException(status_code=404, detail="COMMENT_THREAD_NOT_FOUND")
+    except CommentPermissionDeniedError:
+        raise HTTPException(status_code=403, detail="COMMENT_PERMISSION_DENIED")
+    except CommentThreadStateConflictError:
+        raise HTTPException(status_code=409, detail="COMMENT_THREAD_STATE_CONFLICT")
+    await session.commit()
+    await _publish_thread_transition(publisher, transition, "ThreadResolved")
+    return ResolveCommentThreadResponse.model_validate(
+        _thread_transition_payload(transition)
+    )
+
+
+@router.post(
+    "/resources/{resource_id}/comments/threads/{thread_id}/reopen",
+    response_model=ReopenCommentThreadResponse,
+)
+async def reopen_comment_thread(
+    resource_id: UUID,
+    thread_id: UUID,
+    current: Annotated[Session, Depends(get_current_session)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    publisher: Annotated[
+        NatsResourceBroadcastPublisher, Depends(get_broadcast_publisher)
+    ],
+) -> ReopenCommentThreadResponse:
+    use_case = ReopenCommentThreadUseCase(
+        PostgresCommentsRepository(session),
+        PostgresResourceOwnershipRepository(session),
+    )
+    try:
+        transition = await use_case.execute(current.account_id, resource_id, thread_id)
+    except CommentThreadNotFoundError:
+        raise HTTPException(status_code=404, detail="COMMENT_THREAD_NOT_FOUND")
+    except CommentPermissionDeniedError:
+        raise HTTPException(status_code=403, detail="COMMENT_PERMISSION_DENIED")
+    except CommentThreadStateConflictError:
+        raise HTTPException(status_code=409, detail="COMMENT_THREAD_STATE_CONFLICT")
+    await session.commit()
+    await _publish_thread_transition(publisher, transition, "ThreadReopened")
+    return ReopenCommentThreadResponse.model_validate(
+        _thread_transition_payload(transition)
+    )
+
+
+def _thread_transition_payload(
+    transition: CommentThreadTransition,
+) -> dict[str, str | None]:
+    thread = transition.thread
+    return {
+        "threadId": str(thread.thread_id),
+        "resourceId": str(thread.resource_id),
+        "status": thread.status.value,
+        "resolvedAt": thread.resolved_at.isoformat()
+        if thread.resolved_at is not None
+        else None,
+        "resolvedBy": str(thread.resolved_by)
+        if thread.resolved_by is not None
+        else None,
+    }

@@ -1,0 +1,27 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/permission/revoke-workspace-invitation.schema.json",
+	"title": "RevokeWorkspaceInvitation",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"workspaceId": { "$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId" },
+		"invitationId": { "$ref": "../../ids/ids.schema.json#/$defs/InvitationId" }
+	},
+	"required": ["workspaceId", "invitationId"],
+	"$defs": {
+		"RevokeWorkspaceInvitationResponse": {
+			"title": "RevokeWorkspaceInvitationResponse",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"invitationId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/InvitationId"
+				},
+				"state": { "type": "string", "enum": ["Expired", "Revoked"] },
+				"expiresAt": { "type": "string", "format": "date-time" }
+			},
+			"required": ["invitationId", "state", "expiresAt"]
+		}
+	}
+}

@@ -26,6 +26,8 @@ router = APIRouter()
 
 class SearchItem(BaseModel):
     resourceId: UUID
+    projectId: UUID | None = None
+    folderId: UUID | None = None
     name: str
     resourceType: str
     score: float
@@ -78,6 +80,8 @@ async def search_workspace(
         items=[
             SearchItem(
                 resourceId=h.resource_id,
+                projectId=h.project_id,
+                folderId=h.folder_id,
                 name=h.name,
                 resourceType=h.resource_type,
                 score=h.score,

@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any, cast
 from uuid import UUID, uuid4
 
-from app_core.operations.task import StaleAttemptError
+from app_core.operations.task.domain import StaleAttemptError, Task
 from app_core.operations.task.events import TaskEventPublisher, event_for_transition
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from task_runtime.domain import Task
 
 
 @dataclass(frozen=True)
@@ -37,18 +37,7 @@ class PostgresTaskRepository:
 
     async def create(self, task: Any) -> bool:
         result = await self._session.execute(
-            text(
-                "INSERT INTO work.tasks (task_id,task_type,state,stage,priority,"
-                "actor_account_id,workspace_id,resource_id,input_ref,result_ref,"
-                "retry_of_task_id,retry_count,next_attempt_at,cancel_requested_at,"
-                "created_at,queued_at,started_at,finished_at,failure_code,"
-                "schema_version) "
-                "VALUES (:task_id,:task_type,:state,:stage,:priority,:actor_account_id,"
-                ":workspace_id,:resource_id,:input_ref,:result_ref,:retry_of_task_id,"
-                ":retry_count,:next_attempt_at,:cancel_requested_at,:created_at,:queued_at,"
-                ":started_at,:finished_at,:failure_code,:schema_version) "
-                "ON CONFLICT (task_id) DO NOTHING RETURNING task_id"
-            ),
+            text(_task_insert_statement("ON CONFLICT (task_id) DO NOTHING")),
             _task_params(task),
         )
         created = result.mappings().one_or_none() is not None
@@ -56,6 +45,29 @@ class PostgresTaskRepository:
             await self._emit("TaskCreated", task)
             await self._emit("TaskQueued", task)
         return created
+
+    async def create_idempotent(self, task: Any) -> Any | None:
+        params = _task_params(task)
+        if params["actor_account_id"] is None or params["idempotency_key"] is None:
+            raise ValueError("idempotent tasks require actor_account_id and key")
+
+        result = await self._session.execute(
+            text(
+                _task_insert_statement(
+                    "ON CONFLICT (actor_account_id,idempotency_key) "
+                    "WHERE idempotency_key IS NOT NULL DO NOTHING"
+                )
+            ),
+            params,
+        )
+        created = result.mappings().one_or_none() is not None
+        if created:
+            await self._emit("TaskCreated", task)
+            await self._emit("TaskQueued", task)
+            return task
+        return await self.get_by_actor_idempotency_key(
+            params["actor_account_id"], params["idempotency_key"]
+        )
 
     async def get(self, task_id: UUID) -> Any | None:
         result = await self._session.execute(
@@ -65,7 +77,35 @@ class PostgresTaskRepository:
         row = result.mappings().one_or_none()
         if row is None:
             return None
-        return Task.from_row(cast(dict[str, object], dict(row)))
+        return _task_from_row(row)
+
+    async def get_by_actor_idempotency_key(
+        self, actor_account_id: UUID, idempotency_key: UUID
+    ) -> Any | None:
+        result = await self._session.execute(
+            text(
+                "SELECT * FROM work.tasks WHERE actor_account_id=:actor_account_id "
+                "AND idempotency_key=:idempotency_key"
+            ),
+            {
+                "actor_account_id": actor_account_id,
+                "idempotency_key": idempotency_key,
+            },
+        )
+        row = result.mappings().one_or_none()
+        return _task_from_row(row) if row is not None else None
+
+    async def list_for_actor(
+        self, actor_account_id: UUID, *, limit: int, offset: int
+    ) -> list[Any]:
+        result = await self._session.execute(
+            text(
+                "SELECT * FROM work.tasks WHERE actor_account_id=:actor_account_id "
+                "ORDER BY created_at DESC, task_id DESC LIMIT :limit OFFSET :offset"
+            ),
+            {"actor_account_id": actor_account_id, "limit": limit, "offset": offset},
+        )
+        return [_task_from_row(row) for row in result.mappings().all()]
 
     async def save(self, task: Any) -> None:
         task_id = getattr(task, "task_id")
@@ -78,6 +118,7 @@ class PostgresTaskRepository:
                 current_attempt_id,
                 execution_epoch,
                 state == "Succeeded",
+                failure_code=getattr(task, "failure_code", None),
                 task=task,
             )
             return
@@ -99,6 +140,10 @@ class PostgresTaskRepository:
                 "UPDATE work.tasks SET state=:state,stage=:stage,priority=:priority,"
                 "result_ref=:result_ref,retry_count=:retry_count,next_attempt_at=:next_at,"
                 "cancel_requested_at=:cancel_at,finished_at=:finished_at,"
+                "progress_message_code=:progress_message_code,"
+                "progress_current=:progress_current,progress_total=:progress_total,"
+                "progress_percentage=:progress_percentage,"
+                "progress_updated_at=:progress_updated_at,"
                 "failure_code=:failure_code WHERE task_id=:task_id"
             ),
             {
@@ -112,6 +157,11 @@ class PostgresTaskRepository:
                 "cancel_at": getattr(task, "cancel_requested_at", None),
                 "finished_at": getattr(task, "finished_at", None),
                 "failure_code": getattr(task, "failure_code", None),
+                "progress_message_code": getattr(task, "progress_message_code", None),
+                "progress_current": getattr(task, "progress_current", None),
+                "progress_total": getattr(task, "progress_total", None),
+                "progress_percentage": getattr(task, "progress_percentage", None),
+                "progress_updated_at": getattr(task, "progress_updated_at", None),
             },
         )
 
@@ -167,13 +217,24 @@ class PostgresTaskRepository:
         attempt_id = uuid4()
         result = await self._session.execute(
             text(
-                "WITH candidate AS (SELECT task_id FROM work.tasks "
-                "WHERE state IN ('Queued','Retrying') "
-                "AND (next_attempt_at IS NULL OR next_attempt_at<=now()) "
-                "ORDER BY CASE priority WHEN 'Interactive' THEN 0 "
-                "WHEN 'Normal' THEN 1 WHEN 'Background' THEN 2 "
-                "WHEN 'Maintenance' THEN 3 ELSE 4 END, created_at "
-                "FOR UPDATE SKIP LOCKED LIMIT 1), claimed AS ("
+                "WITH eligible AS (SELECT task_id, "
+                "CASE priority WHEN 'Interactive' THEN 0 WHEN 'Normal' THEN 1 "
+                "WHEN 'Background' THEN 2 WHEN 'Maintenance' THEN 3 ELSE 4 END "
+                "- LEAST(FLOOR(EXTRACT(EPOCH FROM (now()-"
+                "COALESCE(queued_at,created_at)))/60)::int,1000) AS aged_priority, "
+                "ROW_NUMBER() OVER (PARTITION BY COALESCE(workspace_id::text,"
+                "actor_account_id::text,'system') ORDER BY created_at,task_id) "
+                "AS tenant_position, "
+                "ROW_NUMBER() OVER (PARTITION BY COALESCE(workspace_id::text,"
+                "actor_account_id::text,'system'),task_type "
+                "ORDER BY created_at,task_id) AS type_position "
+                "FROM work.tasks WHERE state IN ('Queued','Retrying') "
+                "AND (next_attempt_at IS NULL OR next_attempt_at<=now())), "
+                "candidate AS (SELECT t.task_id FROM work.tasks t "
+                "JOIN eligible e USING (task_id) "
+                "ORDER BY e.aged_priority,e.tenant_position,e.type_position,"
+                "t.created_at,t.task_id FOR UPDATE OF t SKIP LOCKED LIMIT 1), "
+                "claimed AS ("
                 "UPDATE work.tasks SET state='Running',current_attempt_id=:attempt_id,"
                 "execution_epoch=COALESCE(execution_epoch,0)+1,"
                 "started_at=COALESCE(started_at,now()),"
@@ -244,13 +305,24 @@ class PostgresTaskRepository:
         epoch: int,
         succeeded: bool,
         *,
+        failure_code: str | None = None,
         task: Any | None = None,
     ) -> None:
         target_state = "Succeeded" if succeeded else "Failed"
+        persisted_failure_code = (
+            None
+            if succeeded
+            else (
+                failure_code
+                if failure_code is not None
+                else getattr(task, "failure_code", None)
+            )
+        )
         result = await self._session.execute(
             text(
                 "UPDATE work.tasks SET state=:state,finished_at=now(),"
-                "current_attempt_id=NULL WHERE task_id=:task_id AND state='Running' "
+                "current_attempt_id=NULL,failure_code=:failure_code "
+                "WHERE task_id=:task_id AND state='Running' "
                 "AND current_attempt_id=:attempt_id AND execution_epoch=:epoch "
                 "RETURNING task_id"
             ),
@@ -259,6 +331,7 @@ class PostgresTaskRepository:
                 "attempt_id": attempt_id,
                 "epoch": epoch,
                 "state": target_state,
+                "failure_code": persisted_failure_code,
             },
         )
         if result.rowcount == 0:  # type: ignore[attr-defined]
@@ -355,12 +428,52 @@ class PostgresTaskRepository:
             {"task_id": task_id, "requested_at": requested_at},
         )
 
+    async def update_progress(
+        self,
+        task_id: UUID,
+        attempt_id: UUID,
+        execution_epoch: int,
+        *,
+        stage: str | None,
+        message_code: str | None,
+        current: int | None,
+        total: int | None,
+        percentage: Decimal | None,
+    ) -> None:
+        result = await self._session.execute(
+            text(
+                "UPDATE work.tasks SET stage=COALESCE(:stage,stage),"
+                "progress_message_code=COALESCE(:message_code,progress_message_code),"
+                "progress_current=:current,progress_total=:total,"
+                "progress_percentage=:percentage,progress_updated_at=now() "
+                "WHERE task_id=:task_id AND state='Running' "
+                "AND current_attempt_id=:attempt_id AND execution_epoch=:epoch "
+                "AND EXISTS (SELECT 1 FROM work.task_attempts a "
+                "WHERE a.attempt_id=:attempt_id AND a.execution_epoch=:epoch "
+                "AND a.lease_until>clock_timestamp()) "
+                "RETURNING task_id"
+            ),
+            {
+                "task_id": task_id,
+                "attempt_id": attempt_id,
+                "epoch": execution_epoch,
+                "stage": stage,
+                "message_code": message_code,
+                "current": current,
+                "total": total,
+                "percentage": percentage,
+            },
+        )
+        if result.mappings().one_or_none() is None:
+            raise StaleAttemptError("attempt is no longer authoritative")
+
     async def _finish_for_save(self, task: Any) -> None:
         await self.finish(
             task.task_id,
             task.current_attempt_id,
             task.execution_epoch,
             _value(task.state) == "Succeeded",
+            failure_code=getattr(task, "failure_code", None),
             task=task,
         )
 
@@ -383,6 +496,7 @@ def _task_params(task: Any) -> dict[str, Any]:
         "input_ref": getattr(task, "input_ref", None),
         "result_ref": getattr(task, "result_ref", None),
         "retry_of_task_id": getattr(task, "retry_of_task_id", None),
+        "idempotency_key": getattr(task, "idempotency_key", None),
         "retry_count": getattr(task, "retry_count", 0),
         "next_attempt_at": getattr(task, "next_attempt_at", None),
         "cancel_requested_at": getattr(task, "cancel_requested_at", None),
@@ -392,4 +506,51 @@ def _task_params(task: Any) -> dict[str, Any]:
         "finished_at": getattr(task, "finished_at", None),
         "failure_code": getattr(task, "failure_code", None),
         "schema_version": getattr(task, "schema_version", "1.0.0"),
+        "progress_message_code": getattr(task, "progress_message_code", None),
+        "progress_current": getattr(task, "progress_current", None),
+        "progress_total": getattr(task, "progress_total", None),
+        "progress_percentage": getattr(task, "progress_percentage", None),
+        "progress_updated_at": getattr(task, "progress_updated_at", None),
     }
+
+
+def _task_from_row(row: Any) -> Task:
+    values = cast(dict[str, object], dict(row))
+    return Task.from_row(values)
+
+
+def _task_insert_statement(conflict_clause: str) -> str:
+    columns = (
+        "task_id",
+        "task_type",
+        "state",
+        "stage",
+        "priority",
+        "actor_account_id",
+        "workspace_id",
+        "resource_id",
+        "input_ref",
+        "result_ref",
+        "retry_of_task_id",
+        "idempotency_key",
+        "retry_count",
+        "next_attempt_at",
+        "cancel_requested_at",
+        "created_at",
+        "queued_at",
+        "started_at",
+        "finished_at",
+        "failure_code",
+        "schema_version",
+        "progress_message_code",
+        "progress_current",
+        "progress_total",
+        "progress_percentage",
+        "progress_updated_at",
+    )
+    column_sql = ",".join(columns)
+    value_sql = ",".join(f":{column}" for column in columns)
+    return (
+        f"INSERT INTO work.tasks ({column_sql}) VALUES ({value_sql}) "
+        f"{conflict_clause} RETURNING task_id"
+    )

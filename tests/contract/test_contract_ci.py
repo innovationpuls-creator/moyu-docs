@@ -87,7 +87,14 @@ def test_baseline_covers_exactly_the_registered_contracts() -> None:
 def test_baseline_fingerprints_are_non_trivial() -> None:
     baseline = json.loads(BASELINE.read_text(encoding="utf-8"))
     for name, entry in baseline["contracts"].items():
-        assert entry["kind"] in {"Command", "Query", "Event", "Error", "Identity"}
+        assert entry["kind"] in {
+            "Command",
+            "Query",
+            "Event",
+            "Error",
+            "Identity",
+            "RealtimeFrame",
+        }
         assert entry["versionMajor"] >= 1
         assert entry["shape"], f"{name}: 结构指纹为空"
 
@@ -156,6 +163,18 @@ def test_comparator_detects_each_breaking_change_class() -> None:
     )
     assert breaking == [], breaking
     assert any("新增字段节点" in item for item in non_breaking), non_breaking
+
+    # A new major permits the shape changes that are breaking for v1 clients.
+    breaking, _ = module.compare(
+        {
+            "Foo": entry(
+                versionMajor=2,
+                shape={"#/properties/email": {"type": "integer"}},
+            )
+        },
+        baseline,
+    )
+    assert breaking == [], breaking
 
 
 def test_update_baseline_is_the_only_way_to_rebuild() -> None:

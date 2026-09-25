@@ -12,6 +12,11 @@ from app_core.common.exceptions import (
     NotFoundError,
     PermissionDeniedError,
 )
+from app_core.permission.domain.access_control import (
+    PermissionCapability,
+    PermissionRole,
+    effective_permission,
+)
 from app_core.permission.domain.workspace_membership import (
     PermissionDependencyError,
     WorkspaceOperation,
@@ -19,6 +24,10 @@ from app_core.permission.domain.workspace_membership import (
 )
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app_infra.postgres.permission_event_publisher import (
+    publish_permission_changed,
+)
 
 
 class PostgresWorkspaceMembershipRepository:
@@ -211,23 +220,27 @@ class PostgresWorkspaceMembershipRepository:
                 "metadata": json.dumps({"previousOwnerAccountId": str(actor_id)}),
             },
         )
-        event_id = uuid4()
-        await self._session.execute(
-            text(
-                "INSERT INTO integration.outbox_events "
-                "(outbox_id, event_id, event_type, schema_version, aggregate_type, "
-                "aggregate_id, payload) "
-                "VALUES (:id, :event_id, 'WorkspaceOwnerTransferred', '1', "
-                "'Workspace', :workspace_id, CAST(:payload AS jsonb))"
-            ),
-            {
-                "id": uuid4(),
-                "event_id": event_id,
-                "workspace_id": workspace_id,
-                "payload": json.dumps(result),
-            },
+        await self._publish_owner_transfer_permissions(
+            workspace_id, actor_id, new_owner_id
         )
         return _transfer_result(result)
+
+    async def _publish_owner_transfer_permissions(
+        self, workspace_id: UUID, previous_owner_id: UUID, new_owner_id: UUID
+    ) -> None:
+        for account_id, role in (
+            (previous_owner_id, "Member"),
+            (new_owner_id, "Owner"),
+        ):
+            await publish_permission_changed(
+                self._session,
+                scope_type="workspace",
+                scope_id=workspace_id,
+                workspace_id=workspace_id,
+                account_id=account_id,
+                action="owner_transferred",
+                role=role,
+            )
 
     async def _release_idempotency_claim(self, key: str) -> None:
         await self._session.execute(
@@ -312,15 +325,32 @@ class PostgresWorkspaceMembershipRepository:
         if project_row is None or project_row["workspace_id"] != workspace_id:
             raise PermissionDeniedError("Project is outside the requested Workspace.")
 
-        membership_kind = await self._workspace_membership_kind(actor_id, workspace_id)
-        if membership_kind == "Owner" and operation in {
-            WorkspaceOperation.MANAGE,
-            WorkspaceOperation.TRASH,
-            WorkspaceOperation.RESTORE,
-            WorkspaceOperation.PURGE,
-        }:
+        workspace_owner = (
+            await self._workspace_membership_kind(actor_id, workspace_id) == "Owner"
+        )
+        project_role = await self._session.scalar(
+            text(
+                "SELECT role FROM core.project_members "
+                "WHERE project_id=:project_id AND account_id=:actor_id"
+            ),
+            {"project_id": project_id, "actor_id": actor_id},
+        )
+        effective = effective_permission(
+            PermissionRole(project_role) if project_role is not None else None,
+            workspace_owner=workspace_owner,
+        )
+        capability = {
+            WorkspaceOperation.READ: PermissionCapability.READ,
+            WorkspaceOperation.MANAGE: PermissionCapability.MANAGE,
+            WorkspaceOperation.TRASH: PermissionCapability.MANAGE,
+            WorkspaceOperation.RESTORE: PermissionCapability.MANAGE,
+            WorkspaceOperation.PURGE: PermissionCapability.PURGE,
+        }.get(operation)
+        if capability is not None and effective.allows(capability):
             return
-        raise PermissionDeniedError("Project operation is not permitted.")
+        raise PermissionDeniedError(
+            "Project operation is not permitted.", "WORKSPACE_PERMISSION_DENIED"
+        )
 
     async def can_manage_project(self, account_id: UUID, project_id: UUID) -> bool:
         result = await self._session.scalar(
@@ -428,6 +458,18 @@ class PostgresWorkspaceMembershipRepository:
         return owners[0]
 
     async def remove_workspace_memberships(self, workspace_id: UUID) -> None:
+        await self._session.execute(
+            text("DELETE FROM core.invitations WHERE workspace_id=:workspace_id"),
+            {"workspace_id": workspace_id},
+        )
+        await self._session.execute(
+            text(
+                "DELETE FROM core.project_members WHERE project_id IN "
+                "(SELECT project_id FROM core.projects "
+                "WHERE workspace_id=:workspace_id)"
+            ),
+            {"workspace_id": workspace_id},
+        )
         await self._session.execute(
             text("DELETE FROM core.workspace_members WHERE workspace_id=:workspace_id"),
             {"workspace_id": workspace_id},

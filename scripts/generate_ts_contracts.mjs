@@ -5,8 +5,8 @@
  * Input is the registry-derived staging tree produced by
  * `scripts/generate_contracts.py` — one normalised JSON Schema per registered
  * contract, at its canonical relative path. Every registered kind
- * (Command / Query / Event / Error / Identity) is projected, including contracts
- * that carry no HTTP route.
+ * (Command / Query / Event / Error / Identity / RealtimeFrame) is projected,
+ * including contracts that carry no HTTP route.
  *
  * Never hand-edit the output; rerun `just contract` instead.
  *

@@ -143,6 +143,19 @@ describe("websocket session authentication (real valkey db 15)", () => {
 		expect(result).toMatchObject({ outcome: "rejected", statusCode: 401 });
 	});
 
+	it("rejects a cached session without a trusted account identity", async () => {
+		const sessionId = "00000000-0000-0000-0000-0000000000c7";
+		const seeded = activeSession(sessionId);
+		await seed(valkey, {
+			...seeded,
+			seed: { ...seeded.seed, account_id: "" },
+		});
+
+		const result = await connectOnce(baseUrl, sessionId);
+
+		expect(result).toMatchObject({ outcome: "rejected", statusCode: 401 });
+	});
+
 	it("rejects with 401 when the cached payload is corrupt (not JSON)", async () => {
 		const sessionId = "00000000-0000-0000-0000-0000000000c3";
 		await valkey.set(`session:${sessionId}`, "not-json{{");

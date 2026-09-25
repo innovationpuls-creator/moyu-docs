@@ -607,7 +607,7 @@
 		"AppendJournalOp": {
 			"kind": "Command",
 			"eventSubject": null,
-			"versionMajor": 1,
+			"versionMajor": 2,
 			"shape": {
 				"#": {
 					"type": "object"
@@ -640,6 +640,14 @@
 				},
 				"#/$defs/AppendJournalOpResponse/properties/updateSha256": {
 					"type": "string",
+					"required": true
+				},
+				"#/$defs/AppendJournalOpResponse/properties/acceptedWatermark": {
+					"type": "integer",
+					"required": true
+				},
+				"#/$defs/AppendJournalOpResponse/properties/durableWatermark": {
+					"type": "integer",
 					"required": true
 				}
 			}
@@ -692,13 +700,13 @@
 		"EditComment": {
 			"kind": "Command",
 			"eventSubject": null,
-			"versionMajor": 1,
+			"versionMajor": 2,
 			"shape": {
 				"#": {
 					"type": "object"
 				},
 				"#/properties/commentId": {
-					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"ref": "../../ids/ids.schema.json#/$defs/CommentId",
 					"required": true
 				},
 				"#/properties/body": {
@@ -713,7 +721,7 @@
 					"type": "object"
 				},
 				"#/$defs/EditCommentResponse/properties/commentId": {
-					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"ref": "../../ids/ids.schema.json#/$defs/CommentId",
 					"required": true
 				},
 				"#/$defs/EditCommentResponse/properties/body": {
@@ -725,13 +733,13 @@
 		"DeleteComment": {
 			"kind": "Command",
 			"eventSubject": null,
-			"versionMajor": 1,
+			"versionMajor": 2,
 			"shape": {
 				"#": {
 					"type": "object"
 				},
 				"#/properties/commentId": {
-					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"ref": "../../ids/ids.schema.json#/$defs/CommentId",
 					"required": true
 				},
 				"#/properties/idempotencyKey": {
@@ -742,7 +750,7 @@
 					"type": "object"
 				},
 				"#/$defs/DeleteCommentResponse/properties/commentId": {
-					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"ref": "../../ids/ids.schema.json#/$defs/CommentId",
 					"required": true
 				},
 				"#/$defs/DeleteCommentResponse/properties/deleted": {
@@ -822,6 +830,42 @@
 				}
 			}
 		},
+		"CreateVersionRestoreTask": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/taskId": {
+					"ref": "../../ids/ids.schema.json#/$defs/TaskId",
+					"required": true
+				},
+				"#/properties/task": {
+					"ref": "../../queries/tasks/list-tasks.schema.json#/$defs/TaskSummary",
+					"required": true
+				}
+			}
+		},
+		"MarkNotificationRead": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/notificationId": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/readAt": {
+					"type": "string",
+					"required": true
+				}
+			}
+		},
 		"ListNotifications": {
 			"kind": "Query",
 			"eventSubject": null,
@@ -856,6 +900,10 @@
 				"#/properties/items/items/properties/readAt": {
 					"type": ["string", "null"],
 					"required": true
+				},
+				"#/properties/unreadCount": {
+					"type": "integer",
+					"required": true
 				}
 			}
 		},
@@ -876,7 +924,7 @@
 		"ExportResource": {
 			"kind": "Query",
 			"eventSubject": null,
-			"versionMajor": 1,
+			"versionMajor": 2,
 			"shape": {
 				"#": {
 					"type": "object"
@@ -898,7 +946,7 @@
 					"required": true
 				},
 				"#/properties/resource/properties/resourceId": {
-					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"ref": "../../ids/ids.schema.json#/$defs/ResourceId",
 					"required": true
 				},
 				"#/properties/resource/properties/resourceType": {
@@ -927,17 +975,17 @@
 		"ImportResource": {
 			"kind": "Command",
 			"eventSubject": null,
-			"versionMajor": 1,
+			"versionMajor": 2,
 			"shape": {
 				"#": {
 					"type": "object"
 				},
 				"#/properties/resourceId": {
-					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"ref": "../../ids/ids.schema.json#/$defs/ResourceId",
 					"required": true
 				},
 				"#/properties/document": {
-					"type": "object",
+					"ref": "../../queries/importexport/export-resource.schema.json",
 					"required": true
 				},
 				"#/properties/idempotencyKey": {
@@ -947,12 +995,544 @@
 				"#/$defs/ImportResourceResponse": {
 					"type": "object"
 				},
-				"#/$defs/ImportResourceResponse/properties/resourceId": {
+				"#/$defs/ImportResourceResponse/properties/taskId": {
+					"ref": "../../ids/ids.schema.json#/$defs/TaskId",
+					"required": true
+				},
+				"#/$defs/ImportResourceResponse/properties/task": {
+					"ref": "../../queries/tasks/list-tasks.schema.json#/$defs/TaskSummary",
+					"required": true
+				}
+			}
+		},
+		"CreateResourceExportTask": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/taskId": {
+					"ref": "../../ids/ids.schema.json#/$defs/TaskId",
+					"required": true
+				},
+				"#/properties/exportSessionId": {
+					"ref": "../../ids/ids.schema.json#/$defs/SessionId",
+					"required": true
+				},
+				"#/properties/task": {
+					"ref": "../../queries/tasks/list-tasks.schema.json#/$defs/TaskSummary",
+					"required": true
+				}
+			}
+		},
+		"GetResourceExportResult": {
+			"kind": "Query",
+			"eventSubject": null,
+			"versionMajor": 2,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/kind": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/schemaVersion": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/exportedAt": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/resource": {
+					"type": "object",
+					"required": true
+				},
+				"#/properties/resource/properties/resourceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/ResourceId",
+					"required": true
+				},
+				"#/properties/resource/properties/resourceType": {
+					"type": "string",
+					"enum": ["document", "code", "markdown", "text"],
+					"required": true
+				},
+				"#/properties/resource/properties/name": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/content": {
+					"type": "object",
+					"required": true
+				},
+				"#/properties/content/properties/snapshot": {
+					"type": ["object", "null"],
+					"required": true
+				},
+				"#/properties/content/properties/journalSeq": {
+					"type": "integer",
+					"required": true
+				}
+			}
+		},
+		"ProposeChangeSet": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/resourceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/ResourceId",
+					"required": true
+				},
+				"#/properties/instruction": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/ProposeChangeSetResponse": {
+					"type": "object"
+				},
+				"#/$defs/ProposeChangeSetResponse/properties/changesetId": {
+					"ref": "../../ids/ids.schema.json#/$defs/ChangeSetId",
+					"required": true
+				},
+				"#/$defs/ProposeChangeSetResponse/properties/resourceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/ResourceId",
+					"required": true
+				},
+				"#/$defs/ProposeChangeSetResponse/properties/instruction": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/ProposeChangeSetResponse/properties/operations": {
+					"type": "array",
+					"required": true
+				},
+				"#/$defs/ProposeChangeSetResponse/properties/operations/items": {
+					"type": "object"
+				},
+				"#/$defs/ProposeChangeSetResponse/properties/status": {
+					"type": "string",
+					"enum": ["Proposed"],
+					"required": true
+				}
+			}
+		},
+		"ApplyChangeSet": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/changesetId": {
+					"ref": "../../ids/ids.schema.json#/$defs/ChangeSetId",
+					"required": true
+				},
+				"#/properties/journalSeq": {
+					"type": "integer",
+					"required": true
+				},
+				"#/properties/status": {
+					"type": "string",
+					"enum": ["Applied"],
+					"required": true
+				}
+			}
+		},
+		"SearchComments": {
+			"kind": "Query",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/workspaceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/WorkspaceId",
+					"required": true
+				},
+				"#/properties/query": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/items": {
+					"type": "array",
+					"required": true
+				},
+				"#/properties/items/items": {
+					"type": "object"
+				},
+				"#/properties/items/items/properties/commentId": {
 					"ref": "../../ids/ids.schema.json#/$defs/UserId",
 					"required": true
 				},
-				"#/$defs/ImportResourceResponse/properties/journalSeq": {
+				"#/properties/items/items/properties/threadId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				},
+				"#/properties/items/items/properties/resourceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				},
+				"#/properties/items/items/properties/resourceName": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/items/items/properties/body": {
+					"type": "string",
+					"required": true
+				}
+			}
+		},
+		"SearchSuggestions": {
+			"kind": "Query",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/workspaceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/WorkspaceId",
+					"required": true
+				},
+				"#/properties/prefix": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/suggestions": {
+					"type": "array",
+					"required": true
+				},
+				"#/properties/suggestions/items": {
+					"type": "string"
+				}
+			}
+		},
+		"RotateApiKey": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/label": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/RotateApiKeyResponse": {
+					"type": "object"
+				},
+				"#/$defs/RotateApiKeyResponse/properties/keyId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				},
+				"#/$defs/RotateApiKeyResponse/properties/revokedKeyId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				},
+				"#/$defs/RotateApiKeyResponse/properties/label": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/RotateApiKeyResponse/properties/privateKeyHex": {
+					"type": "string",
+					"required": true
+				}
+			}
+		},
+		"GetPublicResources": {
+			"kind": "Query",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/items": {
+					"type": "array",
+					"required": true
+				},
+				"#/properties/items/items": {
+					"type": "object"
+				},
+				"#/properties/items/items/properties/resourceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				},
+				"#/properties/items/items/properties/resourceType": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/items/items/properties/name": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/items/items/properties/updatedAt": {
+					"type": ["string", "null"],
+					"required": true
+				}
+			}
+		},
+		"GetOpsMetrics": {
+			"kind": "Query",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				}
+			}
+		},
+		"GetApiUsage": {
+			"kind": "Query",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/items": {
+					"type": "array",
+					"required": true
+				},
+				"#/properties/items/items": {
+					"type": "object"
+				},
+				"#/properties/items/items/properties/route": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/items/items/properties/requests": {
 					"type": "integer",
+					"required": true
+				},
+				"#/properties/items/items/properties/limit": {
+					"type": "integer",
+					"required": true
+				}
+			}
+		},
+		"GetPublicNotifications": {
+			"kind": "Query",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/items": {
+					"type": "array",
+					"required": true
+				},
+				"#/properties/items/items": {
+					"type": "object"
+				},
+				"#/properties/items/items/properties/notificationId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				},
+				"#/properties/items/items/properties/kind": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/items/items/properties/payload": {
+					"type": "object",
+					"required": true
+				},
+				"#/properties/items/items/properties/readAt": {
+					"type": ["string", "null"],
+					"required": true
+				}
+			}
+		},
+		"SuggestMembers": {
+			"kind": "Query",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/workspaceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/WorkspaceId",
+					"required": true
+				},
+				"#/properties/suggestions": {
+					"type": "array",
+					"required": true
+				},
+				"#/properties/suggestions/items": {
+					"type": "object"
+				},
+				"#/properties/suggestions/items/properties/accountId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				},
+				"#/properties/suggestions/items/properties/email": {
+					"type": "string",
+					"required": true
+				}
+			}
+		},
+		"ClearSearchHistory": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/cleared": {
+					"type": "integer",
+					"required": true
+				}
+			}
+		},
+		"SearchHistory": {
+			"kind": "Query",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/items": {
+					"type": "array",
+					"required": true
+				},
+				"#/properties/items/items": {
+					"type": "object"
+				},
+				"#/properties/items/items/properties/query": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/items/items/properties/lastUsedAt": {
+					"type": ["string", "null"],
+					"required": true
+				}
+			}
+		},
+		"RegisterWebhook": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/url": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/RegisterWebhookResponse": {
+					"type": "object"
+				},
+				"#/$defs/RegisterWebhookResponse/properties/subscriptionId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				}
+			}
+		},
+		"ListWebhooks": {
+			"kind": "Query",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/workspaceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/WorkspaceId",
+					"required": true
+				},
+				"#/properties/items": {
+					"type": "array",
+					"required": true
+				},
+				"#/properties/items/items": {
+					"type": "object"
+				},
+				"#/properties/items/items/properties/subscriptionId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				},
+				"#/properties/items/items/properties/url": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/items/items/properties/status": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/items/items/properties/createdAt": {
+					"type": ["string", "null"],
+					"required": true
+				}
+			}
+		},
+		"TestWebhook": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/delivered": {
+					"type": "boolean",
+					"required": true
+				},
+				"#/properties/statusCode": {
+					"type": "integer",
+					"required": true
+				}
+			}
+		},
+		"RequeueWebhookDeliveries": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/webhookId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				},
+				"#/$defs/RequeueWebhookDeliveriesResponse": {
+					"type": "object"
+				},
+				"#/$defs/RequeueWebhookDeliveriesResponse/properties/requeued": {
+					"type": "integer",
+					"required": true
+				},
+				"#/$defs/RequeueWebhookDeliveriesResponse/properties/remainingFailed": {
+					"type": "integer",
+					"required": true
+				}
+			}
+		},
+		"RemoveWebhook": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/removed": {
+					"type": "boolean",
 					"required": true
 				}
 			}
@@ -984,6 +1564,9 @@
 					"ref": "../../ids/ids.schema.json#/$defs/UserId",
 					"required": true
 				},
+				"#/properties/items/items/properties/projectId": {
+					"ref": "../../ids/ids.schema.json#/$defs/ProjectId"
+				},
 				"#/properties/items/items/properties/name": {
 					"type": "string",
 					"required": true
@@ -996,23 +1579,26 @@
 				"#/properties/items/items/properties/score": {
 					"type": "number",
 					"required": true
+				},
+				"#/properties/items/items/properties/snippet": {
+					"type": ["string", "null"]
 				}
 			}
 		},
 		"AddComment": {
 			"kind": "Command",
 			"eventSubject": null,
-			"versionMajor": 1,
+			"versionMajor": 2,
 			"shape": {
 				"#": {
 					"type": "object"
 				},
 				"#/properties/resourceId": {
-					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"ref": "../../ids/ids.schema.json#/$defs/ResourceId",
 					"required": true
 				},
 				"#/properties/threadId": {
-					"ref": "../../ids/ids.schema.json#/$defs/WorkspaceId"
+					"ref": "../../ids/ids.schema.json#/$defs/ThreadId"
 				},
 				"#/properties/body": {
 					"type": "string",
@@ -1029,11 +1615,11 @@
 					"type": "object"
 				},
 				"#/$defs/AddCommentResponse/properties/commentId": {
-					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"ref": "../../ids/ids.schema.json#/$defs/CommentId",
 					"required": true
 				},
 				"#/$defs/AddCommentResponse/properties/threadId": {
-					"ref": "../../ids/ids.schema.json#/$defs/WorkspaceId",
+					"ref": "../../ids/ids.schema.json#/$defs/ThreadId",
 					"required": true
 				},
 				"#/$defs/AddCommentResponse/properties/body": {
@@ -1049,13 +1635,13 @@
 		"ListComments": {
 			"kind": "Query",
 			"eventSubject": null,
-			"versionMajor": 1,
+			"versionMajor": 2,
 			"shape": {
 				"#": {
 					"type": "object"
 				},
 				"#/properties/resourceId": {
-					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"ref": "../../ids/ids.schema.json#/$defs/ResourceId",
 					"required": true
 				},
 				"#/properties/items": {
@@ -1066,11 +1652,11 @@
 					"type": "object"
 				},
 				"#/properties/items/items/properties/commentId": {
-					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"ref": "../../ids/ids.schema.json#/$defs/CommentId",
 					"required": true
 				},
 				"#/properties/items/items/properties/threadId": {
-					"ref": "../../ids/ids.schema.json#/$defs/WorkspaceId",
+					"ref": "../../ids/ids.schema.json#/$defs/ThreadId",
 					"required": true
 				},
 				"#/properties/items/items/properties/authorAccountId": {
@@ -1087,6 +1673,79 @@
 				},
 				"#/properties/items/items/properties/createdAt": {
 					"type": "string",
+					"required": true
+				},
+				"#/properties/items/items/properties/status": {
+					"enum": ["Open", "Resolved", "Detached"],
+					"required": true
+				},
+				"#/properties/items/items/properties/createdBy": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				},
+				"#/properties/items/items/properties/resolvedAt": {
+					"type": ["string", "null"],
+					"required": true
+				},
+				"#/properties/items/items/properties/resolvedBy": {
+					"required": true
+				}
+			}
+		},
+		"ResolveCommentThread": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/threadId": {
+					"ref": "../../ids/ids.schema.json#/$defs/ThreadId",
+					"required": true
+				},
+				"#/properties/resourceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/ResourceId",
+					"required": true
+				},
+				"#/properties/status": {
+					"required": true
+				},
+				"#/properties/resolvedAt": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/resolvedBy": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				}
+			}
+		},
+		"ReopenCommentThread": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/threadId": {
+					"ref": "../../ids/ids.schema.json#/$defs/ThreadId",
+					"required": true
+				},
+				"#/properties/resourceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/ResourceId",
+					"required": true
+				},
+				"#/properties/status": {
+					"required": true
+				},
+				"#/properties/resolvedAt": {
+					"type": "null",
+					"required": true
+				},
+				"#/properties/resolvedBy": {
+					"type": "null",
 					"required": true
 				}
 			}
@@ -1127,6 +1786,12 @@
 					"type": "string",
 					"enum": ["Active", "Trashed", "Purging", "Purged"],
 					"required": true
+				},
+				"#/$defs/ListResourcesQueryParameters": {
+					"type": "object"
+				},
+				"#/$defs/ListResourcesQueryParameters/properties/folderId": {
+					"ref": "../../ids/ids.schema.json#/$defs/FolderId"
 				}
 			}
 		},
@@ -1144,6 +1809,9 @@
 				},
 				"#/properties/projectId": {
 					"ref": "../../ids/ids.schema.json#/$defs/WorkspaceId",
+					"required": true
+				},
+				"#/properties/folderId": {
 					"required": true
 				},
 				"#/properties/resourceType": {
@@ -1932,6 +2600,754 @@
 				}
 			}
 		},
+		"CreateWorkspaceInvitation": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/workspaceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/WorkspaceId",
+					"required": true
+				},
+				"#/properties/targetEmail": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/expiresInDays": {
+					"type": "integer"
+				},
+				"#/$defs/CreateWorkspaceInvitationResponse": {
+					"type": "object"
+				},
+				"#/$defs/CreateWorkspaceInvitationResponse/properties/invitationId": {
+					"ref": "../../ids/ids.schema.json#/$defs/InvitationId",
+					"required": true
+				},
+				"#/$defs/CreateWorkspaceInvitationResponse/properties/workspaceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/WorkspaceId",
+					"required": true
+				},
+				"#/$defs/CreateWorkspaceInvitationResponse/properties/targetEmail": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/CreateWorkspaceInvitationResponse/properties/role": {
+					"required": true
+				},
+				"#/$defs/CreateWorkspaceInvitationResponse/properties/state": {
+					"required": true
+				},
+				"#/$defs/CreateWorkspaceInvitationResponse/properties/expiresAt": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/CreateWorkspaceInvitationResponse/properties/createdBy": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				},
+				"#/$defs/CreateWorkspaceInvitationResponse/properties/createdAt": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/CreateWorkspaceInvitationResponse/properties/invitationUrl": {
+					"type": "string",
+					"required": true
+				}
+			}
+		},
+		"ListWorkspaceMembers": {
+			"kind": "Query",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/members": {
+					"type": "array",
+					"required": true
+				},
+				"#/properties/members/items": {
+					"type": "object"
+				},
+				"#/properties/members/items/properties/accountId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				},
+				"#/properties/members/items/properties/email": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/members/items/properties/membershipKind": {
+					"type": "string",
+					"enum": ["Owner", "Member"],
+					"required": true
+				},
+				"#/properties/members/items/properties/createdAt": {
+					"type": "string",
+					"required": true
+				}
+			}
+		},
+		"ListWorkspaceInvitations": {
+			"kind": "Query",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/invitations": {
+					"type": "array",
+					"required": true
+				},
+				"#/properties/invitations/items": {
+					"type": "object"
+				},
+				"#/properties/invitations/items/properties/invitationId": {
+					"ref": "../../ids/ids.schema.json#/$defs/InvitationId",
+					"required": true
+				},
+				"#/properties/invitations/items/properties/workspaceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/WorkspaceId",
+					"required": true
+				},
+				"#/properties/invitations/items/properties/targetEmail": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/invitations/items/properties/role": {
+					"required": true
+				},
+				"#/properties/invitations/items/properties/state": {
+					"type": "string",
+					"enum": ["Pending", "Accepted", "Expired", "Revoked"],
+					"required": true
+				},
+				"#/properties/invitations/items/properties/expiresAt": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/invitations/items/properties/createdBy": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				},
+				"#/properties/invitations/items/properties/createdAt": {
+					"type": "string",
+					"required": true
+				}
+			}
+		},
+		"AcceptWorkspaceInvitation": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/token": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/AcceptWorkspaceInvitationResponse": {
+					"type": "object"
+				},
+				"#/$defs/AcceptWorkspaceInvitationResponse/properties/workspaceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/WorkspaceId",
+					"required": true
+				},
+				"#/$defs/AcceptWorkspaceInvitationResponse/properties/accountId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				},
+				"#/$defs/AcceptWorkspaceInvitationResponse/properties/membershipKind": {
+					"type": "string",
+					"enum": ["Owner", "Member"],
+					"required": true
+				},
+				"#/$defs/AcceptWorkspaceInvitationResponse/properties/email": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/AcceptWorkspaceInvitationResponse/properties/createdAt": {
+					"type": "string",
+					"required": true
+				}
+			}
+		},
+		"RevokeWorkspaceInvitation": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/workspaceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/WorkspaceId",
+					"required": true
+				},
+				"#/properties/invitationId": {
+					"ref": "../../ids/ids.schema.json#/$defs/InvitationId",
+					"required": true
+				},
+				"#/$defs/RevokeWorkspaceInvitationResponse": {
+					"type": "object"
+				},
+				"#/$defs/RevokeWorkspaceInvitationResponse/properties/invitationId": {
+					"ref": "../../ids/ids.schema.json#/$defs/InvitationId",
+					"required": true
+				},
+				"#/$defs/RevokeWorkspaceInvitationResponse/properties/state": {
+					"type": "string",
+					"enum": ["Expired", "Revoked"],
+					"required": true
+				},
+				"#/$defs/RevokeWorkspaceInvitationResponse/properties/expiresAt": {
+					"type": "string",
+					"required": true
+				}
+			}
+		},
+		"RemoveWorkspaceMember": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/workspaceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/WorkspaceId",
+					"required": true
+				},
+				"#/properties/accountId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				},
+				"#/$defs/RemoveWorkspaceMemberResponse": {
+					"type": "object"
+				},
+				"#/$defs/RemoveWorkspaceMemberResponse/properties/removed": {
+					"required": true
+				},
+				"#/$defs/RemoveWorkspaceMemberResponse/properties/workspaceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/WorkspaceId",
+					"required": true
+				},
+				"#/$defs/RemoveWorkspaceMemberResponse/properties/accountId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				}
+			}
+		},
+		"ListProjectMembers": {
+			"kind": "Query",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/members": {
+					"type": "array",
+					"required": true
+				},
+				"#/properties/members/items": {
+					"type": "object"
+				},
+				"#/properties/members/items/properties/projectId": {
+					"ref": "../../ids/ids.schema.json#/$defs/ProjectId",
+					"required": true
+				},
+				"#/properties/members/items/properties/accountId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				},
+				"#/properties/members/items/properties/email": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/members/items/properties/role": {
+					"type": "string",
+					"enum": ["Owner", "Manage", "Edit", "Comment", "Read"],
+					"required": true
+				},
+				"#/properties/members/items/properties/membershipKind": {
+					"type": "string",
+					"enum": ["Owner", "Member"],
+					"required": true
+				},
+				"#/properties/members/items/properties/createdAt": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/members/items/properties/updatedAt": {
+					"type": "string",
+					"required": true
+				}
+			}
+		},
+		"SetProjectMemberRole": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/projectId": {
+					"ref": "../../ids/ids.schema.json#/$defs/ProjectId",
+					"required": true
+				},
+				"#/properties/accountId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				},
+				"#/properties/role": {
+					"type": "string",
+					"enum": ["Owner", "Manage", "Edit", "Comment", "Read"],
+					"required": true
+				},
+				"#/$defs/SetProjectMemberRoleResponse": {
+					"type": "object"
+				},
+				"#/$defs/SetProjectMemberRoleResponse/properties/projectId": {
+					"ref": "../../ids/ids.schema.json#/$defs/ProjectId",
+					"required": true
+				},
+				"#/$defs/SetProjectMemberRoleResponse/properties/accountId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				},
+				"#/$defs/SetProjectMemberRoleResponse/properties/email": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/SetProjectMemberRoleResponse/properties/role": {
+					"type": "string",
+					"enum": ["Owner", "Manage", "Edit", "Comment", "Read"],
+					"required": true
+				},
+				"#/$defs/SetProjectMemberRoleResponse/properties/membershipKind": {
+					"type": "string",
+					"enum": ["Owner", "Member"],
+					"required": true
+				},
+				"#/$defs/SetProjectMemberRoleResponse/properties/createdAt": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/SetProjectMemberRoleResponse/properties/updatedAt": {
+					"type": "string",
+					"required": true
+				}
+			}
+		},
+		"RemoveProjectMember": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/projectId": {
+					"ref": "../../ids/ids.schema.json#/$defs/ProjectId",
+					"required": true
+				},
+				"#/properties/accountId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				},
+				"#/$defs/RemoveProjectMemberResponse": {
+					"type": "object"
+				},
+				"#/$defs/RemoveProjectMemberResponse/properties/removed": {
+					"required": true
+				},
+				"#/$defs/RemoveProjectMemberResponse/properties/projectId": {
+					"ref": "../../ids/ids.schema.json#/$defs/ProjectId",
+					"required": true
+				},
+				"#/$defs/RemoveProjectMemberResponse/properties/accountId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				}
+			}
+		},
+		"ListResourcePermissions": {
+			"kind": "Query",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/permissions": {
+					"type": "array",
+					"required": true
+				},
+				"#/properties/permissions/items": {
+					"type": "object"
+				},
+				"#/properties/permissions/items/properties/resourceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/ResourceId",
+					"required": true
+				},
+				"#/properties/permissions/items/properties/accountId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				},
+				"#/properties/permissions/items/properties/email": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/permissions/items/properties/role": {
+					"type": "string",
+					"enum": ["Owner", "Manage", "Edit", "Comment", "Read"],
+					"required": true
+				},
+				"#/properties/permissions/items/properties/createdAt": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/permissions/items/properties/updatedAt": {
+					"type": "string",
+					"required": true
+				}
+			}
+		},
+		"GetResourceCapabilities": {
+			"kind": "Query",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/resourceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/ResourceId",
+					"required": true
+				},
+				"#/properties/canRead": {
+					"type": "boolean",
+					"required": true
+				},
+				"#/properties/canUpdate": {
+					"type": "boolean",
+					"required": true
+				},
+				"#/properties/canComment": {
+					"type": "boolean",
+					"required": true
+				},
+				"#/properties/canManage": {
+					"type": "boolean",
+					"required": true
+				},
+				"#/properties/canResolveCommentThread": {
+					"type": "boolean",
+					"required": true
+				},
+				"#/properties/canReopenCommentThread": {
+					"type": "boolean",
+					"required": true
+				}
+			}
+		},
+		"SetResourcePermission": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/resourceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/ResourceId",
+					"required": true
+				},
+				"#/properties/accountId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				},
+				"#/properties/role": {
+					"type": "string",
+					"enum": ["Owner", "Manage", "Edit", "Comment", "Read"],
+					"required": true
+				},
+				"#/$defs/SetResourcePermissionResponse": {
+					"type": "object"
+				},
+				"#/$defs/SetResourcePermissionResponse/properties/resourceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/ResourceId",
+					"required": true
+				},
+				"#/$defs/SetResourcePermissionResponse/properties/accountId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				},
+				"#/$defs/SetResourcePermissionResponse/properties/email": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/SetResourcePermissionResponse/properties/role": {
+					"type": "string",
+					"enum": ["Owner", "Manage", "Edit", "Comment", "Read"],
+					"required": true
+				},
+				"#/$defs/SetResourcePermissionResponse/properties/createdAt": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/SetResourcePermissionResponse/properties/updatedAt": {
+					"type": "string",
+					"required": true
+				}
+			}
+		},
+		"RemoveResourcePermission": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/resourceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/ResourceId",
+					"required": true
+				},
+				"#/properties/accountId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				},
+				"#/$defs/RemoveResourcePermissionResponse": {
+					"type": "object"
+				},
+				"#/$defs/RemoveResourcePermissionResponse/properties/removed": {
+					"required": true
+				},
+				"#/$defs/RemoveResourcePermissionResponse/properties/resourceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/ResourceId",
+					"required": true
+				},
+				"#/$defs/RemoveResourcePermissionResponse/properties/accountId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				}
+			}
+		},
+		"CreateResourceShareLink": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/expiresAt": {
+					"required": true
+				},
+				"#/$defs/CreateResourceShareLinkResponse": {
+					"type": "object"
+				},
+				"#/$defs/CreateResourceShareLinkResponse/properties/shareLink": {
+					"ref": "../../queries/permission/list-resource-share-links.schema.json#/$defs/ShareLinkMetadata",
+					"required": true
+				},
+				"#/$defs/CreateResourceShareLinkResponse/properties/shareUrl": {
+					"type": "string",
+					"required": true
+				}
+			}
+		},
+		"ListResourceShareLinks": {
+			"kind": "Query",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/resourceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/ResourceId",
+					"required": true
+				},
+				"#/properties/shareLinks": {
+					"type": "array",
+					"required": true
+				},
+				"#/properties/shareLinks/items": {
+					"ref": "#/$defs/ShareLinkMetadata"
+				},
+				"#/$defs/ShareLinkMetadata": {
+					"type": "object"
+				},
+				"#/$defs/ShareLinkMetadata/properties/shareId": {
+					"ref": "../../ids/ids.schema.json#/$defs/ShareId",
+					"required": true
+				},
+				"#/$defs/ShareLinkMetadata/properties/resourceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/ResourceId",
+					"required": true
+				},
+				"#/$defs/ShareLinkMetadata/properties/capability": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/ShareLinkMetadata/properties/status": {
+					"type": "string",
+					"enum": ["Active", "Revoked", "Expired"],
+					"required": true
+				},
+				"#/$defs/ShareLinkMetadata/properties/expiresAt": {
+					"required": true
+				},
+				"#/$defs/ShareLinkMetadata/properties/createdBy": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				},
+				"#/$defs/ShareLinkMetadata/properties/createdAt": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/ShareLinkMetadata/properties/revokedAt": {
+					"required": true
+				}
+			}
+		},
+		"SetResourceShareLinkExpiry": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/expiresAt": {
+					"required": true
+				},
+				"#/$defs/SetResourceShareLinkExpiryResponse": {
+					"type": "object"
+				},
+				"#/$defs/SetResourceShareLinkExpiryResponse/properties/shareLink": {
+					"ref": "../../queries/permission/list-resource-share-links.schema.json#/$defs/ShareLinkMetadata",
+					"required": true
+				}
+			}
+		},
+		"RevokeResourceShareLink": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/shareLink": {
+					"ref": "../../queries/permission/list-resource-share-links.schema.json#/$defs/ShareLinkMetadata",
+					"required": true
+				}
+			}
+		},
+		"RegenerateResourceShareLink": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/expiresAt": {
+					"required": true
+				},
+				"#/$defs/RegenerateResourceShareLinkResponse": {
+					"type": "object"
+				},
+				"#/$defs/RegenerateResourceShareLinkResponse/properties/shareLink": {
+					"ref": "../../queries/permission/list-resource-share-links.schema.json#/$defs/ShareLinkMetadata",
+					"required": true
+				},
+				"#/$defs/RegenerateResourceShareLinkResponse/properties/shareUrl": {
+					"type": "string",
+					"required": true
+				}
+			}
+		},
+		"OpenPublicSharedResource": {
+			"kind": "Query",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/resourceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/ResourceId",
+					"required": true
+				},
+				"#/properties/name": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/resourceType": {
+					"type": "string",
+					"enum": ["document", "code", "markdown", "text"],
+					"required": true
+				},
+				"#/properties/snapshot": {
+					"type": ["object", "null"],
+					"required": true
+				},
+				"#/properties/journalSeq": {
+					"type": "integer",
+					"required": true
+				}
+			}
+		},
+		"PermissionChanged": {
+			"kind": "Event",
+			"eventSubject": "event.permission.changed.v1",
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/scopeType": {
+					"type": "string",
+					"enum": ["workspace", "project", "resource"],
+					"required": true
+				},
+				"#/properties/scopeId": {
+					"required": true
+				},
+				"#/properties/workspaceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/WorkspaceId",
+					"required": true
+				},
+				"#/properties/accountId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId"
+				},
+				"#/properties/action": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/role": {
+					"type": ["string", "null"],
+					"enum": ["Owner", "Manage", "Edit", "Comment", "Read", "Member", null]
+				},
+				"#/properties/occurredAt": {
+					"type": "string",
+					"required": true
+				}
+			}
+		},
 		"HasSoleWorkspaceOwnership": {
 			"kind": "Query",
 			"eventSubject": null,
@@ -2556,6 +3972,162 @@
 				}
 			}
 		},
+		"AwarenessState": {
+			"kind": "RealtimeFrame",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/cursor": {
+					"required": true
+				},
+				"#/$defs/CursorSelection": {
+					"type": "object"
+				},
+				"#/$defs/CursorSelection/properties/anchor": {
+					"type": "integer",
+					"required": true
+				},
+				"#/$defs/CursorSelection/properties/head": {
+					"type": "integer",
+					"required": true
+				}
+			}
+		},
+		"AwarenessParticipant": {
+			"kind": "RealtimeFrame",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/participantId": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/displayName": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/color": {
+					"type": "string",
+					"required": true
+				}
+			}
+		},
+		"AwarenessEvent": {
+			"kind": "RealtimeFrame",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#/$defs/AwarenessUpdate": {
+					"type": "object"
+				},
+				"#/$defs/AwarenessUpdate/properties/kind": {
+					"required": true
+				},
+				"#/$defs/AwarenessUpdate/properties/participant": {
+					"ref": "./awareness-participant.schema.json",
+					"required": true
+				},
+				"#/$defs/AwarenessUpdate/properties/state": {
+					"ref": "./awareness-state.schema.json",
+					"required": true
+				},
+				"#/$defs/AwarenessRemove": {
+					"type": "object"
+				},
+				"#/$defs/AwarenessRemove/properties/kind": {
+					"required": true
+				},
+				"#/$defs/AwarenessRemove/properties/participantId": {
+					"type": "string",
+					"required": true
+				}
+			}
+		},
+		"RealtimeFrameHeader": {
+			"kind": "RealtimeFrame",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#/$defs/RealtimeFrameHeaderBase": {
+					"type": "object"
+				},
+				"#/$defs/RealtimeFrameHeaderBase/properties/protocolVersion": {
+					"type": "integer",
+					"required": true
+				},
+				"#/$defs/RealtimeFrameHeaderBase/properties/frameType": {
+					"type": "string",
+					"enum": ["Control", "Sync", "Awareness", "System"],
+					"required": true
+				},
+				"#/$defs/RealtimeFrameHeaderBase/properties/messageType": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/RealtimeFrameHeaderBase/properties/payloadKind": {
+					"type": "string",
+					"enum": ["binary", "json"],
+					"required": true
+				},
+				"#/$defs/RealtimeFrameHeaderBase/properties/resourceId": {
+					"ref": "../ids/ids.schema.json#/$defs/ResourceId"
+				},
+				"#/$defs/RealtimeFrameHeaderBase/properties/subscriptionId": {
+					"ref": "../ids/ids.schema.json#/$defs/SubscriptionId"
+				},
+				"#/$defs/RealtimeFrameHeaderBase/properties/requestId": {
+					"ref": "../ids/ids.schema.json#/$defs/RequestId"
+				},
+				"#/$defs/RealtimeFrameHeaderBase/properties/acceptedWatermark": {
+					"type": "integer"
+				},
+				"#/$defs/RealtimeFrameHeaderBase/properties/durableWatermark": {
+					"type": "integer"
+				}
+			}
+		},
+		"RealtimeControlFrame": {
+			"kind": "RealtimeFrame",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/header": {
+					"ref": "./frame-header.schema.json#/$defs/RealtimeControlFrameHeader",
+					"required": true
+				},
+				"#/properties/payload": {
+					"type": "object",
+					"required": true
+				}
+			}
+		},
+		"RealtimeSystemFrame": {
+			"kind": "RealtimeFrame",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/header": {
+					"ref": "./frame-header.schema.json#/$defs/RealtimeSystemFrameHeader",
+					"required": true
+				},
+				"#/properties/payload": {
+					"type": "object",
+					"required": true
+				}
+			}
+		},
 		"ErrorEnvelope": {
 			"kind": "Error",
 			"eventSubject": null,
@@ -2639,6 +4211,9 @@
 				"#/properties/workspaceId": {
 					"ref": "#/$defs/WorkspaceId"
 				},
+				"#/properties/invitationId": {
+					"ref": "#/$defs/InvitationId"
+				},
 				"#/properties/projectId": {
 					"ref": "#/$defs/ProjectId"
 				},
@@ -2647,6 +4222,9 @@
 				},
 				"#/properties/resourceId": {
 					"ref": "#/$defs/ResourceId"
+				},
+				"#/properties/changesetId": {
+					"ref": "#/$defs/ChangeSetId"
 				},
 				"#/properties/nodeId": {
 					"ref": "#/$defs/NodeId"
@@ -2681,6 +4259,9 @@
 				"#/properties/subscriptionId": {
 					"ref": "#/$defs/SubscriptionId"
 				},
+				"#/properties/shareId": {
+					"ref": "#/$defs/ShareId"
+				},
 				"#/properties/deliveryId": {
 					"ref": "#/$defs/DeliveryId"
 				},
@@ -2705,6 +4286,9 @@
 				"#/$defs/WorkspaceId": {
 					"type": "string"
 				},
+				"#/$defs/InvitationId": {
+					"type": "string"
+				},
 				"#/$defs/ProjectId": {
 					"type": "string"
 				},
@@ -2712,6 +4296,9 @@
 					"type": "string"
 				},
 				"#/$defs/ResourceId": {
+					"type": "string"
+				},
+				"#/$defs/ChangeSetId": {
 					"type": "string"
 				},
 				"#/$defs/NodeId": {
@@ -2745,6 +4332,9 @@
 					"type": "string"
 				},
 				"#/$defs/SubscriptionId": {
+					"type": "string"
+				},
+				"#/$defs/ShareId": {
 					"type": "string"
 				},
 				"#/$defs/DeliveryId": {
@@ -2788,6 +4378,251 @@
 						"Expired",
 						"SecurityRevoke"
 					]
+				}
+			}
+		},
+		"UploadAsset": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/resourceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/ResourceId",
+					"required": true
+				},
+				"#/properties/file": {
+					"ref": "#/$defs/UploadAssetBody/properties/file",
+					"required": true
+				},
+				"#/properties/mime": {
+					"ref": "#/$defs/UploadAssetBody/properties/mime"
+				},
+				"#/$defs/UploadAssetBody": {
+					"type": "object"
+				},
+				"#/$defs/UploadAssetBody/properties/file": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/UploadAssetBody/properties/mime": {
+					"type": ["string", "null"]
+				},
+				"#/$defs/UploadAssetResponse": {
+					"type": "object"
+				},
+				"#/$defs/UploadAssetResponse/properties/assetId": {
+					"ref": "../../ids/ids.schema.json#/$defs/AssetId",
+					"required": true
+				},
+				"#/$defs/UploadAssetResponse/properties/sha256": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/UploadAssetResponse/properties/sizeBytes": {
+					"type": "integer",
+					"required": true
+				}
+			}
+		},
+		"DownloadAsset": {
+			"kind": "Query",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "string"
+				}
+			}
+		},
+		"ListResourceAssets": {
+			"kind": "Query",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/resourceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/ResourceId",
+					"required": true
+				},
+				"#/properties/assets": {
+					"type": "array",
+					"required": true
+				},
+				"#/properties/assets/items": {
+					"type": "object"
+				},
+				"#/properties/assets/items/properties/assetId": {
+					"ref": "../../ids/ids.schema.json#/$defs/AssetId",
+					"required": true
+				},
+				"#/properties/assets/items/properties/originalName": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/assets/items/properties/mime": {
+					"type": ["string", "null"],
+					"required": true
+				},
+				"#/properties/assets/items/properties/sizeBytes": {
+					"type": "integer",
+					"required": true
+				},
+				"#/properties/assets/items/properties/sha256": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/assets/items/properties/createdAt": {
+					"type": "string",
+					"required": true
+				}
+			}
+		},
+		"ListTasks": {
+			"kind": "Query",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/tasks": {
+					"type": "array",
+					"required": true
+				},
+				"#/properties/tasks/items": {
+					"ref": "#/$defs/TaskSummary"
+				},
+				"#/properties/limit": {
+					"type": "integer",
+					"required": true
+				},
+				"#/properties/offset": {
+					"type": "integer",
+					"required": true
+				},
+				"#/$defs/TaskSummary": {
+					"type": "object"
+				},
+				"#/$defs/TaskSummary/properties/taskId": {
+					"ref": "../../ids/ids.schema.json#/$defs/TaskId",
+					"required": true
+				},
+				"#/$defs/TaskSummary/properties/taskType": {
+					"type": "string",
+					"required": true
+				},
+				"#/$defs/TaskSummary/properties/state": {
+					"type": "string",
+					"enum": [
+						"Created",
+						"Queued",
+						"Running",
+						"WaitingForUser",
+						"Retrying",
+						"Succeeded",
+						"PartialSucceeded",
+						"Failed",
+						"Cancelled"
+					],
+					"required": true
+				},
+				"#/$defs/TaskSummary/properties/stage": {
+					"type": ["string", "null"],
+					"required": true
+				},
+				"#/$defs/TaskSummary/properties/messageCode": {
+					"type": ["string", "null"],
+					"required": true
+				},
+				"#/$defs/TaskSummary/properties/current": {
+					"type": ["integer", "null"],
+					"required": true
+				},
+				"#/$defs/TaskSummary/properties/total": {
+					"type": ["integer", "null"],
+					"required": true
+				},
+				"#/$defs/TaskSummary/properties/percentage": {
+					"type": ["number", "null"],
+					"required": true
+				},
+				"#/$defs/TaskSummary/properties/updatedAt": {
+					"type": ["string", "null"],
+					"required": true
+				},
+				"#/$defs/TaskSummary/properties/retryCount": {
+					"type": "integer",
+					"required": true
+				},
+				"#/$defs/TaskSummary/properties/retryOfTaskId": {
+					"required": true
+				},
+				"#/$defs/TaskSummary/properties/cancelRequestedAt": {
+					"type": ["string", "null"],
+					"required": true
+				},
+				"#/$defs/TaskSummary/properties/queuedAt": {
+					"type": ["string", "null"],
+					"required": true
+				},
+				"#/$defs/TaskSummary/properties/startedAt": {
+					"type": ["string", "null"],
+					"required": true
+				},
+				"#/$defs/TaskSummary/properties/finishedAt": {
+					"type": ["string", "null"],
+					"required": true
+				},
+				"#/$defs/TaskSummary/properties/failureCode": {
+					"type": ["string", "null"],
+					"required": true
+				}
+			}
+		},
+		"GetTask": {
+			"kind": "Query",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/task": {
+					"ref": "./list-tasks.schema.json#/$defs/TaskSummary",
+					"required": true
+				}
+			}
+		},
+		"CancelTask": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/task": {
+					"ref": "../../queries/tasks/list-tasks.schema.json#/$defs/TaskSummary",
+					"required": true
+				}
+			}
+		},
+		"RetryTask": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/task": {
+					"ref": "../../queries/tasks/list-tasks.schema.json#/$defs/TaskSummary",
+					"required": true
 				}
 			}
 		}

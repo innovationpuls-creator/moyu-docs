@@ -13,7 +13,7 @@ class DeleteComment(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    commentId: UUID = Field(..., title="UserId")
+    commentId: UUID = Field(..., title="CommentId")
     idempotencyKey: UUID = Field(..., title="IdempotencyKey")
 
 
@@ -21,5 +21,5 @@ class DeleteCommentResponse(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    commentId: UUID = Field(..., title="UserId")
+    commentId: UUID = Field(..., title="CommentId")
     deleted: Literal[True]

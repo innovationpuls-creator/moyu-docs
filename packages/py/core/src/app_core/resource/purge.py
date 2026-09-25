@@ -31,6 +31,10 @@ class ResourcePurgeRepository(Protocol):
     async def purge_resource(self, resource_id: UUID) -> bool: ...
 
 
+class ResourcePermissionBindingCleanupPort(Protocol):
+    async def remove_resource_permission_bindings(self, resource_id: UUID) -> None: ...
+
+
 class PurgeResource:
     def __init__(self, purge: ResourcePurgeRepository) -> None:
         self._purge = purge

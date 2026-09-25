@@ -1,0 +1,36 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/importexport/get-resource-export-result.schema.json",
+	"title": "GetResourceExportResultResponse",
+	"description": "FR-IE-001. Export one Resource as a versioned DOM exchange document (metadata + latest snapshot).",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"kind": { "type": "string", "const": "dom.resource.export.v1" },
+		"schemaVersion": { "type": "string", "const": "1.0.0" },
+		"exportedAt": { "type": "string", "format": "date-time" },
+		"resource": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/ResourceId" },
+				"resourceType": {
+					"type": "string",
+					"enum": ["document", "code", "markdown", "text"]
+				},
+				"name": { "type": "string" }
+			},
+			"required": ["resourceId", "resourceType", "name"]
+		},
+		"content": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"snapshot": { "type": ["object", "null"] },
+				"journalSeq": { "type": "integer" }
+			},
+			"required": ["snapshot", "journalSeq"]
+		}
+	},
+	"required": ["kind", "schemaVersion", "exportedAt", "resource", "content"]
+}

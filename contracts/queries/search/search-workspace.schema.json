@@ -15,6 +15,13 @@
 				"additionalProperties": false,
 				"properties": {
 					"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+					"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+					"folderId": {
+						"oneOf": [
+							{ "$ref": "../../ids/ids.schema.json#/$defs/FolderId" },
+							{ "type": "null" }
+						]
+					},
 					"name": { "type": "string" },
 					"resourceType": {
 						"type": "string",

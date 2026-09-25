@@ -62,6 +62,12 @@ export async function verifySession(
 	} catch {
 		return null;
 	}
+	if (
+		typeof payload.account_id !== "string" ||
+		payload.account_id.trim().length === 0
+	) {
+		return null;
+	}
 	if (payload.status !== SESSION_CACHE_STATUS_ACTIVE) {
 		return null;
 	}

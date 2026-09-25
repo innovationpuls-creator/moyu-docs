@@ -18,6 +18,7 @@ from __future__ import annotations
 import os
 from collections.abc import AsyncIterator
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import pytest_asyncio
 from alembic import command
@@ -29,7 +30,19 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 os.environ.setdefault(
     "DATABASE_URL", "postgresql+psycopg://torch@localhost:5432/dom_dev"
 )
-os.environ.setdefault("VALKEY_URL", "redis://localhost:6379/14")
+_configured_valkey_url = os.environ.get("VALKEY_URL", "redis://localhost:6379/14")
+_valkey_url_parts = urlsplit(_configured_valkey_url)
+if not _valkey_url_parts.scheme or not _valkey_url_parts.netloc:
+    raise ValueError("VALKEY_URL must be an absolute Redis URL")
+_valkey_query = [
+    (key, value)
+    for key, value in parse_qsl(_valkey_url_parts.query, keep_blank_values=True)
+    if key.casefold() != "db"
+]
+_valkey_query.append(("db", "14"))
+os.environ["VALKEY_URL"] = urlunsplit(
+    _valkey_url_parts._replace(path="/14", query=urlencode(_valkey_query))
+)
 
 from app_infra.postgres.engine import engine  # noqa: E402
 

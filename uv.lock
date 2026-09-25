@@ -129,6 +129,7 @@ dependencies = [
     { name = "app-contracts" },
     { name = "app-core" },
     { name = "argon2-cffi" },
+    { name = "cryptography" },
     { name = "nats-py" },
     { name = "psycopg", extra = ["binary"] },
     { name = "redis" },
@@ -140,6 +141,7 @@ requires-dist = [
     { name = "app-contracts", editable = "packages/py/contracts" },
     { name = "app-core", editable = "packages/py/core" },
     { name = "argon2-cffi", specifier = ">=23.1.0" },
+    { name = "cryptography", specifier = ">=42.0.0" },
     { name = "nats-py", specifier = ">=2.9.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.1.18" },
     { name = "redis", specifier = ">=5.0.4" },
@@ -1768,11 +1770,15 @@ name = "task-runtime"
 version = "0.1.0"
 source = { editable = "packages/py/task-runtime" }
 dependencies = [
+    { name = "app-core" },
     { name = "opentelemetry-api" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "opentelemetry-api", specifier = ">=1.25.0" }]
+requires-dist = [
+    { name = "app-core", editable = "packages/py/core" },
+    { name = "opentelemetry-api", specifier = ">=1.25.0" },
+]
 
 [[package]]
 name = "typeguard"

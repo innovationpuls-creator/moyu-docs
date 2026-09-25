@@ -1,0 +1,39 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/permission/accept-workspace-invitation.schema.json",
+	"title": "AcceptWorkspaceInvitation",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"token": {
+			"type": "string",
+			"minLength": 32,
+			"maxLength": 256,
+			"x-sensitive": true
+		}
+	},
+	"required": ["token"],
+	"$defs": {
+		"AcceptWorkspaceInvitationResponse": {
+			"title": "AcceptWorkspaceInvitationResponse",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"workspaceId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId"
+				},
+				"accountId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+				"membershipKind": { "type": "string", "enum": ["Owner", "Member"] },
+				"email": { "type": "string" },
+				"createdAt": { "type": "string", "format": "date-time" }
+			},
+			"required": [
+				"workspaceId",
+				"accountId",
+				"membershipKind",
+				"email",
+				"createdAt"
+			]
+		}
+	}
+}

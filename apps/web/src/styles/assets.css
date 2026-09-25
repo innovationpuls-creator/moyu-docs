@@ -1,0 +1,131 @@
+.assets-panel {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 14px;
+}
+
+.assets-panel-heading {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.assets-panel-heading h2 {
+	font-size: 15px;
+	font-weight: 650;
+}
+
+.assets-panel-heading p,
+.assets-panel-empty,
+.asset-list-details span,
+.asset-preview-pending {
+	color: var(--ink-muted);
+	font-size: 11px;
+}
+
+.asset-upload-button,
+.asset-download-button,
+.asset-insert-button,
+.assets-panel-error button {
+	min-height: 32px;
+	padding: 6px 10px;
+	border: 1px solid var(--border-card);
+	border-radius: 9px;
+	background: rgba(255, 255, 255, 0.86);
+	color: var(--ink-primary);
+	font: inherit;
+	font-size: 11px;
+	cursor: pointer;
+}
+
+.asset-actions {
+	display: flex;
+	flex: 0 0 auto;
+	gap: 5px;
+}
+
+.asset-upload-button:disabled {
+	cursor: wait;
+	opacity: 0.65;
+}
+
+.assets-panel-message {
+	color: var(--ink-muted);
+	font-size: 11px;
+}
+
+.assets-panel-error {
+	padding: 12px;
+	border: 1px solid rgba(181, 73, 62, 0.24);
+	border-radius: 10px;
+	background: rgba(181, 73, 62, 0.06);
+	color: var(--ink-primary);
+	font-size: 12px;
+}
+
+.assets-panel-error button {
+	margin-top: 8px;
+}
+
+.asset-list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	list-style: none;
+}
+
+.asset-list-item {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 10px;
+	padding: 10px;
+	border: 1px solid var(--border-card);
+	border-radius: 11px;
+	background: rgba(255, 255, 255, 0.62);
+}
+
+.asset-preview-image {
+	grid-column: 1 / -1;
+	width: 100%;
+	max-height: 210px;
+	border-radius: 8px;
+	background: rgba(24, 39, 46, 0.04);
+	object-fit: contain;
+}
+
+.asset-list-details {
+	display: flex;
+	min-width: 0;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.asset-list-details strong {
+	overflow: hidden;
+	font-size: 12px;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.asset-list-details span {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.editor-rich-body .editor-asset-image {
+	display: block;
+	width: auto;
+	height: auto;
+	max-width: 100%;
+	max-height: 480px;
+	margin: 14px 0;
+}
+
+.editor-rich-body .editor-asset-image.ProseMirror-selectednode {
+	outline: 2px solid var(--accent-coral);
+	outline-offset: 2px;
+}

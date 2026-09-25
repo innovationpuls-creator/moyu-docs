@@ -1,0 +1,26 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/permission/set-resource-share-link-expiry.schema.json",
+	"title": "SetResourceShareLinkExpiry",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"expiresAt": {
+			"anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }]
+		}
+	},
+	"required": ["expiresAt"],
+	"$defs": {
+		"SetResourceShareLinkExpiryResponse": {
+			"title": "SetResourceShareLinkExpiryResponse",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"shareLink": {
+					"$ref": "../../queries/permission/list-resource-share-links.schema.json#/$defs/ShareLinkMetadata"
+				}
+			},
+			"required": ["shareLink"]
+		}
+	}
+}

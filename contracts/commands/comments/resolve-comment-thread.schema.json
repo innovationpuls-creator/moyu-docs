@@ -1,0 +1,16 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/comments/resolve-comment-thread.schema.json",
+	"title": "ResolveCommentThreadResponse",
+	"description": "FR-CMT-005. Result of resolving an open comment thread.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"threadId": { "$ref": "../../ids/ids.schema.json#/$defs/ThreadId" },
+		"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/ResourceId" },
+		"status": { "const": "Resolved" },
+		"resolvedAt": { "type": "string", "format": "date-time" },
+		"resolvedBy": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" }
+	},
+	"required": ["threadId", "resourceId", "status", "resolvedAt", "resolvedBy"]
+}

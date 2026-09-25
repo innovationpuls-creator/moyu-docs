@@ -4,8 +4,8 @@
 1. ``--check`` 通过：生成物与 Contract Registry 一致。
 2. 确定性：两次独立生成的产物逐字节一致。
 3. ``--check`` 只读：不修改工作区。
-4. 注册即生成：五种 kind 都有 Python 与 TypeScript 投影，包含不承载 HTTP Route 的
-   Event 与未路由的 Query。
+4. 注册即生成：六种 kind 都有 Python 与 TypeScript 投影，包含不承载 HTTP Route 的
+   Event / RealtimeFrame 与未路由的 Query。
 5. no-body Contract 不生成占位请求模型。
 6. 生成物带生成器头，且没有同名 schema 派生出的数字后缀类名。
 7. 反向守卫：比对函数必须真的能报出漂移。
@@ -139,7 +139,7 @@ def test_check_mode_does_not_mutate_the_worktree() -> None:
 
 
 def test_generated_python_contracts_cover_every_kind() -> None:
-    """注册即生成：Command / Query / Event / Error / Identity 五类都要有投影。"""
+    """注册即生成：所有 Registry kind 都要有 Python 投影。"""
     # Command
     assert _find_symbol("RegisterWithEmail") is not None
     # Query（GetAccountStatus 无 HTTP Route 依赖，仍必须有投影）
@@ -151,6 +151,17 @@ def test_generated_python_contracts_cover_every_kind() -> None:
     assert _find_symbol("ErrorEnvelope") is not None
     # Identity
     assert _find_symbol("NodeRef") is not None
+    # RealtimeFrame is a non-HTTP transport contract.
+    assert _find_symbol("AwarenessState") is not None
+    assert _find_symbol("AwarenessParticipant") is not None
+    assert _find_symbol("AwarenessEvent") is not None
+    assert _find_symbol("RealtimeFrameHeader") is not None
+    assert _find_symbol("RealtimeControlFrameHeader") is not None
+    assert _find_symbol("RealtimeSyncFrameHeader") is not None
+    assert _find_symbol("RealtimeAwarenessFrameHeader") is not None
+    assert _find_symbol("RealtimeSystemFrameHeader") is not None
+    assert _find_symbol("RealtimeControlFrame") is not None
+    assert _find_symbol("RealtimeSystemFrame") is not None
 
 
 def test_generated_enums_match_canonical_contracts() -> None:
@@ -177,6 +188,22 @@ def test_generated_typescript_contracts_cover_every_kind() -> None:
         "commands/auth/login-with-password-response.d.ts": [
             "LoginWithPasswordResponse"
         ],
+        "realtime/awareness-state.d.ts": ["AwarenessState", "CursorSelection"],
+        "realtime/awareness-participant.d.ts": ["AwarenessParticipant"],
+        "realtime/awareness-event.d.ts": [
+            "AwarenessEvent",
+            "AwarenessUpdate",
+            "AwarenessRemove",
+        ],
+        "realtime/frame-header.d.ts": [
+            "RealtimeFrameHeader",
+            "RealtimeControlFrameHeader",
+            "RealtimeSyncFrameHeader",
+            "RealtimeAwarenessFrameHeader",
+            "RealtimeSystemFrameHeader",
+        ],
+        "realtime/control-frame.d.ts": ["RealtimeControlFrame"],
+        "realtime/system-frame.d.ts": ["RealtimeSystemFrame"],
     }
     for relative, names in expectations.items():
         path = TS_PACKAGE / relative
@@ -186,6 +213,16 @@ def test_generated_typescript_contracts_cover_every_kind() -> None:
             assert re.search(
                 rf"^export (interface|type) {name}\b", text, re.MULTILINE
             ), f"{relative} 缺少导出 {name}"
+
+
+def test_generated_realtime_headers_require_resource_scope_where_applicable() -> None:
+    for name in ("RealtimeSyncFrameHeader", "RealtimeAwarenessFrameHeader"):
+        model = _find_symbol(name)
+        assert model.model_fields["resourceId"].is_required()
+        assert model.model_fields["subscriptionId"].is_required()
+    control = _find_symbol("RealtimeControlFrameHeader")
+    assert not control.model_fields["resourceId"].is_required()
+    assert not control.model_fields["subscriptionId"].is_required()
 
 
 def test_no_body_contracts_have_no_request_model() -> None:

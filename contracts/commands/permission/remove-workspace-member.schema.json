@@ -1,0 +1,27 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/permission/remove-workspace-member.schema.json",
+	"title": "RemoveWorkspaceMember",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"workspaceId": { "$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId" },
+		"accountId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" }
+	},
+	"required": ["workspaceId", "accountId"],
+	"$defs": {
+		"RemoveWorkspaceMemberResponse": {
+			"title": "RemoveWorkspaceMemberResponse",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"removed": { "const": true },
+				"workspaceId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId"
+				},
+				"accountId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" }
+			},
+			"required": ["removed", "workspaceId", "accountId"]
+		}
+	}
+}

@@ -1,0 +1,15 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/history/create-version-restore-task.schema.json",
+	"title": "CreateVersionRestoreTaskResponse",
+	"description": "Accepts a version restore task for a Resource and returns its queryable Task identity.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"taskId": { "$ref": "../../ids/ids.schema.json#/$defs/TaskId" },
+		"task": {
+			"$ref": "../../queries/tasks/list-tasks.schema.json#/$defs/TaskSummary"
+		}
+	},
+	"required": ["taskId", "task"]
+}

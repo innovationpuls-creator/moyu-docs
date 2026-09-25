@@ -217,18 +217,38 @@ async def test_create_and_append_journal_route_chain() -> None:
             assert conflicted.status_code == 409, conflicted.text
             from base64 import b64encode
 
+            journal_idempotency_key = str(uuid4())
+            journal_body = {
+                "resourceId": str(resource_id),
+                "expectedSeq": 1,
+                "update": b64encode(b"edit-1").decode(),
+                "idempotencyKey": journal_idempotency_key,
+            }
             appended = await client.post(
                 f"/v1/resources/{resource_id}/journal",
-                headers={"Idempotency-Key": f"{uuid4()}"},
-                json={
-                    "resourceId": str(resource_id),
-                    "expectedSeq": 1,
-                    "update": b64encode(b"edit-1").decode(),
-                    "idempotencyKey": str(uuid4()),
-                },
+                headers={"Idempotency-Key": journal_idempotency_key},
+                json=journal_body,
             )
             assert appended.status_code == 200, appended.text
             assert appended.json()["journalSeq"] == 1
+            assert appended.json()["acceptedWatermark"] == 1
+            assert appended.json()["durableWatermark"] == 1
+            replayed = await client.post(
+                f"/v1/resources/{resource_id}/journal",
+                headers={"Idempotency-Key": journal_idempotency_key},
+                json=journal_body,
+            )
+            assert replayed.status_code == 200, replayed.text
+            assert replayed.json() == appended.json()
+            stale = await client.post(
+                f"/v1/resources/{resource_id}/journal",
+                headers={"Idempotency-Key": str(uuid4())},
+                json={
+                    **journal_body,
+                    "idempotencyKey": str(uuid4()),
+                },
+            )
+            assert stale.status_code == 409, stale.text
             reopened = await client.get(f"/v1/resources/{resource_id}")
             assert reopened.status_code == 200
     finally:
@@ -240,31 +260,17 @@ async def test_create_and_append_journal_route_chain() -> None:
 async def test_append_publishes_op_to_nats_relay_subject() -> None:
     """Save -> NATS broadcast (rt.broadcast.<id>) with the journal seq."""
     import json
-    import subprocess
     import time
 
-    subprocess.run(
-        ["docker", "rm", "-f", "dom-rt-test"], check=False, capture_output=True
-    )
-    subprocess.run(
-        [
-            "docker",
-            "run",
-            "-d",
-            "--name",
-            "dom-rt-test",
-            "-p",
-            "4222:4222",
-            "nats:2.10-alpine",
-            "-js",
-        ],
-        check=True,
-        capture_output=True,
-    )
     from nats.aio.client import Client as NATS
 
     client = NATS()
-    await client.connect("nats://localhost:4222")
+    try:
+        await client.connect(
+            "nats://localhost:4222", connect_timeout=2, allow_reconnect=False
+        )
+    except Exception as exc:
+        pytest.skip(f"NATS integration service is unavailable: {exc}")
     try:
         received: list[dict] = []
 
@@ -366,9 +372,6 @@ async def test_append_publishes_op_to_nats_relay_subject() -> None:
             await connection.close()
     finally:
         await client.drain()
-        subprocess.run(
-            ["docker", "rm", "-f", "dom-rt-test"], check=False, capture_output=True
-        )
 
 
 @pytest.mark.asyncio
@@ -743,6 +746,10 @@ async def test_comments_api_round_trip() -> None:
             items = listed.json()["items"]
             assert [i["commentId"] for i in items] == [comment_id]
             assert items[0]["body"] == "整体缺异常流程"
+            assert items[0]["status"] == "Open"
+            assert items[0]["createdBy"] == str(account_id)
+            assert items[0]["resolvedAt"] is None
+            assert items[0]["resolvedBy"] is None
         # outsider denied
         app.dependency_overrides[get_current_session] = lambda: SimpleNamespace(
             account_id=outsider
@@ -750,6 +757,9 @@ async def test_comments_api_round_trip() -> None:
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"
         ) as client:
+            comments_denied = await client.get(
+                f"/v1/resources/{resource.resource_id}/comments"
+            )
             denied = await client.post(
                 f"/v1/resources/{resource.resource_id}/comments",
                 headers={"Idempotency-Key": f"{uuid4()}"},
@@ -759,7 +769,159 @@ async def test_comments_api_round_trip() -> None:
                     "idempotencyKey": str(uuid4()),
                 },
             )
+        assert comments_denied.status_code == 403
+        assert comments_denied.json()["errorCode"] == "RESOURCE_PERMISSION_DENIED"
+        assert "items" not in comments_denied.json()
         assert denied.status_code == 403
+    finally:
+        await session.close()
+        await connection.close()
+
+
+@pytest.mark.asyncio
+async def test_comment_thread_identity_is_scoped_to_resource() -> None:
+    """Identical thread IDs on separate Resources have independent state."""
+    from app_core.comments.domain import Comment
+    from app_infra.postgres.comments_repository import PostgresCommentsRepository
+
+    connection = await engine.connect()
+    session = AsyncSession(connection)
+    try:
+        account_id = uuid4()
+        workspace_id = uuid4()
+        project_id = uuid4()
+        async with session.begin():
+            await session.execute(
+                text(
+                    "INSERT INTO auth.accounts "
+                    "(account_id,status,primary_email,normalized_email) "
+                    "VALUES (:a,'Active',:e,:e)"
+                ),
+                {"a": account_id, "e": f"cm-scope-{account_id}@test"},
+            )
+            await session.execute(
+                text(
+                    "INSERT INTO core.workspaces "
+                    "(workspace_id,name,status,created_by,created_at,updated_at) "
+                    "VALUES (:w,'Scope','Active',:a,now(),now())"
+                ),
+                {"w": workspace_id, "a": account_id},
+            )
+            await session.execute(
+                text(
+                    "INSERT INTO core.workspace_members "
+                    "(workspace_id,account_id,membership_kind) "
+                    "VALUES (:w,:a,'Owner')"
+                ),
+                {"w": workspace_id, "a": account_id},
+            )
+            await session.execute(
+                text(
+                    "INSERT INTO core.projects "
+                    "(project_id,workspace_id,name,normalized_name,lifecycle,"
+                    "created_by,created_at,updated_at) "
+                    "VALUES (:p,:w,'Scope','scope','Active',:a,now(),now())"
+                ),
+                {"p": project_id, "w": workspace_id, "a": account_id},
+            )
+            resource_repository = PostgresResourceRepository(session)
+            resource_a = await resource_repository.create(
+                project_id=project_id,
+                resource_type="document",
+                name="A",
+                normalized_name="a",
+            )
+            resource_b = await resource_repository.create(
+                project_id=project_id,
+                resource_type="document",
+                name="B",
+                normalized_name="b",
+            )
+            ownership = PostgresResourceOwnershipRepository(session)
+            await ownership.grant(resource_a.resource_id, account_id)
+            await ownership.grant(resource_b.resource_id, account_id)
+            shared_thread_id = uuid4()
+            comments = PostgresCommentsRepository(session)
+            for resource, body in ((resource_a, "A root"), (resource_b, "B root")):
+                await comments.save(
+                    Comment(
+                        comment_id=uuid4(),
+                        thread_id=shared_thread_id,
+                        resource_id=resource.resource_id,
+                        author_account_id=account_id,
+                        anchor={"type": "ResourceAnchor"},
+                        body=body,
+                    )
+                )
+
+        from api.infra.broadcast import get_broadcast_publisher
+
+        class _StubPublisher:
+            async def publish(self, *_args, **_kwargs):
+                return "stub"
+
+        app: FastAPI = create_app(debug=True)
+        app.dependency_overrides[get_current_session] = lambda: SimpleNamespace(
+            account_id=account_id
+        )
+        app.dependency_overrides[get_broadcast_publisher] = lambda: _StubPublisher()
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            resolved_a = await client.post(
+                f"/v1/resources/{resource_a.resource_id}/comments/threads/"
+                f"{shared_thread_id}/resolve"
+            )
+            assert resolved_a.status_code == 200, resolved_a.text
+            denied_reply_a = await client.post(
+                f"/v1/resources/{resource_a.resource_id}/comments",
+                headers={"Idempotency-Key": str(uuid4())},
+                json={
+                    "resourceId": str(resource_a.resource_id),
+                    "threadId": str(shared_thread_id),
+                    "body": "must remain closed",
+                    "idempotencyKey": str(uuid4()),
+                },
+            )
+            assert denied_reply_a.status_code == 409
+            reply_b = await client.post(
+                f"/v1/resources/{resource_b.resource_id}/comments",
+                headers={"Idempotency-Key": str(uuid4())},
+                json={
+                    "resourceId": str(resource_b.resource_id),
+                    "threadId": str(shared_thread_id),
+                    "body": "B remains open",
+                    "idempotencyKey": str(uuid4()),
+                },
+            )
+            assert reply_b.status_code == 201, reply_b.text
+            listed_a = await client.get(
+                f"/v1/resources/{resource_a.resource_id}/comments"
+            )
+            listed_b = await client.get(
+                f"/v1/resources/{resource_b.resource_id}/comments"
+            )
+            assert {item["status"] for item in listed_a.json()["items"]} == {"Resolved"}
+            assert {item["status"] for item in listed_b.json()["items"]} == {"Open"}
+
+            resolved_b = await client.post(
+                f"/v1/resources/{resource_b.resource_id}/comments/threads/"
+                f"{shared_thread_id}/resolve"
+            )
+            assert resolved_b.status_code == 200, resolved_b.text
+            reopened_a = await client.post(
+                f"/v1/resources/{resource_a.resource_id}/comments/threads/"
+                f"{shared_thread_id}/reopen"
+            )
+            assert reopened_a.status_code == 200, reopened_a.text
+            listed_a = await client.get(
+                f"/v1/resources/{resource_a.resource_id}/comments"
+            )
+            listed_b = await client.get(
+                f"/v1/resources/{resource_b.resource_id}/comments"
+            )
+            assert {item["status"] for item in listed_a.json()["items"]} == {"Open"}
+            assert {item["status"] for item in listed_b.json()["items"]} == {"Resolved"}
     finally:
         await session.close()
         await connection.close()
@@ -1070,12 +1232,10 @@ async def test_export_import_round_trip() -> None:
                     "idempotencyKey": str(uuid4()),
                 },
             )
-            assert imported.status_code == 200, imported.text
-            seq = imported.json()["journalSeq"]
-            assert seq == 2
-            reopened = await client.get(f"/v1/resources/{resource.resource_id}")
-            assert reopened.status_code == 200
-            assert reopened.json()["snapshot"] == {"text": "可导出的内容"}
+            assert imported.status_code == 202, imported.text
+            task_response = imported.json()
+            assert task_response["taskId"]
+            assert task_response["task"]["state"] == "Queued"
         # outsider denied export
         app.dependency_overrides[get_current_session] = lambda: SimpleNamespace(
             account_id=outsider
@@ -1092,8 +1252,7 @@ async def test_export_import_round_trip() -> None:
 
 @pytest.mark.asyncio
 async def test_asset_upload_download_round_trip() -> None:
-    """FR-AS-001: upload stores blob+metadata; download round-trips the bytes."""
-    import base64
+    """FR-AS-001: metadata listing and download round-trip a Resource Asset."""
 
     connection = await engine.connect()
     session = AsyncSession(connection)
@@ -1170,17 +1329,26 @@ async def test_asset_upload_download_round_trip() -> None:
         ) as client:
             uploaded = await client.post(
                 f"/v1/resources/{resource.resource_id}/assets",
-                files={"file": ("a.bin", payload, "application/octet-stream")},
+                files={"file": ("diagram.png", payload, "image/png")},
                 data={"mime": "application/octet-stream"},
             )
             assert uploaded.status_code == 201, uploaded.text
             body = uploaded.json()
             asset_id = body["assetId"]
+            listed = await client.get(f"/v1/resources/{resource.resource_id}/assets")
+            assert listed.status_code == 200
+            assets = listed.json()["assets"]
+            assert len(assets) == 1
+            assert assets[0]["assetId"] == asset_id
+            assert assets[0]["originalName"] == "diagram.png"
+            assert assets[0]["mime"] == "application/octet-stream"
+            assert assets[0]["sizeBytes"] == len(payload)
+            assert assets[0]["sha256"] == body["sha256"]
             downloaded = await client.get(f"/v1/assets/{asset_id}")
             assert downloaded.status_code == 200
-            out = downloaded.json()
-            assert base64.b64decode(out["dataB64"]) == payload
-            assert out["sha256"] == body["sha256"]
+            assert downloaded.content == payload
+            assert "diagram.png" in downloaded.headers["content-disposition"]
+            assert downloaded.headers["x-asset-sha256"] == body["sha256"]
         # outsider denied
         app.dependency_overrides[get_current_session] = lambda: SimpleNamespace(
             account_id=outsider
@@ -1190,6 +1358,13 @@ async def test_asset_upload_download_round_trip() -> None:
         ) as client:
             denied = await client.get(f"/v1/assets/{asset_id}")
         assert denied.status_code == 403
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            denied_list = await client.get(
+                f"/v1/resources/{resource.resource_id}/assets"
+            )
+        assert denied_list.status_code == 403
     finally:
         await session.close()
         await connection.close()
@@ -1570,6 +1745,154 @@ async def test_history_timeline_and_restore_routes() -> None:
             after = await client.get(f"/v1/resources/{resource.resource_id}/history")
             kinds = [i["kind"] for i in after.json()["items"]]
             assert "Restore" in kinds
+    finally:
+        await session.close()
+        await connection.close()
+
+
+@pytest.mark.asyncio
+async def test_version_restore_task_is_idempotent_and_queryable() -> None:
+    """FR-HS-002: enqueue a scoped restore task with an idempotency key."""
+    connection = await engine.connect()
+    session = AsyncSession(connection)
+    try:
+        account_id = uuid4()
+        workspace_id = uuid4()
+        project_id = uuid4()
+        async with session.begin():
+            await session.execute(
+                text(
+                    "INSERT INTO auth.accounts "
+                    "(account_id,status,primary_email,normalized_email) "
+                    "VALUES (:a,'Active',:e,:e)"
+                ),
+                {"a": account_id, "e": f"restore-task-{account_id}@test"},
+            )
+            await session.execute(
+                text(
+                    "INSERT INTO core.workspaces "
+                    "(workspace_id,name,status,created_by,created_at,updated_at) "
+                    "VALUES (:w,'Restore task','Active',:a,now(),now())"
+                ),
+                {"w": workspace_id, "a": account_id},
+            )
+            await session.execute(
+                text(
+                    "INSERT INTO core.workspace_members "
+                    "(workspace_id,account_id,membership_kind) "
+                    "VALUES (:w,:a,'Owner')"
+                ),
+                {"w": workspace_id, "a": account_id},
+            )
+            await session.execute(
+                text(
+                    "INSERT INTO core.projects "
+                    "(project_id,workspace_id,name,normalized_name,lifecycle,"
+                    "created_by,created_at,updated_at) "
+                    "VALUES (:p,:w,'Restore','restore','Active',:a,now(),now())"
+                ),
+                {"p": project_id, "w": workspace_id, "a": account_id},
+            )
+            resource = await PostgresResourceRepository(session).create(
+                project_id=project_id,
+                resource_type="document",
+                name="Restore target",
+                normalized_name="restore-target",
+            )
+            await PostgresResourceOwnershipRepository(session).grant(
+                resource.resource_id, account_id
+            )
+            await PostgresJournalRepository(session).append_op(
+                resource.resource_id, 1, 1, b"op", "h"
+            )
+            await PostgresCheckpointRepository(session).write(
+                resource.resource_id, 1, {"text": "target"}
+            )
+
+        app: FastAPI = create_app(debug=True)
+        app.dependency_overrides[get_current_session] = lambda: SimpleNamespace(
+            account_id=account_id
+        )
+        key = str(uuid4())
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            path = f"/v1/resources/{resource.resource_id}/versions/1/restore-tasks"
+            accepted = await client.post(path, headers={"Idempotency-Key": key})
+            assert accepted.status_code == 202, accepted.text
+            payload = accepted.json()
+            task_id = payload["taskId"]
+            assert payload["task"]["taskId"] == task_id
+            assert payload["task"]["taskType"] == "history.restore"
+            assert payload["task"]["state"] == "Queued"
+
+            replay = await client.post(path, headers={"Idempotency-Key": key})
+            assert replay.status_code == 202, replay.text
+            assert replay.json()["taskId"] == task_id
+
+            conflict = await client.post(
+                f"/v1/resources/{resource.resource_id}/versions/2/restore-tasks",
+                headers={"Idempotency-Key": key},
+            )
+            assert conflict.status_code == 409, conflict.text
+
+            query = await client.get(f"/v1/tasks/{task_id}")
+            assert query.status_code == 200, query.text
+            assert query.json()["task"]["state"] == "Queued"
+
+            from uuid import UUID
+
+            from app_infra.postgres.task.task_repository import PostgresTaskRepository
+            from task_runtime.runtime import HandlerContext
+
+            from workers.maintenance.main import build_registry
+            from workers.maintenance.task_handlers.history_restore import TASK_TYPE
+
+            task_repository = PostgresTaskRepository(session)
+            claim = await task_repository.claim(
+                UUID(task_id), "history-restore-test", 30
+            )
+            assert claim is not None
+            task = await task_repository.get(UUID(task_id))
+            assert task is not None
+            handler = (
+                build_registry(session).resolve(TASK_TYPE, task.schema_version).handler
+            )
+            await handler.execute(
+                HandlerContext(
+                    task,
+                    claim.attempt_id,
+                    claim.execution_epoch,
+                    task_repository,
+                )
+            )
+            await task_repository.finish(
+                task.task_id,
+                claim.attempt_id,
+                claim.execution_epoch,
+                True,
+            )
+            await session.commit()
+
+            completed = await client.get(f"/v1/tasks/{task_id}")
+            assert completed.status_code == 200, completed.text
+            assert completed.json()["task"]["state"] == "Succeeded"
+            timeline = await client.get(f"/v1/resources/{resource.resource_id}/history")
+            assert any(
+                item["kind"] == "Restore" and item["seq"] == 2
+                for item in timeline.json()["items"]
+            )
+
+            app.dependency_overrides[get_current_session] = lambda: SimpleNamespace(
+                account_id=uuid4()
+            )
+            hidden = await client.get(f"/v1/tasks/{task_id}")
+            assert hidden.status_code == 404, hidden.text
+            denied = await client.post(
+                f"/v1/resources/{resource.resource_id}/versions/1/restore-tasks",
+                headers={"Idempotency-Key": str(uuid4())},
+            )
+            assert denied.status_code == 403, denied.text
     finally:
         await session.close()
         await connection.close()

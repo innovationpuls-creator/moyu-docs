@@ -213,6 +213,21 @@ def test_idempotency_header_only_on_required_commands() -> None:
         "EditComment",
         "DeleteComment",
         "CreateNamedVersion",
+        "CreateVersionRestoreTask",
+        "RetryTask",
+        "CreateResourceExportTask",
+        "CreateResourceShareLink",
+        "CreateWorkspaceInvitation",
+        "RegenerateResourceShareLink",
+        "RemoveProjectMember",
+        "RemoveResourcePermission",
+        "RemoveWorkspaceMember",
+        "RevokeResourceShareLink",
+        "RevokeWorkspaceInvitation",
+        "SetProjectMemberRole",
+        "SetResourcePermission",
+        "SetResourceShareLinkExpiry",
+        "UploadAsset",
     }, f"unexpected idempotencyRequirement==required set: {required}"
     doc = _load_openapi()
     for _path, _method, op in _collect_operations():

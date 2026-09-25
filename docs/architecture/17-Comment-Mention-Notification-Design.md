@@ -1493,13 +1493,14 @@ Transactional Outbox
 在线 Resource Subscriber 可以收到：
 
 ```text
-CommentThreadCreated
-CommentCreated
-CommentEdited
-CommentDeleted
+comment.added
+comment.edited
+comment.deleted
 ThreadResolved
 ThreadReopened
 ```
+
+第一条 `comment.added` 同时建立 Thread。上述资源内评论变化通过 Registry 中的 `CommentRealtimeEvent` RealtimeFrame 传递；字段形状以 `contracts/realtime/comment-event.schema.json` 为准。客户端收到事件后重新查询线程，断线时仍可通过 Query 恢复。
 
 这些属于：
 

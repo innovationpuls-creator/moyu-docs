@@ -4,6 +4,7 @@
 		"lib": ["ES2022", "DOM", "DOM.Iterable"],
 		"module": "ESNext",
 		"moduleResolution": "bundler",
+		"jsx": "react-jsx",
 		"strict": true,
 		"noEmit": true,
 		"skipLibCheck": true,
@@ -11,5 +12,12 @@
 		"verbatimModuleSyntax": true,
 		"types": ["vite/client"]
 	},
-	"include": ["src", "tests/e2e", "playwright.config.ts", "vite.config.ts"]
+	"include": [
+		"src",
+		"tests/e2e",
+		"tests/offline",
+		"tests/fixtures",
+		"playwright.config.ts",
+		"vite.config.ts"
+	]
 }

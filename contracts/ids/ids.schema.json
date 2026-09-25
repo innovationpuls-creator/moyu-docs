@@ -2,7 +2,7 @@
 	"$schema": "https://json-schema.org/draft/2020-12/schema",
 	"$id": "https://contracts.dom.internal/ids/ids.schema.json",
 	"title": "IdentityIds",
-	"description": "Canonical ID types plus shared cross-contract value enums (doc 28 §9-§11). The ID types (UserId, WorkspaceId, ProjectId, FolderId, ResourceId, NodeId, TaskId, AttemptId, CommentId, ThreadId, AssetId, EventId, RequestId, OperationId, SessionId, SubscriptionId, DeliveryId, IdempotencyKey, NodeRef) use UUIDv7. The shared value enums AccountStatusValue, SessionStatusValue and SessionReplacementReason are co-located here (doc 27 §52 freezes no directory for shared enums) so their generated class names stay globally unique across the contract tree — one canonical definition, referenced everywhere via $ref. The registry logical name IdentityIds therefore covers both the ID types and these shared value enums. The root is the identity surface manifest: one property per canonical ID type, declared so that every ID type is projected in every target language (doc 28 §42/§46). It is not a transport payload and no field is required.",
+	"description": "Canonical ID types plus shared cross-contract value enums (doc 28 §9-§11). All business IDs, including InvitationId, use UUIDv7. The shared value enums AccountStatusValue, SessionStatusValue and SessionReplacementReason are co-located here (doc 27 §52 freezes no directory for shared enums) so their generated class names stay globally unique across the contract tree — one canonical definition, referenced everywhere via $ref. The registry logical name IdentityIds therefore covers both the ID types and these shared value enums. The root is the identity surface manifest: one property per canonical ID type, declared so that every ID type is projected in every target language (doc 28 §42/§46). It is not a transport payload and no field is required.",
 	"type": "object",
 	"additionalProperties": false,
 	"properties": {
@@ -12,6 +12,9 @@
 		"workspaceId": {
 			"$ref": "#/$defs/WorkspaceId"
 		},
+		"invitationId": {
+			"$ref": "#/$defs/InvitationId"
+		},
 		"projectId": {
 			"$ref": "#/$defs/ProjectId"
 		},
@@ -20,6 +23,9 @@
 		},
 		"resourceId": {
 			"$ref": "#/$defs/ResourceId"
+		},
+		"changesetId": {
+			"$ref": "#/$defs/ChangeSetId"
 		},
 		"nodeId": {
 			"$ref": "#/$defs/NodeId"
@@ -54,6 +60,9 @@
 		"subscriptionId": {
 			"$ref": "#/$defs/SubscriptionId"
 		},
+		"shareId": {
+			"$ref": "#/$defs/ShareId"
+		},
 		"deliveryId": {
 			"$ref": "#/$defs/DeliveryId"
 		},
@@ -86,6 +95,12 @@
 			"x-uuid-version": 7,
 			"title": "WorkspaceId"
 		},
+		"InvitationId": {
+			"type": "string",
+			"format": "uuid",
+			"x-uuid-version": 7,
+			"title": "InvitationId"
+		},
 		"ProjectId": {
 			"type": "string",
 			"format": "uuid",
@@ -103,6 +118,12 @@
 			"format": "uuid",
 			"x-uuid-version": 7,
 			"title": "ResourceId"
+		},
+		"ChangeSetId": {
+			"type": "string",
+			"format": "uuid",
+			"x-uuid-version": 7,
+			"title": "ChangeSetId"
 		},
 		"NodeId": {
 			"type": "string",
@@ -169,6 +190,12 @@
 			"format": "uuid",
 			"x-uuid-version": 7,
 			"title": "SubscriptionId"
+		},
+		"ShareId": {
+			"type": "string",
+			"format": "uuid",
+			"x-uuid-version": 7,
+			"title": "ShareId"
 		},
 		"DeliveryId": {
 			"type": "string",

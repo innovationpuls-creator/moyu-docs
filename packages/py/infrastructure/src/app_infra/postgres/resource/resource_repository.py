@@ -64,15 +64,22 @@ class PostgresResourceRepository:
         )
         return _to_resource(row)
 
-    async def list_by_project(self, project_id: UUID) -> list[Resource]:
+    async def list_by_project(
+        self, project_id: UUID, *, folder_id: UUID | None = None
+    ) -> list[Resource]:
+        folder_filter = "folder_id IS NULL"
+        params: dict[str, UUID] = {"pid": project_id}
+        if folder_id is not None:
+            folder_filter = "folder_id=:folder_id"
+            params["folder_id"] = folder_id
         rows = (
             (
                 await self._session.execute(
                     text(
                         "SELECT * FROM core.resources WHERE project_id=:pid "
-                        "ORDER BY created_at ASC"
+                        f"AND {folder_filter} ORDER BY created_at ASC"
                     ),
-                    {"pid": project_id},
+                    params,
                 )
             )
             .mappings()
@@ -117,6 +124,18 @@ class PostgresResourceRepository:
             .one()
         )
         return _to_resource(row)
+
+    async def folder_belongs_to_project(
+        self, folder_id: UUID, project_id: UUID
+    ) -> bool:
+        row = await self._session.execute(
+            text(
+                "SELECT 1 FROM core.folders "
+                "WHERE folder_id=:folder_id AND project_id=:project_id"
+            ),
+            {"folder_id": folder_id, "project_id": project_id},
+        )
+        return row.scalar_one_or_none() is not None
 
     async def set_lifecycle(self, resource_id: UUID, lifecycle: str) -> Resource | None:
         trashed_at = "now()" if lifecycle == "Trashed" else "NULL"

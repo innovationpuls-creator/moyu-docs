@@ -1,0 +1,25 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/permission/remove-resource-permission.schema.json",
+	"title": "RemoveResourcePermission",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/ResourceId" },
+		"accountId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" }
+	},
+	"required": ["resourceId", "accountId"],
+	"$defs": {
+		"RemoveResourcePermissionResponse": {
+			"title": "RemoveResourcePermissionResponse",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"removed": { "const": true },
+				"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/ResourceId" },
+				"accountId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" }
+			},
+			"required": ["removed", "resourceId", "accountId"]
+		}
+	}
+}

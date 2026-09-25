@@ -20,6 +20,15 @@ class _Context(Protocol):
 
     async def checkpoint(self) -> None: ...
 
+    async def report_progress(
+        self,
+        *,
+        stage: str | None = None,
+        message_code: str | None = None,
+        current: int | None = None,
+        total: int | None = None,
+    ) -> None: ...
+
 
 class _Journal(Protocol):
     async def max_seq(self, resource_id: UUID) -> int: ...
@@ -85,6 +94,9 @@ class ResourceCheckpointHandler:
     async def execute(self, context: _Context) -> None:
         await context.checkpoint()
         resource_id = _resource_id(context)
+        await context.report_progress(
+            stage="checkpointing", message_code="resource.checkpoint.running"
+        )
         base_seq = await self._journal_max(context)
         snapshot = self._materialize(resource_id, base_seq)
         try:
@@ -124,6 +136,9 @@ class ResourceCheckpointHandler:
             {"resourceId": str(resource_id), "baseJournalSeq": saved.base_journal_seq},
             attempt_id=context.attempt_id,
             execution_epoch=context.execution_epoch,
+        )
+        await context.report_progress(
+            stage="completed", message_code="resource.checkpoint.completed"
         )
 
     async def _journal_max(self, context: _Context) -> int:

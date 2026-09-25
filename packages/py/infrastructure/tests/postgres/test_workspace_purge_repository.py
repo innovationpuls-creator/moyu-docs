@@ -30,12 +30,32 @@ class _PermissionCleanupFake(WorkspaceMembershipCleanupPort):
 
     async def remove_workspace_memberships(self, workspace_id) -> None:
         await self._session.execute(
+            text("DELETE FROM core.invitations WHERE workspace_id=:w"),
+            {"w": workspace_id},
+        )
+        await self._session.execute(
+            text(
+                "DELETE FROM core.project_members WHERE project_id IN "
+                "(SELECT project_id FROM core.projects WHERE workspace_id=:w)"
+            ),
+            {"w": workspace_id},
+        )
+        await self._session.execute(
             text("DELETE FROM core.workspace_members WHERE workspace_id=:w"),
             {"w": workspace_id},
         )
 
 
 DATABASE_URL = "postgresql+psycopg://torch@localhost:5432/dom_workspace_lifecycle_test"
+_ACCOUNT_IDS = (
+    "SELECT account_id FROM auth.accounts WHERE primary_email LIKE 'purge-%@test'"
+)
+_WORKSPACE_IDS = (
+    f"SELECT workspace_id FROM core.workspaces WHERE created_by IN ({_ACCOUNT_IDS})"
+)
+_PROJECT_IDS = (
+    f"SELECT project_id FROM core.projects WHERE workspace_id IN ({_WORKSPACE_IDS})"
+)
 
 
 @pytest_asyncio.fixture(scope="module", autouse=True)
@@ -53,17 +73,39 @@ async def clean_tables() -> None:
     try:
         session = AsyncSession(connection)
         async with session.begin():
-            for t in (
-                "core.workspace_members",
-                "core.folders",
-                "core.projects",
-                "core.workspaces",
-            ):
-                await session.execute(text(f"DELETE FROM {t}"))
             await session.execute(
                 text(
-                    "DELETE FROM auth.accounts WHERE primary_email LIKE 'purge-%@test'"
+                    "DELETE FROM core.invitations "
+                    f"WHERE workspace_id IN ({_WORKSPACE_IDS}) OR "
+                    f"project_id IN ({_PROJECT_IDS})"
                 )
+            )
+            await session.execute(
+                text(
+                    "DELETE FROM core.workspace_members "
+                    f"WHERE workspace_id IN ({_WORKSPACE_IDS})"
+                )
+            )
+            await session.execute(
+                text(f"DELETE FROM core.folders WHERE project_id IN ({_PROJECT_IDS})")
+            )
+            await session.execute(
+                text(
+                    "DELETE FROM core.project_members "
+                    f"WHERE project_id IN ({_PROJECT_IDS})"
+                )
+            )
+            await session.execute(
+                text(f"DELETE FROM core.projects WHERE project_id IN ({_PROJECT_IDS})")
+            )
+            await session.execute(
+                text(
+                    "DELETE FROM core.workspaces "
+                    f"WHERE workspace_id IN ({_WORKSPACE_IDS})"
+                )
+            )
+            await session.execute(
+                text(f"DELETE FROM auth.accounts WHERE account_id IN ({_ACCOUNT_IDS})")
             )
         await session.close()
     finally:

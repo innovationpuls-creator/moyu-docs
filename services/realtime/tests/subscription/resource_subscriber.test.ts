@@ -1,17 +1,27 @@
-import { describe, expect, it } from "vitest";
-
+import { describe, expect, it, vi } from "vitest";
 import { MemoryPresenceStore } from "../../src/backlog/presence_store.js";
 import { MemoryYjsBacklogStore } from "../../src/backlog/yjs_backlog_store.js";
+import type { AwarenessEvent } from "../../src/protocol/realtime_frame.js";
 import { ResourceSubscriptionManager } from "../../src/subscription/resource_subscriber.js";
 
 class FakeAuthorizer {
 	allowed = new Set<string>();
+	editable = new Set<string>();
+	updateChecks: string[] = [];
 
 	async authorizeResource(
 		actorId: string,
 		resourceId: string,
 	): Promise<boolean> {
 		return this.allowed.has(`${actorId}:${resourceId}`);
+	}
+
+	async authorizeResourceUpdate(
+		actorId: string,
+		resourceId: string,
+	): Promise<boolean> {
+		this.updateChecks.push(`${actorId}:${resourceId}`);
+		return this.editable.has(`${actorId}:${resourceId}`);
 	}
 }
 
@@ -54,7 +64,7 @@ describe("ResourceSubscriptionManager", () => {
 	});
 
 	it("stops delivery after unsubscribe and cleans up on drop", async () => {
-		const { authorizer, manager, sent } = setup();
+		const { authorizer, manager } = setup();
 		authorizer.allowed.add("actor-a:res-1");
 		await manager.subscribe("c1", "actor-a", "res-1");
 		manager.unsubscribe("c1", "res-1");
@@ -209,4 +219,183 @@ it("persists roster membership across joins and drops", async () => {
 	]);
 	manager.dropConnection("c1");
 	expect(await presence.peers("res-1")).toEqual(["actor-b"]);
+});
+
+it("keeps read subscriptions live but gates every Yjs update before backlog and fan-out", async () => {
+	const authorizer = new FakeAuthorizer();
+	const sent: Array<{ to: string; envelope: unknown }> = [];
+	const backlog = new MemoryYjsBacklogStore();
+	const manager = new ResourceSubscriptionManager(
+		authorizer,
+		{ send: (to, envelope) => sent.push({ to, envelope }) },
+		backlog,
+	);
+	authorizer.allowed.add("session-reader:res-1");
+	authorizer.allowed.add("session-editor:res-1");
+	await manager.subscribe(
+		"reader-connection",
+		"session-reader",
+		"res-1",
+		"sub-reader",
+	);
+	await manager.subscribe(
+		"editor-connection",
+		"session-editor",
+		"res-1",
+		"sub-editor",
+	);
+	sent.length = 0;
+
+	expect(
+		await manager.publishYjsUpdate(
+			"reader-connection",
+			"res-1",
+			"sub-reader",
+			"cmVhZGVyLXVwZGF0ZQ==",
+		),
+	).toBe(false);
+	expect(await backlog.recent("res-1")).toEqual([]);
+	expect(sent.filter((item) => item.to === "editor-connection")).toEqual([]);
+	expect(manager.isSubscribed("reader-connection", "res-1", "sub-reader")).toBe(
+		true,
+	);
+
+	authorizer.editable.add("session-reader:res-1");
+	expect(
+		await manager.publishYjsUpdate(
+			"reader-connection",
+			"res-1",
+			"sub-reader",
+			"cmVhZGVyLW5leHQ=",
+		),
+	).toBe(true);
+	expect(authorizer.updateChecks).toEqual([
+		"session-reader:res-1",
+		"session-reader:res-1",
+	]);
+	expect(await backlog.recent("res-1")).toEqual(["cmVhZGVyLW5leHQ="]);
+	expect(
+		sent.some(
+			(item) =>
+				item.to === "editor-connection" &&
+				(item.envelope as { payload?: { kind?: string } }).payload?.kind ===
+					"yjs",
+		),
+	).toBe(true);
+});
+
+it("publishes authorized cursor state, snapshots peers, throttles, and cleans each tab independently", async () => {
+	vi.useFakeTimers();
+	try {
+		const { authorizer, manager, sent } = setup();
+		authorizer.allowed.add("session-a:res-1");
+		authorizer.allowed.add("session-b:res-1");
+		await manager.subscribe("c1", "session-a", "res-1", "sub-a", {
+			accountId: "account-same",
+		});
+		await manager.subscribe("c2", "session-b", "res-1", "sub-b", {
+			accountId: "account-same",
+		});
+
+		const awarenessMessages = (to: string) =>
+			sent
+				.filter(
+					(item) =>
+						item.to === to &&
+						(item.envelope as { payload?: { kind?: string } }).payload?.kind ===
+							"awareness",
+				)
+				.map(
+					(item) =>
+						(item.envelope as { payload: { event: AwarenessEvent } }).payload
+							.event,
+				);
+		const snapshot = awarenessMessages("c2").find(
+			(event) => event.kind === "update",
+		);
+		expect(snapshot).toMatchObject({
+			kind: "update",
+			participant: {
+				displayName: "协作者-SAME",
+				color: expect.stringMatching(/^#[0-9a-f]{6}$/),
+			},
+		});
+		if (snapshot?.kind !== "update")
+			throw new Error("expected awareness snapshot");
+		const tabAParticipantId = snapshot.participant.participantId;
+		const tabBEvent = awarenessMessages("c1").find(
+			(event) => event.kind === "update",
+		);
+		if (tabBEvent?.kind !== "update")
+			throw new Error("expected second tab presence");
+		expect(tabBEvent.participant.participantId).not.toBe(tabAParticipantId);
+		const tabBParticipantId = tabBEvent.participant.participantId;
+
+		const forgedState = {
+			actorId: "some-other-user",
+			cursor: { anchor: 1, head: 2 },
+		};
+		expect(manager.publishAwareness("c1", "res-1", "sub-a", forgedState)).toBe(
+			false,
+		);
+		expect(
+			manager.publishAwareness("c1", "res-1", "stale-sub", { cursor: null }),
+		).toBe(false);
+		expect(
+			manager.publishAwareness("c1", "res-1", "sub-a", {
+				cursor: { anchor: 4, head: 6 },
+			}),
+		).toBe(true);
+		manager.publishAwareness("c1", "res-1", "sub-a", {
+			cursor: { anchor: 8, head: 10 },
+		});
+		manager.publishAwareness("c1", "res-1", "sub-a", {
+			cursor: { anchor: 11, head: 13 },
+		});
+		await vi.advanceTimersByTimeAsync(80);
+		const latest = awarenessMessages("c2").filter(
+			(event) =>
+				event.kind === "update" &&
+				event.participant.participantId === tabAParticipantId,
+		);
+		expect(latest.at(-1)).toMatchObject({
+			state: { cursor: { anchor: 11, head: 13 } },
+		});
+		authorizer.allowed.add("session-c:res-1");
+		await manager.subscribe("c3", "session-c", "res-1", "sub-c", {
+			accountId: "account-third",
+		});
+		expect(
+			awarenessMessages("c3").find(
+				(event) =>
+					event.kind === "update" &&
+					event.participant.participantId === tabAParticipantId,
+			),
+		).toMatchObject({ state: { cursor: { anchor: 11, head: 13 } } });
+
+		manager.unsubscribe("c1", "res-1", "sub-a");
+		expect(awarenessMessages("c2").at(-1)).toEqual({
+			kind: "remove",
+			participantId: tabAParticipantId,
+		});
+		expect(awarenessMessages("c3").at(-1)).toEqual({
+			kind: "remove",
+			participantId: tabAParticipantId,
+		});
+		expect(manager.isSubscribed("c2", "res-1", "sub-b")).toBe(true);
+		expect(
+			manager.publishAwareness("c2", "res-1", "sub-b", { cursor: null }),
+		).toBe(true);
+		manager.publishAwareness("c2", "res-1", "sub-b", {
+			cursor: { anchor: 2, head: 2 },
+		});
+		manager.dropConnection("c2");
+		await vi.advanceTimersByTimeAsync(80);
+		expect(awarenessMessages("c3").at(-1)).toEqual({
+			kind: "remove",
+			participantId: tabBParticipantId,
+		});
+	} finally {
+		vi.useRealTimers();
+	}
 });

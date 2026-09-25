@@ -123,6 +123,7 @@ from app_core.workspace.application.use_cases import (
     GetWorkspace as GetWorkspaceUseCase,
 )
 from app_infra.postgres.audit.audit_repository import PostgresAuditRepository
+from app_infra.postgres.resource.resource_repository import PostgresResourceRepository
 from app_infra.postgres.workspace_composition import (
     FolderLifecycleUses,
     ProjectLifecycleUses,
@@ -535,8 +536,10 @@ async def get_project_tree(
     project_id: UUID,
     current: Annotated[Session, Depends(get_current_session)],
     use_case: Annotated[GetProjectTree, Depends(get_get_project_tree_use_case)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> GetProjectTreeResponse:
     result = await use_case.execute(current.account_id, project_id)
+    resources = await PostgresResourceRepository(session).list_by_project(project_id)
     return GetProjectTreeResponse(
         workspaceId=result.workspace_id,
         projectId=result.project.project_id,
@@ -553,6 +556,11 @@ async def get_project_tree(
                 hasChildren=any(
                     child.parent_folder_id == folder.folder_id
                     for child in result.folders
+                )
+                or any(
+                    resource.folder_id == folder.folder_id
+                    and resource.lifecycle == "Active"
+                    for resource in resources
                 ),
             )
             for folder in result.folders

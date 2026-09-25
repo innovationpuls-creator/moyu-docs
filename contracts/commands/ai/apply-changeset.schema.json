@@ -1,0 +1,14 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/ai/apply-changeset.schema.json",
+	"title": "ApplyChangeSetResponse",
+	"description": "Apply a previously proposed ChangeSet after explicit user approval.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"changesetId": { "$ref": "../../ids/ids.schema.json#/$defs/ChangeSetId" },
+		"journalSeq": { "type": "integer", "minimum": 1 },
+		"status": { "type": "string", "enum": ["Applied"] }
+	},
+	"required": ["changesetId", "journalSeq", "status"]
+}

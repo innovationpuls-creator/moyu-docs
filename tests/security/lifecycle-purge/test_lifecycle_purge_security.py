@@ -5,9 +5,9 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
+from app_core.operations.task.domain import StaleAttemptError
 from app_core.workspace.application.purge import PurgeWorkspace
 from app_core.workspace.ports.purge import PurgeCandidate, PurgeDisposition
-from task_runtime.domain import StaleAttemptError
 
 from workers.maintenance.task_handlers.lifecycle_purge import (
     LifecyclePurgeHandler,

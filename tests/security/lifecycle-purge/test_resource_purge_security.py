@@ -15,6 +15,9 @@ from alembic.config import Config
 from app_core.operations.task import CreateTask
 from app_core.resource.purge import PurgeResource
 from app_infra.postgres.engine import engine
+from app_infra.postgres.permission_resource_cleanup_repository import (
+    PostgresPermissionResourceCleanupRepository,
+)
 from app_infra.postgres.resource.resource_purge_enqueuer import (
     PostgresResourcePurgeEnqueuer,
 )
@@ -130,9 +133,21 @@ async def test_expired_trashed_resource_is_physically_purged(
     assert enqueued == 1
     async with db_session.begin():
         task_id = await db_session.scalar(
-            text("SELECT task_id FROM work.tasks WHERE task_type='resource.purge'")
+            text(
+                "SELECT task_id FROM work.tasks WHERE task_type='resource.purge' "
+                "AND input_ref=:resource_id ORDER BY created_at DESC LIMIT 1"
+            ),
+            {"resource_id": str(resource_id)},
         )
     assert task_id is not None
+    async with db_session.begin():
+        await db_session.execute(
+            text(
+                "UPDATE work.tasks SET next_attempt_at=now()+interval '1 day' "
+                "WHERE state IN ('Queued','Retrying') AND task_id<>:task_id"
+            ),
+            {"task_id": task_id},
+        )
     effects = SimpleNamespace(record_effect=lambda *a, **k: None)
     audit_rows: list[tuple[str, object]] = []
 
@@ -141,7 +156,11 @@ async def test_expired_trashed_resource_is_physically_purged(
             audit_rows.append((str(kwargs["action"]), kwargs["target_id"]))
 
     handler = ResourcePurgeHandler(
-        PurgeResource(PostgresResourcePurgeRepository(db_session)),
+        PurgeResource(
+            PostgresResourcePurgeRepository(
+                db_session, PostgresPermissionResourceCleanupRepository(db_session)
+            )
+        ),
         effects,
         audit=_Audit(),
     )

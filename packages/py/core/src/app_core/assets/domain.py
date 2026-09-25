@@ -20,3 +20,4 @@ class Asset:
     sha256: str
     created_by: UUID | None
     created_at: datetime | None = None
+    original_name: str = "attachment"

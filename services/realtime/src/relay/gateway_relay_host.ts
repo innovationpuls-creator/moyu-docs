@@ -44,6 +44,8 @@ export class GatewayRelayHost {
 			{
 				authorizeResource: async (actorId, resourceId) =>
 					this.authorize(actorId, resourceId),
+				authorizeResourceUpdate: async (actorId, resourceId) =>
+					this.authorizeUpdate(actorId, resourceId),
 			},
 			{
 				send: (connectionId, envelope) => {
@@ -74,6 +76,38 @@ export class GatewayRelayHost {
 			return response.status === 200;
 		} catch {
 			// Default deny: authorization must never fail open.
+			return false;
+		}
+	}
+
+	/** A subscription proves read access only. Check the Session's current
+	 * canUpdate capability for every body update; positive results are not
+	 * cached, so a permission downgrade blocks the next frame. */
+	private async authorizeUpdate(
+		actorId: string,
+		resourceId: string,
+	): Promise<boolean> {
+		try {
+			const response = await fetch(
+				`${this.options.apiBaseUrl}/v1/resources/${encodeURIComponent(resourceId)}/capabilities`,
+				{
+					headers: { cookie: `dom_session=${actorId}` },
+					signal: AbortSignal.timeout(3_000),
+				},
+			);
+			if (response.status !== 200) return false;
+			const capability = await response.json();
+			return (
+				typeof capability === "object" &&
+				capability !== null &&
+				"resourceId" in capability &&
+				capability.resourceId === resourceId &&
+				"canUpdate" in capability &&
+				capability.canUpdate === true
+			);
+		} catch {
+			// A stale Session, malformed response, timeout, or API failure must
+			// never authorize a Resource update.
 			return false;
 		}
 	}

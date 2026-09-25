@@ -3,8 +3,9 @@
 
 输入 Source 是 `contracts/registry.yaml`：遍历其中注册的每一条 Contract，按其
 `schemaPath` 读取 Canonical JSON Schema。注册即生成，因此 `Command` / `Query` /
-`Event` / `Error` / `Identity` 五种 kind 都有语言投影 —— 包括不承载 HTTP Route 的
-Event。`contracts/openapi/client-api.yaml` 只用于生成 HTTP Client 面类型，不作为
+`Event` / `Error` / `Identity` / `RealtimeFrame` 六种 kind 都有语言投影 —— 包括
+不承载 HTTP Route 的 Event 与 WebSocket RealtimeFrame。
+`contracts/openapi/client-api.yaml` 只用于生成 HTTP Client 面类型，不作为
 “是否生成某条契约”的判据。
 
 ```text

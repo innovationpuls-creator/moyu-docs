@@ -1,0 +1,38 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/permission/list-project-members.schema.json",
+	"title": "ListProjectMembersResponse",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"members": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+					"accountId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+					"email": { "type": "string" },
+					"role": {
+						"type": "string",
+						"enum": ["Owner", "Manage", "Edit", "Comment", "Read"]
+					},
+					"membershipKind": { "type": "string", "enum": ["Owner", "Member"] },
+					"createdAt": { "type": "string", "format": "date-time" },
+					"updatedAt": { "type": "string", "format": "date-time" }
+				},
+				"required": [
+					"projectId",
+					"accountId",
+					"email",
+					"role",
+					"membershipKind",
+					"createdAt",
+					"updatedAt"
+				]
+			}
+		}
+	},
+	"required": ["members"]
+}

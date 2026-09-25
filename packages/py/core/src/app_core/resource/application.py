@@ -1,20 +1,25 @@
 from __future__ import annotations
 
+import hashlib
+import json
+from collections.abc import Awaitable
 from typing import Callable
 from uuid import UUID, uuid4
 
 from app_core.resource.domain import (
     Checkpoint,
-    DuplicateJournalSeqError,
     JournalOp,
+    JournalSequenceConflictError,
     Resource,
     ResourceLifecycle,
     ResourceNameConflictError,
+    ResourceNotFoundError,
     ResourcePermissionDeniedError,
     normalize_resource_name,
 )
 from app_core.resource.ports import (
     CheckpointRepository,
+    JournalIdempotencyPort,
     JournalRepository,
     ReadOnlyResourceOwnershipPort,
     ResourceEventPublisher,
@@ -45,6 +50,12 @@ class CreateResource:
     ) -> Resource:
         if not await self._ownership.authorize(actor_id, project_id, "resource.create"):
             raise ResourcePermissionDeniedError("no resource.create permission")
+        if folder_id is not None:
+            folder_matches = await self._resources.folder_belongs_to_project(
+                folder_id, project_id
+            )
+            if not folder_matches:
+                raise ResourceNotFoundError("folder is not in the project")
         normalized = normalize_resource_name(name)
         if await self._resources.sibling_exists(project_id, normalized):
             raise ResourceNameConflictError(name)
@@ -77,11 +88,13 @@ class AppendJournalOp:
         journal: JournalRepository,
         ownership: ReadOnlyResourceOwnershipPort,
         events: ResourceEventPublisher | None = None,
+        idempotency: JournalIdempotencyPort | None = None,
     ) -> None:
         self._resources = resources
         self._journal = journal
         self._ownership = ownership
         self._events = events
+        self._idempotency = idempotency
 
     async def execute(
         self,
@@ -90,6 +103,8 @@ class AppendJournalOp:
         update_bytes: bytes,
         *,
         ownership_epoch: int,
+        expected_seq: int | None = None,
+        idempotency_key: str | None = None,
     ) -> JournalOp:
         if not await self._ownership.authorize(
             actor_id, resource_id, "resource.update"
@@ -98,24 +113,40 @@ class AppendJournalOp:
         current = await self._resources.get(resource_id)
         if current is None:
             raise LookupError("resource not found")
-        seq = (await self._journal.max_seq(resource_id)) + 1
-        op = JournalOp(
-            resource_id=resource_id,
-            journal_seq=seq,
-            ownership_epoch=ownership_epoch,
-            update_bytes=update_bytes,
-            update_hash=JournalOp.hash_of(update_bytes),
-        )
-        try:
-            saved = await self._journal.append_op(
-                op.resource_id,
-                op.journal_seq,
-                op.ownership_epoch,
-                op.update_bytes,
-                op.update_hash,
+        update_hash = JournalOp.hash_of(update_bytes)
+
+        async def append() -> JournalOp:
+            seq = (await self._journal.max_seq(resource_id)) + 1
+            if expected_seq is not None and expected_seq != seq:
+                raise JournalSequenceConflictError(seq)
+            return await self._journal.append_op(
+                resource_id,
+                seq,
+                ownership_epoch,
+                update_bytes,
+                update_hash,
+                expected_seq=expected_seq,
             )
-        except DuplicateJournalSeqError:
-            raise
+
+        if idempotency_key and self._idempotency is not None:
+            fingerprint = hashlib.sha256(
+                json.dumps(
+                    {
+                        "actorId": str(actor_id),
+                        "resourceId": str(resource_id),
+                        "expectedSeq": expected_seq,
+                        "ownershipEpoch": ownership_epoch,
+                        "updateSha256": update_hash,
+                    },
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode()
+            ).hexdigest()
+            saved = await self._idempotency.execute(
+                f"{actor_id}:{resource_id}:{idempotency_key}", fingerprint, append
+            )
+        else:
+            saved = await append()
         if self._events is not None:
             await self._events.publish(
                 "resource.journal-appended.v1",
@@ -177,9 +208,9 @@ class TrashResource:
         resource_id: UUID,
     ) -> Resource:
         if not await self._ownership.authorize(
-            actor_id, resource_id, "resource.update"
+            actor_id, resource_id, "resource.manage"
         ):
-            raise ResourcePermissionDeniedError("no resource.update permission")
+            raise ResourcePermissionDeniedError("no resource.manage permission")
         current = await self._resources.get(resource_id)
         if current is None:
             raise LookupError("resource not found")
@@ -209,9 +240,9 @@ class RestoreResource:
         resource_id: UUID,
     ) -> Resource:
         if not await self._ownership.authorize(
-            actor_id, resource_id, "resource.update"
+            actor_id, resource_id, "resource.manage"
         ):
-            raise ResourcePermissionDeniedError("no resource.update permission")
+            raise ResourcePermissionDeniedError("no resource.manage permission")
         current = await self._resources.get(resource_id)
         if current is None:
             raise LookupError("resource not found")
@@ -317,6 +348,40 @@ class ReadJournal:
         return await self._journal.read_cursor(resource_id, after_seq, limit=limit)
 
 
+class ReadCurrentResourceContent:
+    """Read the durable projection and journal boundary for a Resource."""
+
+    def __init__(
+        self,
+        resources: ResourceRepository,
+        journal: JournalRepository,
+        checkpoints: CheckpointRepository,
+        ownership: ReadOnlyResourceOwnershipPort,
+    ) -> None:
+        self._resources = resources
+        self._journal = journal
+        self._checkpoints = checkpoints
+        self._ownership = ownership
+
+    async def execute(self, actor_id: UUID, resource_id: UUID) -> dict:
+        if not await self._ownership.authorize(actor_id, resource_id, "resource.read"):
+            raise ResourcePermissionDeniedError("no resource.read permission")
+        resource = await self._resources.get(resource_id)
+        if resource is None or resource.lifecycle != ResourceLifecycle.ACTIVE:
+            raise LookupError("resource not found")
+        checkpoint = await self._checkpoints.latest(resource_id)
+        return {
+            "resourceId": str(resource.resource_id),
+            "name": resource.name,
+            "resourceType": resource.resource_type,
+            "snapshot": checkpoint.snapshot if checkpoint is not None else None,
+            "checkpointJournalSeq": (
+                checkpoint.base_journal_seq if checkpoint is not None else 0
+            ),
+            "journalSeq": await self._journal.max_seq(resource_id),
+        }
+
+
 class CheckpointResource:
     def __init__(
         self,
@@ -366,7 +431,13 @@ class RestoreAtRevision:
         self._checkpoints = checkpoints
         self._apply = apply
 
-    async def execute(self, resource_id: UUID, target_seq: int) -> dict:
+    async def execute(
+        self,
+        resource_id: UUID,
+        target_seq: int,
+        *,
+        on_progress: Callable[[int, int], Awaitable[None]] | None = None,
+    ) -> dict:
         latest = await self._checkpoints.latest(resource_id)
         base_seq = 0
         state: dict = {}
@@ -376,8 +447,12 @@ class RestoreAtRevision:
         ops = await self._journal.read_cursor(
             resource_id, base_seq, limit=target_seq - base_seq + 1
         )
-        for op in ops:
-            if op.journal_seq > target_seq:
-                break
+        replay_ops = [op for op in ops if op.journal_seq <= target_seq]
+        total = len(replay_ops)
+        if on_progress is not None:
+            await on_progress(0, total)
+        for current, op in enumerate(replay_ops, start=1):
             state = self._apply(state, op)
+            if on_progress is not None and (current % 100 == 0 or current == total):
+                await on_progress(current, total)
         return state

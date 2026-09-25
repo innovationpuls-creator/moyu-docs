@@ -1,0 +1,81 @@
+.import-export-panel {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	padding: 14px;
+}
+
+.import-export-heading h2 {
+	color: var(--ink-primary);
+	font-size: 15px;
+	font-weight: 650;
+}
+
+.import-export-heading p,
+.import-export-message,
+.import-export-task small {
+	color: var(--ink-muted);
+	font-size: 11px;
+	line-height: 1.55;
+}
+
+.import-export-actions,
+.import-export-task-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.import-export-actions button,
+.import-export-error button,
+.import-export-task-actions button,
+.history-restore-status button {
+	min-height: 34px;
+	padding: 6px 11px;
+	border: 1px solid var(--border-card);
+	border-radius: 9px;
+	background: rgba(255, 255, 255, 0.88);
+	color: var(--ink-primary);
+	font: inherit;
+	font-size: 11px;
+	cursor: pointer;
+}
+
+.import-export-actions button:disabled {
+	cursor: wait;
+	opacity: 0.62;
+}
+
+.import-export-task,
+.history-restore-status {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 11px;
+	border: 1px solid var(--border-card);
+	border-radius: 10px;
+	background: rgba(255, 255, 255, 0.58);
+	color: var(--ink-secondary);
+	font-size: 11px;
+}
+
+.import-export-error {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	padding: 10px;
+	border: 1px solid rgba(181, 73, 62, 0.24);
+	border-radius: 10px;
+	color: #8a3928;
+	font-size: 11px;
+}
+
+.history-restore-status {
+	margin: 10px 0;
+}
+
+.history-restore-status button {
+	min-height: 30px;
+}

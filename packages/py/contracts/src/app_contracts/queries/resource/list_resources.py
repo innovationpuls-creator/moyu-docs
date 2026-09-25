@@ -28,6 +28,7 @@ class Item(BaseModel):
         extra="forbid",
     )
     resourceId: UUID = Field(..., title="UserId")
+    folderId: UUID | None = None
     name: str
     resourceType: ResourceType
     lifecycle: Lifecycle
@@ -39,3 +40,10 @@ class ListResourcesResponse(BaseModel):
     )
     projectId: UUID = Field(..., title="WorkspaceId")
     items: list[Item]
+
+
+class ListResourcesQueryParameters(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    folderId: UUID | None = Field(None, title="FolderId")

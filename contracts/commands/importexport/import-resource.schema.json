@@ -6,8 +6,10 @@
 	"type": "object",
 	"additionalProperties": false,
 	"properties": {
-		"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
-		"document": { "type": "object" },
+		"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/ResourceId" },
+		"document": {
+			"$ref": "../../queries/importexport/export-resource.schema.json"
+		},
 		"idempotencyKey": {
 			"$ref": "../../ids/ids.schema.json#/$defs/IdempotencyKey"
 		}
@@ -18,10 +20,12 @@
 			"type": "object",
 			"additionalProperties": false,
 			"properties": {
-				"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
-				"journalSeq": { "type": "integer" }
+				"taskId": { "$ref": "../../ids/ids.schema.json#/$defs/TaskId" },
+				"task": {
+					"$ref": "../../queries/tasks/list-tasks.schema.json#/$defs/TaskSummary"
+				}
 			},
-			"required": ["resourceId", "journalSeq"],
+			"required": ["taskId", "task"],
 			"title": "ImportResourceResponse"
 		}
 	}

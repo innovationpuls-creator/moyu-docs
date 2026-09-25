@@ -1,0 +1,39 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/ai/propose-changeset.schema.json",
+	"title": "ProposeChangeSet",
+	"description": "Create a reviewable AI proposal for one resource. Proposing never applies the change.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/ResourceId" },
+		"instruction": { "type": "string", "minLength": 1, "maxLength": 4000 }
+	},
+	"required": ["resourceId", "instruction"],
+	"$defs": {
+		"ProposeChangeSetResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"changesetId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/ChangeSetId"
+				},
+				"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/ResourceId" },
+				"instruction": { "type": "string" },
+				"operations": {
+					"type": "array",
+					"items": { "type": "object", "additionalProperties": true }
+				},
+				"status": { "type": "string", "enum": ["Proposed"] }
+			},
+			"required": [
+				"changesetId",
+				"resourceId",
+				"instruction",
+				"operations",
+				"status"
+			],
+			"title": "ProposeChangeSetResponse"
+		}
+	}
+}

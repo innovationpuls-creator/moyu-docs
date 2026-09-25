@@ -1,0 +1,14 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/tasks/cancel-task.schema.json",
+	"title": "CancelTaskResponse",
+	"description": "Requests cooperative cancellation and returns the accepted task state.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"task": {
+			"$ref": "../../queries/tasks/list-tasks.schema.json#/$defs/TaskSummary"
+		}
+	},
+	"required": ["task"]
+}

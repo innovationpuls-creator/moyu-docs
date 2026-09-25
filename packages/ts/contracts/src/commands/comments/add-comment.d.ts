@@ -4,16 +4,16 @@
  * Do not edit; run `just contract` instead.
  */
 
-export type UserId = string;
-export type WorkspaceId = string;
+export type ResourceId = string;
+export type ThreadId = string;
 export type IdempotencyKey = string;
 
 /**
  * FR-CMT-001. Append one flat-thread comment to a Resource (read access required). Anchor defaults to ResourceAnchor.
  */
 export interface AddComment {
-	resourceId: UserId;
-	threadId?: WorkspaceId;
+	resourceId: ResourceId;
+	threadId?: ThreadId;
 	body: string;
 	anchor?: {};
 	idempotencyKey: IdempotencyKey;

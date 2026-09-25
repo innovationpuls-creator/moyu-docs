@@ -1,0 +1,106 @@
+.invitation-accept-shell {
+	min-height: 100vh;
+	display: grid;
+	place-items: center;
+	padding: 24px;
+	background:
+		radial-gradient(
+			ellipse at 15% 10%,
+			rgba(226, 214, 184, 0.4),
+			transparent 35%
+		),
+		linear-gradient(140deg, #edf1ec, #e4e9e4 48%, #ece8de);
+}
+
+.invitation-accept-card {
+	width: min(440px, 100%);
+	padding: 38px;
+	border: 1px solid rgba(255, 255, 255, 0.88);
+	border-radius: 26px;
+	background: rgba(255, 253, 249, 0.94);
+	box-shadow: 0 28px 70px rgba(40, 58, 59, 0.16);
+	text-align: center;
+}
+
+.invitation-accept-eyebrow {
+	margin: 0 0 23px;
+	color: #77827c;
+	font: 700 10px var(--font-display);
+	letter-spacing: 0.17em;
+}
+
+.invitation-accept-mark {
+	width: 54px;
+	height: 54px;
+	display: grid;
+	place-items: center;
+	margin: 0 auto 20px;
+	border-radius: 18px;
+	background: #eaf0e9;
+	color: #49665b;
+	font-size: 25px;
+}
+
+.invitation-accept-card h1 {
+	margin: 0;
+	color: #263c3d;
+	font: 700 24px var(--font-display);
+}
+
+.invitation-accept-card > p:not(.invitation-accept-eyebrow) {
+	margin: 12px 0 22px;
+	color: #687572;
+	font-size: 13px;
+	line-height: 1.65;
+}
+
+.invitation-accept-primary,
+.invitation-accept-secondary {
+	min-height: 44px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin: 18px 0 0;
+	padding: 0 18px;
+	border: 0;
+	border-radius: 999px;
+	background: #293f3e;
+	color: #fff;
+	font: 600 13px var(--font-display);
+	text-decoration: none;
+	cursor: pointer;
+}
+
+.invitation-accept-secondary {
+	border: 1px solid #cdd5d0;
+	background: transparent;
+	color: #52615e;
+}
+
+.invitation-accept-primary:disabled,
+.invitation-accept-secondary:disabled {
+	opacity: 0.55;
+	cursor: wait;
+}
+
+.invitation-accept-link-button {
+	margin-top: 17px;
+	padding: 6px;
+	border: 0;
+	background: transparent;
+	color: #6c7873;
+	font: 600 11px var(--font-display);
+	cursor: pointer;
+}
+
+.invitation-accept-shell .invitation-accept-card > p.invitation-accept-error {
+	margin: 15px 0 0;
+	color: #9d4e43;
+	font-size: 12px;
+}
+
+@media (max-width: 480px) {
+	.invitation-accept-card {
+		padding: 30px 22px;
+	}
+}

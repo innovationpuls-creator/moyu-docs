@@ -3,27 +3,38 @@
 
 from __future__ import annotations
 
+from enum import Enum
 from typing import Any
 from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 
+class Status(Enum):
+    Open = "Open"
+    Resolved = "Resolved"
+    Detached = "Detached"
+
+
 class Item(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    commentId: UUID = Field(..., title="UserId")
-    threadId: UUID = Field(..., title="WorkspaceId")
+    commentId: UUID = Field(..., title="CommentId")
+    threadId: UUID = Field(..., title="ThreadId")
     authorAccountId: UUID = Field(..., title="UserId")
     body: str
     anchor: dict[str, Any]
     createdAt: AwareDatetime
+    status: Status
+    createdBy: UUID = Field(..., title="UserId")
+    resolvedAt: AwareDatetime | None
+    resolvedBy: UUID | None
 
 
 class ListCommentsResponse(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    resourceId: UUID = Field(..., title="UserId")
+    resourceId: UUID = Field(..., title="ResourceId")
     items: list[Item]

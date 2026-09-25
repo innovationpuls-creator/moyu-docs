@@ -1,0 +1,56 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/permission/list-workspace-invitations.schema.json",
+	"title": "ListWorkspaceInvitationsResponse",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"invitations": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"invitationId": {
+						"$ref": "../../ids/ids.schema.json#/$defs/InvitationId"
+					},
+					"workspaceId": {
+						"$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId"
+					},
+					"targetEmail": { "type": "string", "format": "email" },
+					"targetAccountId": {
+						"anyOf": [
+							{ "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+							{ "type": "null" }
+						]
+					},
+					"role": { "const": "Member" },
+					"state": {
+						"type": "string",
+						"enum": ["Pending", "Accepted", "Expired", "Revoked"]
+					},
+					"expiresAt": { "type": "string", "format": "date-time" },
+					"createdBy": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+					"createdAt": { "type": "string", "format": "date-time" },
+					"acceptedAt": {
+						"anyOf": [
+							{ "type": "string", "format": "date-time" },
+							{ "type": "null" }
+						]
+					}
+				},
+				"required": [
+					"invitationId",
+					"workspaceId",
+					"targetEmail",
+					"role",
+					"state",
+					"expiresAt",
+					"createdBy",
+					"createdAt"
+				]
+			}
+		}
+	},
+	"required": ["invitations"]
+}

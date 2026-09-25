@@ -1,0 +1,42 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/permission/set-resource-permission.schema.json",
+	"title": "SetResourcePermission",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/ResourceId" },
+		"accountId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+		"role": {
+			"type": "string",
+			"enum": ["Owner", "Manage", "Edit", "Comment", "Read"]
+		}
+	},
+	"required": ["resourceId", "accountId", "role"],
+	"$defs": {
+		"SetResourcePermissionResponse": {
+			"title": "SetResourcePermissionResponse",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/ResourceId" },
+				"accountId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+				"email": { "type": "string" },
+				"role": {
+					"type": "string",
+					"enum": ["Owner", "Manage", "Edit", "Comment", "Read"]
+				},
+				"createdAt": { "type": "string", "format": "date-time" },
+				"updatedAt": { "type": "string", "format": "date-time" }
+			},
+			"required": [
+				"resourceId",
+				"accountId",
+				"email",
+				"role",
+				"createdAt",
+				"updatedAt"
+			]
+		}
+	}
+}

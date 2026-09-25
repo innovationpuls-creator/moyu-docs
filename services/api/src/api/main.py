@@ -38,6 +38,7 @@ from api.routes.integrations import router as integrations_router
 from api.routes.member_suggestions import router as member_suggestions_router
 from api.routes.notifications import router as notifications_router
 from api.routes.ops import router as ops_router
+from api.routes.permissions import router as permissions_router
 from api.routes.project_listing import router as project_listing_router
 from api.routes.public_api import router as public_api_router
 from api.routes.resource_diff import router as resource_diff_router
@@ -45,6 +46,8 @@ from api.routes.resource_listing import router as resource_listing_router
 from api.routes.resource_open import router as resource_open_router
 from api.routes.resource_write import router as resource_write_router
 from api.routes.search import router as search_router
+from api.routes.share_links import router as share_links_router
+from api.routes.tasks import router as tasks_router
 from api.routes.webhooks import router as webhooks_router
 from api.routes.workspace import router as workspace_router
 from api.routes.workspace_listing import router as workspace_listing_router
@@ -110,6 +113,7 @@ def create_app(
     app.include_router(workspace_listing_router, prefix="/v1")
     app.include_router(resource_open_router, prefix="/v1")
     app.include_router(resource_write_router, prefix="/v1")
+    app.include_router(share_links_router, prefix="/v1")
     app.include_router(diagnostics_router, prefix="/v1")
     app.include_router(comments_router, prefix="/v1")
     app.include_router(member_suggestions_router, prefix="/v1")
@@ -117,11 +121,13 @@ def create_app(
     app.include_router(webhooks_router, prefix="/v1")
     app.include_router(importexport_router, prefix="/v1")
     app.include_router(assets_router, prefix="/v1")
+    app.include_router(tasks_router, prefix="/v1")
     app.include_router(ai_changesets_router, prefix="/v1")
     app.include_router(integrations_router, prefix="/v1")
     app.include_router(history_router, prefix="/v1")
     app.include_router(notifications_router, prefix="/v1")
     app.include_router(ops_router, prefix="/v1")
+    app.include_router(permissions_router, prefix="/v1")
     app.include_router(public_api_router, prefix="/v1")
     app.include_router(resource_diff_router, prefix="/v1")
     app.include_router(project_listing_router, prefix="/v1")

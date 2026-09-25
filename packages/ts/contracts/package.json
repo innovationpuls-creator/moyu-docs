@@ -30,6 +30,7 @@
 		"./commands/auth/verify-email": "./src/commands/auth/verify-email.d.ts",
 		"./commands/auth/verify-email-response": "./src/commands/auth/verify-email-response.d.ts",
 		"./commands/auth/cancel-account-deletion": "./src/commands/auth/cancel-account-deletion.d.ts",
+		"./realtime/*": "./src/realtime/*.d.ts",
 		"./queries/auth/get-account-status": "./src/queries/auth/get-account-status.d.ts",
 		"./queries/auth/get-current-account": "./src/queries/auth/get-current-account.d.ts",
 		"./queries/auth/get-current-session": "./src/queries/auth/get-current-session.d.ts",

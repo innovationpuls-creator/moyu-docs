@@ -4,12 +4,12 @@
  * Do not edit; run `just contract` instead.
  */
 
-export type UserId = string;
-export type WorkspaceId = string;
+export type CommentId = string;
+export type ThreadId = string;
 
 export interface AddCommentResponse {
-	commentId: UserId;
-	threadId: WorkspaceId;
+	commentId: CommentId;
+	threadId: ThreadId;
 	body: string;
 	createdAt: string;
 }

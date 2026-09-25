@@ -13,3 +13,13 @@ The module owns writes to Permission membership state only. Repository operation
 Workspace Owner inherits Project `Manage` within the same Workspace at authorization evaluation time. Transfer keeps the previous Owner as a Member and does not mutate independent Project memberships.
 
 Unit tests: `packages/py/core/tests/permission/test_workspace_ownership.py`.
+
+## Share Links
+
+`ShareLinkAdministration` owns Resource Share Link creation, listing, status, expiry, revocation, regeneration, and anonymous token resolution. Owner and Manage authorization is enforced by the repository against the Resource's current Workspace, Project, and Resource permissions.
+
+Anonymous grants are limited to Resource Content Read. They do not grant write, comment, or realtime presence capabilities. Expiry is evaluated during resolution and status reads; revocation is persisted and immediately denies resolution.
+
+Share tokens are generated in the application layer and only their SHA-256 hashes are written to `core.share_links`. The relative URL is returned only from an authorized create/regenerate result; idempotent replay material is encrypted at rest with AES-GCM. List, status, and audit results do not contain the token or URL.
+
+Focused tests: `packages/py/core/tests/permission/test_share_links.py` and `packages/py/infrastructure/tests/postgres/test_share_link_repository.py`.

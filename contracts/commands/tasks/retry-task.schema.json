@@ -1,0 +1,14 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/tasks/retry-task.schema.json",
+	"title": "RetryTaskResponse",
+	"description": "Creates a fresh task that retries a terminal task and returns the new task state.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"task": {
+			"$ref": "../../queries/tasks/list-tasks.schema.json#/$defs/TaskSummary"
+		}
+	},
+	"required": ["task"]
+}

@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import os
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
 from alembic import command
 from alembic.config import Config
+from app_core.operations.task.domain import Task
 from app_infra.postgres.engine import engine
 from app_infra.postgres.task.diagnostics import (
     FailedTaskDiagnostic,
@@ -18,9 +21,10 @@ from app_infra.postgres.task.task_repository import PostgresTaskRepository
 from app_infra.postgres.test_database_guard import require_isolated_database
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from task_runtime.domain import Task
 
 DATABASE_URL = "postgresql+psycopg://torch@localhost:5432/dom_workspace_lifecycle_test"
+_TASK_TYPE_PREFIX = f"test.task.events.{uuid4().hex}."
+_TASK_TYPE_PATTERN = f"{_TASK_TYPE_PREFIX}%"
 
 
 @pytest_asyncio.fixture(scope="module", autouse=True)
@@ -32,23 +36,47 @@ async def migrated_database() -> None:
     command.upgrade(config, "head")
 
 
-@pytest_asyncio.fixture(autouse=True)
-async def clean_work_tables() -> None:
+async def _clear_test_tasks() -> None:
     connection = await engine.connect()
     try:
         session = AsyncSession(connection)
         async with session.begin():
-            await session.execute(text("DELETE FROM integration.outbox_events"))
-            await session.execute(text("DELETE FROM work.task_effects"))
-            await session.execute(text("DELETE FROM work.task_attempts"))
-            await session.execute(text("DELETE FROM work.tasks"))
+            task_ids = "SELECT task_id FROM work.tasks WHERE task_type LIKE :prefix"
+            params = {"prefix": _TASK_TYPE_PATTERN}
+            await session.execute(
+                text(
+                    "DELETE FROM integration.outbox_events WHERE aggregate_id IN ("
+                    f"{task_ids})"
+                ),
+                params,
+            )
+            await session.execute(
+                text(f"DELETE FROM work.task_effects WHERE task_id IN ({task_ids})"),
+                params,
+            )
+            await session.execute(
+                text(f"DELETE FROM work.task_attempts WHERE task_id IN ({task_ids})"),
+                params,
+            )
+            await session.execute(
+                text("DELETE FROM work.tasks WHERE task_type LIKE :prefix"), params
+            )
         await session.close()
     finally:
         await connection.close()
 
 
+@pytest_asyncio.fixture(autouse=True)
+async def clean_work_tables() -> AsyncIterator[None]:
+    await _clear_test_tasks()
+    try:
+        yield
+    finally:
+        await _clear_test_tasks()
+
+
 async def _create(session: AsyncSession, repo: PostgresTaskRepository) -> Task:
-    task = Task.create("demo")
+    task = Task.create(f"{_TASK_TYPE_PREFIX}demo")
     task.queue()  # Created -> Queued so claim can pick it up
     await repo.create(task)
     return task
@@ -129,7 +157,13 @@ async def test_success_cancel_and_retry_event_sequences() -> None:
             t1 = await _create(session, repo)
             c1 = await repo.claim(t1.task_id, "w", 60)
             assert c1 is not None
-            await repo.finish(t1.task_id, c1.attempt_id, c1.execution_epoch, True)
+            await repo.finish(
+                t1.task_id,
+                c1.attempt_id,
+                c1.execution_epoch,
+                True,
+                failure_code=None,
+            )
             # cooperatively cancelled while Running
             t2 = await _create(session, repo)
             c2 = await repo.claim(t2.task_id, "w", 60)
@@ -175,11 +209,16 @@ async def test_diagnostics_links_failed_task_with_outbox_event() -> None:
             claim2 = await repo.claim(task.task_id, "w2", 60)
             assert claim2 is not None
             await repo.finish(
-                task.task_id, claim2.attempt_id, claim2.execution_epoch, False
+                task.task_id,
+                claim2.attempt_id,
+                claim2.execution_epoch,
+                False,
+                failure_code="RETRY_EXHAUSTED",
             )
         async with session.begin():
             result = await diagnostics.failed_at_maturity()
-        assert any(getattr(r, "task_id", None) == task.task_id for r in result)
+        diagnostic = next(r for r in result if r.task_id == task.task_id)
+        assert diagnostic.failure_code == "RETRY_EXHAUSTED"
     finally:
         await session.close()
         await connection.close()
