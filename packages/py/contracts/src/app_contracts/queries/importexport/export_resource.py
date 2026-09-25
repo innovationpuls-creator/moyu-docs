@@ -29,7 +29,7 @@ class Resource(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    resourceId: UUID = Field(..., title="UserId")
+    resourceId: UUID = Field(..., title="ResourceId")
     resourceType: ResourceType
     name: str
 

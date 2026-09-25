@@ -1,0 +1,14 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/realtime/awareness-participant.schema.json",
+	"title": "AwarenessParticipant",
+	"description": "Server-owned identity and presentation metadata attached to an Awareness update.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"participantId": { "type": "string", "minLength": 1 },
+		"displayName": { "type": "string", "minLength": 1 },
+		"color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+	},
+	"required": ["participantId", "displayName", "color"]
+}

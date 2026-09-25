@@ -24,6 +24,15 @@ class _Context(Protocol):
 
     async def checkpoint(self) -> None: ...
 
+    async def report_progress(
+        self,
+        *,
+        stage: str | None = None,
+        message_code: str | None = None,
+        current: int | None = None,
+        total: int | None = None,
+    ) -> None: ...
+
 
 class _Effects(Protocol):
     async def record_effect(self, *args: object, **kwargs: object) -> object: ...
@@ -54,6 +63,9 @@ class ResourcePurgeHandler:
     async def execute(self, context: _Context) -> None:
         await context.checkpoint()
         resource_id = _resource_id(context)
+        await context.report_progress(
+            stage="purging", message_code="resource.purge.running"
+        )
         try:
             purged = await self._purge.execute(resource_id)
         except RetryablePurgeError as exc:
@@ -76,6 +88,9 @@ class ResourcePurgeHandler:
             {"resourceId": str(resource_id), "purged": purged},
             attempt_id=context.attempt_id,
             execution_epoch=context.execution_epoch,
+        )
+        await context.report_progress(
+            stage="completed", message_code="resource.purge.completed"
         )
 
 

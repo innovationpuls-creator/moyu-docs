@@ -1,0 +1,68 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/events/task/task-progress-updated.schema.json",
+	"title": "TaskProgressUpdated",
+	"description": "A task progress snapshot under the current authoritative attempt fence.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"eventId": { "$ref": "../../ids/ids.schema.json#/$defs/EventId" },
+		"eventType": { "const": "TaskProgressUpdated" },
+		"schemaVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+		"occurredAt": { "type": "string", "format": "date-time" },
+		"producer": { "type": "string", "minLength": 1 },
+		"payload": { "$ref": "#/$defs/TaskProgressUpdatedPayload" }
+	},
+	"required": [
+		"eventId",
+		"eventType",
+		"schemaVersion",
+		"occurredAt",
+		"producer",
+		"payload"
+	],
+	"$defs": {
+		"TaskProgressUpdatedPayload": {
+			"title": "TaskProgressUpdatedPayload",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"taskId": { "$ref": "../../ids/ids.schema.json#/$defs/TaskId" },
+				"taskType": { "type": "string", "minLength": 1 },
+				"state": {
+					"type": "string",
+					"enum": [
+						"Created",
+						"Queued",
+						"Running",
+						"WaitingForUser",
+						"Retrying",
+						"Succeeded",
+						"PartialSucceeded",
+						"Failed",
+						"Cancelled"
+					]
+				},
+				"stage": { "type": ["string", "null"] },
+				"messageCode": { "type": ["string", "null"] },
+				"current": { "type": ["integer", "null"], "minimum": 0 },
+				"total": { "type": ["integer", "null"], "minimum": 0 },
+				"percentage": {
+					"type": ["number", "null"],
+					"minimum": 0,
+					"maximum": 100
+				}
+			},
+			"required": [
+				"taskId",
+				"taskType",
+				"state",
+				"stage",
+				"messageCode",
+				"current",
+				"total",
+				"percentage"
+			]
+		}
+	}
+}

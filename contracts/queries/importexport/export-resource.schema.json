@@ -13,7 +13,7 @@
 			"type": "object",
 			"additionalProperties": false,
 			"properties": {
-				"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+				"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/ResourceId" },
 				"resourceType": {
 					"type": "string",
 					"enum": ["document", "code", "markdown", "text"]

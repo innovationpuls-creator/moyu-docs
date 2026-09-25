@@ -6,23 +6,32 @@
 	"type": "object",
 	"additionalProperties": false,
 	"properties": {
-		"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+		"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/ResourceId" },
 		"items": {
 			"type": "array",
 			"items": {
 				"type": "object",
 				"additionalProperties": false,
 				"properties": {
-					"commentId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+					"commentId": { "$ref": "../../ids/ids.schema.json#/$defs/CommentId" },
 					"threadId": {
-						"$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId"
+						"$ref": "../../ids/ids.schema.json#/$defs/ThreadId"
 					},
 					"authorAccountId": {
 						"$ref": "../../ids/ids.schema.json#/$defs/UserId"
 					},
 					"body": { "type": "string" },
 					"anchor": { "type": "object" },
-					"createdAt": { "type": "string", "format": "date-time" }
+					"createdAt": { "type": "string", "format": "date-time" },
+					"status": { "enum": ["Open", "Resolved", "Detached"] },
+					"createdBy": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+					"resolvedAt": { "type": ["string", "null"], "format": "date-time" },
+					"resolvedBy": {
+						"oneOf": [
+							{ "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+							{ "type": "null" }
+						]
+					}
 				},
 				"required": [
 					"commentId",
@@ -30,7 +39,11 @@
 					"authorAccountId",
 					"body",
 					"anchor",
-					"createdAt"
+					"createdAt",
+					"status",
+					"createdBy",
+					"resolvedAt",
+					"resolvedBy"
 				]
 			}
 		}

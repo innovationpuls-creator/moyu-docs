@@ -5,9 +5,9 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
+from app_core.operations.task.domain import StaleAttemptError
 from app_core.workspace.application.purge import PurgeWorkspace
 from app_core.workspace.ports.purge import PurgeCandidate, PurgeDisposition
-from task_runtime.domain import StaleAttemptError
 
 from workers.maintenance.task_handlers.lifecycle_purge import (
     LifecyclePurgeHandler,
@@ -63,6 +63,16 @@ class Context(_Context):
             from task_runtime.runtime import CancellationRequested
 
             raise CancellationRequested
+
+    async def report_progress(
+        self,
+        *,
+        stage: str | None = None,
+        message_code: str | None = None,
+        current: int | None = None,
+        total: int | None = None,
+    ) -> None:
+        return None
 
 
 @pytest.mark.asyncio

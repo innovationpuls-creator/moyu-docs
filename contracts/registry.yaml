@@ -5,8 +5,9 @@
 # 引用某条 Contract 作为判据（doc 28 §2.1）。因此任何 kind 的 Contract 都必然
 # 存在正式投影，包括不承载 HTTP Route 的 Event。
 #
-# kind 取值：Command / Query / Event / Error / Identity。Error 与 Identity 与其余
-# 三类同级 —— 错误信封与 Canonical ID 类型同样是跨模块机器契约。
+# kind 取值：Command / Query / Event / Error / Identity / RealtimeFrame。RealtimeFrame
+# 是 doc 28 §6 / Part L 为 WebSocket frame 定义的非 HTTP 契约种类。
+# Error 与 Identity 与其余业务种类同级 —— 错误信封与 Canonical ID 同样是跨模块机器契约。
 #
 # permissionCapability 一律为 none：Auth 边界操作不受 doc 07 的 Resource /
 # Workspace Capability 管辖（doc 16 §66、Constitution §3.36-§3.37）。会话边界改由
@@ -294,7 +295,7 @@ contracts:
     permissionCapability: none
     authRequirement: Authenticated
     idempotencyRequirement: none
-    errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_PERMISSION_DENIED, CHANGESET_NOT_FOUND]
+    errorCodes: [CHANGESET_NOT_FOUND, RESOURCE_NOT_FOUND, RESOURCE_PERMISSION_DENIED, RESOURCE_JOURNAL_SEQUENCE_CONFLICT]
     ownerDocument: docs/architecture/12-AI-Task-ChangeSet-Design.md
     ownerModule: packages/py/core/ai
     status: active
@@ -350,7 +351,7 @@ contracts:
   - logicalName: AppendJournalOp
     kind: Command
     domain: resource
-    version: "1.0.0"
+    version: "2.0.0"
     schemaPath: contracts/commands/resource/append-journal-op.schema.json
     requestRef: contracts/commands/resource/append-journal-op.schema.json
     responseRef: contracts/commands/resource/append-journal-op.schema.json#/$defs/AppendJournalOpResponse
@@ -358,7 +359,7 @@ contracts:
     permissionCapability: none
     authRequirement: Authenticated
     idempotencyRequirement: required
-    errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_PERMISSION_DENIED, RESOURCE_AUTHORIZATION_UNAVAILABLE, IDEMPOTENCY_KEY_CONFLICT]
+    errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_PERMISSION_DENIED, RESOURCE_AUTHORIZATION_UNAVAILABLE, RESOURCE_JOURNAL_SEQUENCE_CONFLICT, IDEMPOTENCY_KEY_CONFLICT]
     ownerDocument: docs/architecture/06-Persistence-Design.md
     ownerModule: packages/py/core/resource
     status: active
@@ -382,7 +383,7 @@ contracts:
   - logicalName: EditComment
     kind: Command
     domain: comments
-    version: "1.0.0"
+    version: "2.0.0"
     schemaPath: contracts/commands/comments/edit-comment.schema.json
     requestRef: contracts/commands/comments/edit-comment.schema.json
     responseRef: contracts/commands/comments/edit-comment.schema.json#/$defs/EditCommentResponse
@@ -398,7 +399,7 @@ contracts:
   - logicalName: DeleteComment
     kind: Command
     domain: comments
-    version: "1.0.0"
+    version: "2.0.0"
     schemaPath: contracts/commands/comments/delete-comment.schema.json
     requestRef: contracts/commands/comments/delete-comment.schema.json
     responseRef: contracts/commands/comments/delete-comment.schema.json#/$defs/DeleteCommentResponse
@@ -439,6 +440,22 @@ contracts:
     authRequirement: Authenticated
     idempotencyRequirement: none
     errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_PERMISSION_DENIED, RESOURCE_AUTHORIZATION_UNAVAILABLE]
+    ownerDocument: docs/architecture/08-History-Version-Restore-Design.md
+    ownerModule: packages/py/core/history
+    status: active
+
+  - logicalName: CreateVersionRestoreTask
+    kind: Command
+    domain: history
+    version: "1.0.0"
+    schemaPath: contracts/commands/history/create-version-restore-task.schema.json
+    requestRef: none
+    responseRef: contracts/commands/history/create-version-restore-task.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_PERMISSION_DENIED, RESOURCE_AUTHORIZATION_UNAVAILABLE, IDEMPOTENCY_KEY_CONFLICT]
     ownerDocument: docs/architecture/08-History-Version-Restore-Design.md
     ownerModule: packages/py/core/history
     status: active
@@ -494,7 +511,7 @@ contracts:
   - logicalName: ExportResource
     kind: Query
     domain: importexport
-    version: "1.0.0"
+    version: "2.0.0"
     schemaPath: contracts/queries/importexport/export-resource.schema.json
     requestRef: none
     responseRef: contracts/queries/importexport/export-resource.schema.json
@@ -510,7 +527,7 @@ contracts:
   - logicalName: ImportResource
     kind: Command
     domain: importexport
-    version: "1.0.0"
+    version: "2.0.0"
     schemaPath: contracts/commands/importexport/import-resource.schema.json
     requestRef: contracts/commands/importexport/import-resource.schema.json
     responseRef: contracts/commands/importexport/import-resource.schema.json#/$defs/ImportResourceResponse
@@ -518,9 +535,41 @@ contracts:
     permissionCapability: none
     authRequirement: Authenticated
     idempotencyRequirement: required
-    errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_PERMISSION_DENIED, RESOURCE_AUTHORIZATION_UNAVAILABLE, IMPORT_DOCUMENT_INVALID, IDEMPOTENCY_KEY_CONFLICT]
+    errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_PERMISSION_DENIED, RESOURCE_AUTHORIZATION_UNAVAILABLE, IMPORT_DOCUMENT_INVALID, IMPORT_PAYLOAD_TOO_LARGE, IMPORT_EXPORT_STORAGE_UNAVAILABLE, IDEMPOTENCY_KEY_CONFLICT]
     ownerDocument: docs/architecture/13-Import-Export-Design.md
-    ownerModule: packages/py/core/resource
+    ownerModule: packages/py/core/import_export
+    status: active
+
+  - logicalName: CreateResourceExportTask
+    kind: Command
+    domain: importexport
+    version: "1.0.0"
+    schemaPath: contracts/commands/importexport/create-resource-export-task.schema.json
+    requestRef: none
+    responseRef: contracts/commands/importexport/create-resource-export-task.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_PERMISSION_DENIED, RESOURCE_AUTHORIZATION_UNAVAILABLE, EXPORT_RESULT_TOO_LARGE, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/13-Import-Export-Design.md
+    ownerModule: packages/py/core/import_export
+    status: active
+
+  - logicalName: GetResourceExportResult
+    kind: Query
+    domain: importexport
+    version: "2.0.0"
+    schemaPath: contracts/queries/importexport/get-resource-export-result.schema.json
+    requestRef: none
+    responseRef: contracts/queries/importexport/get-resource-export-result.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [EXPORT_RESULT_NOT_FOUND, RESOURCE_PERMISSION_DENIED, RESOURCE_AUTHORIZATION_UNAVAILABLE, IMPORT_EXPORT_STORAGE_UNAVAILABLE]
+    ownerDocument: docs/architecture/13-Import-Export-Design.md
+    ownerModule: packages/py/core/import_export
     status: active
 
   - logicalName: SearchComments
@@ -784,7 +833,7 @@ contracts:
   - logicalName: AddComment
     kind: Command
     domain: comments
-    version: "1.0.0"
+    version: "2.0.0"
     schemaPath: contracts/commands/comments/add-comment.schema.json
     requestRef: contracts/commands/comments/add-comment.schema.json
     responseRef: contracts/commands/comments/add-comment.schema.json#/$defs/AddCommentResponse
@@ -792,7 +841,7 @@ contracts:
     permissionCapability: none
     authRequirement: Authenticated
     idempotencyRequirement: required
-    errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_PERMISSION_DENIED, RESOURCE_AUTHORIZATION_UNAVAILABLE, COMMENT_BODY_INVALID, IDEMPOTENCY_KEY_CONFLICT]
+    errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_PERMISSION_DENIED, RESOURCE_AUTHORIZATION_UNAVAILABLE, COMMENT_BODY_INVALID, COMMENT_THREAD_NOT_FOUND, COMMENT_THREAD_RESOLVED, IDEMPOTENCY_KEY_CONFLICT]
     ownerDocument: docs/architecture/17-Comment-Mention-Notification-Design.md
     ownerModule: packages/py/core/comments
     status: active
@@ -800,7 +849,7 @@ contracts:
   - logicalName: ListComments
     kind: Query
     domain: comments
-    version: "1.0.0"
+    version: "2.0.0"
     schemaPath: contracts/queries/comments/list-comments.schema.json
     requestRef: none
     responseRef: contracts/queries/comments/list-comments.schema.json
@@ -809,6 +858,38 @@ contracts:
     authRequirement: Authenticated
     idempotencyRequirement: none
     errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_PERMISSION_DENIED, RESOURCE_AUTHORIZATION_UNAVAILABLE]
+    ownerDocument: docs/architecture/17-Comment-Mention-Notification-Design.md
+    ownerModule: packages/py/core/comments
+    status: active
+
+  - logicalName: ResolveCommentThread
+    kind: Command
+    domain: comments
+    version: "1.0.0"
+    schemaPath: contracts/commands/comments/resolve-comment-thread.schema.json
+    requestRef: none
+    responseRef: contracts/commands/comments/resolve-comment-thread.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [COMMENT_THREAD_NOT_FOUND, COMMENT_PERMISSION_DENIED, COMMENT_THREAD_STATE_CONFLICT]
+    ownerDocument: docs/architecture/17-Comment-Mention-Notification-Design.md
+    ownerModule: packages/py/core/comments
+    status: active
+
+  - logicalName: ReopenCommentThread
+    kind: Command
+    domain: comments
+    version: "1.0.0"
+    schemaPath: contracts/commands/comments/reopen-comment-thread.schema.json
+    requestRef: none
+    responseRef: contracts/commands/comments/reopen-comment-thread.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [COMMENT_THREAD_NOT_FOUND, COMMENT_PERMISSION_DENIED, COMMENT_THREAD_STATE_CONFLICT]
     ownerDocument: docs/architecture/17-Comment-Mention-Notification-Design.md
     ownerModule: packages/py/core/comments
     status: active
@@ -1132,6 +1213,321 @@ contracts:
     ownerModule: packages/py/core/permission
     status: active
 
+  - logicalName: CreateWorkspaceInvitation
+    kind: Command
+    domain: permission
+    version: "1.0.0"
+    schemaPath: contracts/commands/permission/create-workspace-invitation.schema.json
+    requestRef: contracts/commands/permission/create-workspace-invitation.schema.json
+    responseRef: contracts/commands/permission/create-workspace-invitation.schema.json#/$defs/CreateWorkspaceInvitationResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [WORKSPACE_NOT_FOUND, WORKSPACE_LIFECYCLE_CONFLICT, WORKSPACE_PERMISSION_DENIED, INVITATION_EMAIL_INVALID, INVITATION_EXPIRY_INVALID, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/07-Permission-Access-Control-Design.md
+    ownerModule: packages/py/core/permission
+    status: active
+
+  - logicalName: ListWorkspaceMembers
+    kind: Query
+    domain: permission
+    version: "1.0.0"
+    schemaPath: contracts/queries/permission/list-workspace-members.schema.json
+    requestRef: none
+    responseRef: contracts/queries/permission/list-workspace-members.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [WORKSPACE_NOT_FOUND, WORKSPACE_PERMISSION_DENIED, SESSION_EXPIRED, SESSION_REPLACED, ACCOUNT_DISABLED]
+    ownerDocument: docs/architecture/07-Permission-Access-Control-Design.md
+    ownerModule: packages/py/core/permission
+    status: active
+
+  - logicalName: ListWorkspaceInvitations
+    kind: Query
+    domain: permission
+    version: "1.0.0"
+    schemaPath: contracts/queries/permission/list-workspace-invitations.schema.json
+    requestRef: none
+    responseRef: contracts/queries/permission/list-workspace-invitations.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [WORKSPACE_NOT_FOUND, WORKSPACE_PERMISSION_DENIED, SESSION_EXPIRED, SESSION_REPLACED, ACCOUNT_DISABLED]
+    ownerDocument: docs/architecture/07-Permission-Access-Control-Design.md
+    ownerModule: packages/py/core/permission
+    status: active
+
+  - logicalName: AcceptWorkspaceInvitation
+    kind: Command
+    domain: permission
+    version: "1.0.0"
+    schemaPath: contracts/commands/permission/accept-workspace-invitation.schema.json
+    requestRef: contracts/commands/permission/accept-workspace-invitation.schema.json
+    responseRef: contracts/commands/permission/accept-workspace-invitation.schema.json#/$defs/AcceptWorkspaceInvitationResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [INVITATION_INVALID, INVITATION_EXPIRED, INVITATION_REVOKED, INVITATION_EMAIL_MISMATCH, INVITATION_CREATOR_UNAUTHORIZED, INVITATION_SCOPE_UNSUPPORTED, WORKSPACE_NOT_FOUND, WORKSPACE_LIFECYCLE_CONFLICT, ACCOUNT_DISABLED]
+    ownerDocument: docs/architecture/07-Permission-Access-Control-Design.md
+    ownerModule: packages/py/core/permission
+    status: active
+
+  - logicalName: RevokeWorkspaceInvitation
+    kind: Command
+    domain: permission
+    version: "1.0.0"
+    schemaPath: contracts/commands/permission/revoke-workspace-invitation.schema.json
+    requestRef: contracts/commands/permission/revoke-workspace-invitation.schema.json
+    responseRef: contracts/commands/permission/revoke-workspace-invitation.schema.json#/$defs/RevokeWorkspaceInvitationResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [WORKSPACE_NOT_FOUND, WORKSPACE_LIFECYCLE_CONFLICT, WORKSPACE_PERMISSION_DENIED, INVITATION_NOT_FOUND, INVITATION_STATE_CONFLICT, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/07-Permission-Access-Control-Design.md
+    ownerModule: packages/py/core/permission
+    status: active
+
+  - logicalName: RemoveWorkspaceMember
+    kind: Command
+    domain: permission
+    version: "1.0.0"
+    schemaPath: contracts/commands/permission/remove-workspace-member.schema.json
+    requestRef: contracts/commands/permission/remove-workspace-member.schema.json
+    responseRef: contracts/commands/permission/remove-workspace-member.schema.json#/$defs/RemoveWorkspaceMemberResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [WORKSPACE_NOT_FOUND, WORKSPACE_LIFECYCLE_CONFLICT, WORKSPACE_PERMISSION_DENIED, WORKSPACE_OWNER_PROTECTED, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/07-Permission-Access-Control-Design.md
+    ownerModule: packages/py/core/permission
+    status: active
+
+  - logicalName: ListProjectMembers
+    kind: Query
+    domain: permission
+    version: "1.0.0"
+    schemaPath: contracts/queries/permission/list-project-members.schema.json
+    requestRef: none
+    responseRef: contracts/queries/permission/list-project-members.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [PROJECT_NOT_FOUND, WORKSPACE_NOT_FOUND, WORKSPACE_PERMISSION_DENIED, SESSION_EXPIRED, SESSION_REPLACED, ACCOUNT_DISABLED]
+    ownerDocument: docs/architecture/07-Permission-Access-Control-Design.md
+    ownerModule: packages/py/core/permission
+    status: active
+
+  - logicalName: SetProjectMemberRole
+    kind: Command
+    domain: permission
+    version: "1.0.0"
+    schemaPath: contracts/commands/permission/set-project-member-role.schema.json
+    requestRef: contracts/commands/permission/set-project-member-role.schema.json
+    responseRef: contracts/commands/permission/set-project-member-role.schema.json#/$defs/SetProjectMemberRoleResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [PROJECT_NOT_FOUND, WORKSPACE_NOT_FOUND, WORKSPACE_LIFECYCLE_CONFLICT, PROJECT_LIFECYCLE_CONFLICT, WORKSPACE_PERMISSION_DENIED, PROJECT_OWNER_REQUIRED, PROJECT_OWNER_PROTECTED, TARGET_ACCOUNT_INACTIVE, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/07-Permission-Access-Control-Design.md
+    ownerModule: packages/py/core/permission
+    status: active
+
+  - logicalName: RemoveProjectMember
+    kind: Command
+    domain: permission
+    version: "1.0.0"
+    schemaPath: contracts/commands/permission/remove-project-member.schema.json
+    requestRef: contracts/commands/permission/remove-project-member.schema.json
+    responseRef: contracts/commands/permission/remove-project-member.schema.json#/$defs/RemoveProjectMemberResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [PROJECT_NOT_FOUND, WORKSPACE_NOT_FOUND, WORKSPACE_LIFECYCLE_CONFLICT, PROJECT_LIFECYCLE_CONFLICT, WORKSPACE_PERMISSION_DENIED, PROJECT_OWNER_REQUIRED, PROJECT_OWNER_PROTECTED, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/07-Permission-Access-Control-Design.md
+    ownerModule: packages/py/core/permission
+    status: active
+
+  - logicalName: ListResourcePermissions
+    kind: Query
+    domain: permission
+    version: "1.0.0"
+    schemaPath: contracts/queries/permission/list-resource-permissions.schema.json
+    requestRef: none
+    responseRef: contracts/queries/permission/list-resource-permissions.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [RESOURCE_NOT_FOUND, WORKSPACE_NOT_FOUND, WORKSPACE_PERMISSION_DENIED, SESSION_EXPIRED, SESSION_REPLACED, ACCOUNT_DISABLED]
+    ownerDocument: docs/architecture/07-Permission-Access-Control-Design.md
+    ownerModule: packages/py/core/permission
+    status: active
+
+  - logicalName: GetResourceCapabilities
+    kind: Query
+    domain: permission
+    version: "1.0.0"
+    schemaPath: contracts/queries/permission/get-resource-capabilities.schema.json
+    requestRef: none
+    responseRef: contracts/queries/permission/get-resource-capabilities.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_AUTHORIZATION_UNAVAILABLE]
+    ownerDocument: docs/architecture/07-Permission-Access-Control-Design.md
+    ownerModule: packages/py/core/permission
+    status: active
+
+  - logicalName: SetResourcePermission
+    kind: Command
+    domain: permission
+    version: "1.0.0"
+    schemaPath: contracts/commands/permission/set-resource-permission.schema.json
+    requestRef: contracts/commands/permission/set-resource-permission.schema.json
+    responseRef: contracts/commands/permission/set-resource-permission.schema.json#/$defs/SetResourcePermissionResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [RESOURCE_NOT_FOUND, WORKSPACE_NOT_FOUND, WORKSPACE_LIFECYCLE_CONFLICT, PROJECT_LIFECYCLE_CONFLICT, WORKSPACE_PERMISSION_DENIED, PROJECT_OWNER_REQUIRED, TARGET_ACCOUNT_INACTIVE, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/07-Permission-Access-Control-Design.md
+    ownerModule: packages/py/core/permission
+    status: active
+
+  - logicalName: RemoveResourcePermission
+    kind: Command
+    domain: permission
+    version: "1.0.0"
+    schemaPath: contracts/commands/permission/remove-resource-permission.schema.json
+    requestRef: contracts/commands/permission/remove-resource-permission.schema.json
+    responseRef: contracts/commands/permission/remove-resource-permission.schema.json#/$defs/RemoveResourcePermissionResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [RESOURCE_NOT_FOUND, WORKSPACE_NOT_FOUND, WORKSPACE_LIFECYCLE_CONFLICT, PROJECT_LIFECYCLE_CONFLICT, WORKSPACE_PERMISSION_DENIED, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/07-Permission-Access-Control-Design.md
+    ownerModule: packages/py/core/permission
+    status: active
+
+  - logicalName: CreateResourceShareLink
+    kind: Command
+    domain: permission
+    version: "1.0.0"
+    schemaPath: contracts/commands/permission/create-resource-share-link.schema.json
+    requestRef: contracts/commands/permission/create-resource-share-link.schema.json
+    responseRef: contracts/commands/permission/create-resource-share-link.schema.json#/$defs/CreateResourceShareLinkResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [RESOURCE_NOT_FOUND, SHARE_MANAGE_DENIED, SHARE_SCOPE_INACTIVE, SHARE_EXPIRY_INVALID, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/07-Permission-Access-Control-Design.md
+    ownerModule: packages/py/core/permission
+    status: active
+
+  - logicalName: ListResourceShareLinks
+    kind: Query
+    domain: permission
+    version: "1.0.0"
+    schemaPath: contracts/queries/permission/list-resource-share-links.schema.json
+    requestRef: none
+    responseRef: contracts/queries/permission/list-resource-share-links.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [RESOURCE_NOT_FOUND, SHARE_MANAGE_DENIED, SHARE_SCOPE_INACTIVE]
+    ownerDocument: docs/architecture/07-Permission-Access-Control-Design.md
+    ownerModule: packages/py/core/permission
+    status: active
+
+  - logicalName: SetResourceShareLinkExpiry
+    kind: Command
+    domain: permission
+    version: "1.0.0"
+    schemaPath: contracts/commands/permission/set-resource-share-link-expiry.schema.json
+    requestRef: contracts/commands/permission/set-resource-share-link-expiry.schema.json
+    responseRef: contracts/commands/permission/set-resource-share-link-expiry.schema.json#/$defs/SetResourceShareLinkExpiryResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [RESOURCE_NOT_FOUND, SHARE_LINK_NOT_FOUND, SHARE_LINK_REVOKED, SHARE_MANAGE_DENIED, SHARE_SCOPE_INACTIVE, SHARE_EXPIRY_INVALID, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/07-Permission-Access-Control-Design.md
+    ownerModule: packages/py/core/permission
+    status: active
+
+  - logicalName: RevokeResourceShareLink
+    kind: Command
+    domain: permission
+    version: "1.0.0"
+    schemaPath: contracts/commands/permission/revoke-resource-share-link.schema.json
+    requestRef: none
+    responseRef: contracts/commands/permission/revoke-resource-share-link.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [RESOURCE_NOT_FOUND, SHARE_LINK_NOT_FOUND, SHARE_MANAGE_DENIED, SHARE_SCOPE_INACTIVE, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/07-Permission-Access-Control-Design.md
+    ownerModule: packages/py/core/permission
+    status: active
+
+  - logicalName: RegenerateResourceShareLink
+    kind: Command
+    domain: permission
+    version: "1.0.0"
+    schemaPath: contracts/commands/permission/regenerate-resource-share-link.schema.json
+    requestRef: contracts/commands/permission/regenerate-resource-share-link.schema.json
+    responseRef: contracts/commands/permission/regenerate-resource-share-link.schema.json#/$defs/RegenerateResourceShareLinkResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [RESOURCE_NOT_FOUND, SHARE_LINK_NOT_FOUND, SHARE_MANAGE_DENIED, SHARE_SCOPE_INACTIVE, SHARE_EXPIRY_INVALID, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/07-Permission-Access-Control-Design.md
+    ownerModule: packages/py/core/permission
+    status: active
+
+  - logicalName: OpenPublicSharedResource
+    kind: Query
+    domain: permission
+    version: "1.0.0"
+    schemaPath: contracts/queries/permission/open-public-shared-resource.schema.json
+    requestRef: none
+    responseRef: contracts/queries/permission/open-public-shared-resource.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Public
+    idempotencyRequirement: none
+    errorCodes: [SHARE_LINK_NOT_FOUND]
+    ownerDocument: docs/architecture/07-Permission-Access-Control-Design.md
+    ownerModule: packages/py/core/permission
+    status: active
+
+  - logicalName: PermissionChanged
+    kind: Event
+    domain: permission
+    version: "1.0.0"
+    schemaPath: contracts/events/permission/permission-changed.schema.json
+    eventSubject: event.permission.changed.v1
+    permissionCapability: none
+    ownerDocument: docs/architecture/07-Permission-Access-Control-Design.md
+    ownerModule: packages/py/core/permission
+    status: active
+
   - logicalName: HasSoleWorkspaceOwnership
     kind: Query
     domain: permission
@@ -1269,6 +1665,89 @@ contracts:
     ownerModule: packages/py/core/session
     status: active
 
+  - logicalName: TaskProgressUpdated
+    kind: Event
+    domain: task
+    version: "1.0.0"
+    schemaPath: contracts/events/task/task-progress-updated.schema.json
+    eventSubject: event.task.progress-updated.v1
+    permissionCapability: none
+    ownerDocument: docs/architecture/25-Async-Task-Execution-Design.md
+    ownerModule: packages/py/core/operations/task
+    status: active
+
+  - logicalName: CommentRealtimeEvent
+    kind: RealtimeFrame
+    domain: realtime
+    version: "1.0.0"
+    schemaPath: contracts/realtime/comment-event.schema.json
+    ownerDocument: docs/architecture/17-Comment-Mention-Notification-Design.md
+    ownerModule: packages/ts/realtime-client
+    status: active
+
+  - logicalName: AwarenessState
+    kind: RealtimeFrame
+    domain: realtime
+    version: "1.0.0"
+    schemaPath: contracts/realtime/awareness-state.schema.json
+    ownerDocument: docs/architecture/05-Realtime-Collaboration-Protocol-Design.md
+    ownerModule: packages/ts/realtime-client
+    status: active
+
+  - logicalName: AwarenessParticipant
+    kind: RealtimeFrame
+    domain: realtime
+    version: "1.0.0"
+    schemaPath: contracts/realtime/awareness-participant.schema.json
+    ownerDocument: docs/architecture/05-Realtime-Collaboration-Protocol-Design.md
+    ownerModule: packages/ts/realtime-client
+    status: active
+
+  - logicalName: AwarenessEvent
+    kind: RealtimeFrame
+    domain: realtime
+    version: "1.0.0"
+    schemaPath: contracts/realtime/awareness-event.schema.json
+    ownerDocument: docs/architecture/05-Realtime-Collaboration-Protocol-Design.md
+    ownerModule: packages/ts/realtime-client
+    status: active
+
+  - logicalName: RealtimeFrameHeader
+    kind: RealtimeFrame
+    domain: realtime
+    version: "1.0.0"
+    schemaPath: contracts/realtime/frame-header.schema.json
+    ownerDocument: docs/architecture/05-Realtime-Collaboration-Protocol-Design.md
+    ownerModule: packages/ts/realtime-client
+    status: active
+
+  - logicalName: RealtimeControlFrame
+    kind: RealtimeFrame
+    domain: realtime
+    version: "1.0.0"
+    schemaPath: contracts/realtime/control-frame.schema.json
+    ownerDocument: docs/architecture/05-Realtime-Collaboration-Protocol-Design.md
+    ownerModule: packages/ts/realtime-client
+    status: active
+
+  - logicalName: RealtimeSystemFrame
+    kind: RealtimeFrame
+    domain: realtime
+    version: "1.0.0"
+    schemaPath: contracts/realtime/system-frame.schema.json
+    ownerDocument: docs/architecture/05-Realtime-Collaboration-Protocol-Design.md
+    ownerModule: packages/ts/realtime-client
+    status: active
+
+  - logicalName: PublicShareRealtimeFrame
+    kind: RealtimeFrame
+    domain: realtime
+    version: "1.0.0"
+    schemaPath: contracts/realtime/public-share-frame.schema.json
+    ownerDocument: docs/architecture/07-Permission-Access-Control-Design.md
+    ownerModule: packages/ts/realtime-client
+    status: active
+
   - logicalName: ErrorEnvelope
     kind: Error
     domain: common
@@ -1285,4 +1764,132 @@ contracts:
     schemaPath: contracts/ids/ids.schema.json
     ownerDocument: docs/architecture/28-Contract-Schema-Registry-Design.md
     ownerModule: packages/py/contracts
+    status: active
+
+  - logicalName: UploadAsset
+    kind: Command
+    domain: asset
+    version: "1.0.0"
+    schemaPath: contracts/commands/assets/upload-asset.schema.json
+    requestRef: contracts/commands/assets/upload-asset.schema.json
+    responseRef: contracts/commands/assets/upload-asset.schema.json#/$defs/UploadAssetResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [RESOURCE_PERMISSION_DENIED, RESOURCE_AUTHORIZATION_UNAVAILABLE, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/10-Asset-File-Storage-Design.md
+    ownerModule: packages/py/core/assets
+    status: active
+
+  - logicalName: DownloadAsset
+    kind: Query
+    domain: asset
+    version: "1.0.0"
+    schemaPath: contracts/queries/assets/download-asset.schema.json
+    requestRef: none
+    responseRef: contracts/queries/assets/download-asset.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [ASSET_NOT_FOUND, RESOURCE_PERMISSION_DENIED, RESOURCE_AUTHORIZATION_UNAVAILABLE]
+    ownerDocument: docs/architecture/10-Asset-File-Storage-Design.md
+    ownerModule: packages/py/core/assets
+    status: active
+
+  - logicalName: DownloadPublicSharedAsset
+    kind: Query
+    domain: asset
+    version: "1.0.0"
+    schemaPath: contracts/queries/assets/download-public-shared-asset.schema.json
+    requestRef: none
+    responseRef: contracts/queries/assets/download-public-shared-asset.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Public
+    idempotencyRequirement: none
+    errorCodes: [SHARE_LINK_NOT_FOUND, ASSET_NOT_FOUND]
+    ownerDocument: docs/architecture/10-Asset-File-Storage-Design.md
+    ownerModule: packages/py/core/assets
+    status: active
+
+  - logicalName: ListResourceAssets
+    kind: Query
+    domain: asset
+    version: "1.0.0"
+    schemaPath: contracts/queries/assets/list-resource-assets.schema.json
+    requestRef: none
+    responseRef: contracts/queries/assets/list-resource-assets.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_PERMISSION_DENIED, RESOURCE_AUTHORIZATION_UNAVAILABLE]
+    ownerDocument: docs/architecture/10-Asset-File-Storage-Design.md
+    ownerModule: packages/py/core/assets
+    status: active
+
+  - logicalName: ListTasks
+    kind: Query
+    domain: task
+    version: "1.0.0"
+    schemaPath: contracts/queries/tasks/list-tasks.schema.json
+    requestRef: none
+    responseRef: contracts/queries/tasks/list-tasks.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [TASK_PAGINATION_INVALID]
+    ownerDocument: docs/architecture/25-Async-Task-Execution-Design.md
+    ownerModule: packages/py/task-runtime
+    status: active
+
+  - logicalName: GetTask
+    kind: Query
+    domain: task
+    version: "1.0.0"
+    schemaPath: contracts/queries/tasks/get-task.schema.json
+    requestRef: none
+    responseRef: contracts/queries/tasks/get-task.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [TASK_NOT_FOUND]
+    ownerDocument: docs/architecture/25-Async-Task-Execution-Design.md
+    ownerModule: packages/py/task-runtime
+    status: active
+
+  - logicalName: CancelTask
+    kind: Command
+    domain: task
+    version: "1.0.0"
+    schemaPath: contracts/commands/tasks/cancel-task.schema.json
+    requestRef: none
+    responseRef: contracts/commands/tasks/cancel-task.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [TASK_NOT_FOUND, TASK_NOT_CANCELLABLE, TASK_CANCEL_NOT_ACCEPTED]
+    ownerDocument: docs/architecture/25-Async-Task-Execution-Design.md
+    ownerModule: packages/py/task-runtime
+    status: active
+
+  - logicalName: RetryTask
+    kind: Command
+    domain: task
+    version: "1.0.0"
+    schemaPath: contracts/commands/tasks/retry-task.schema.json
+    requestRef: none
+    responseRef: contracts/commands/tasks/retry-task.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [TASK_NOT_FOUND, TASK_NOT_RETRYABLE, IDEMPOTENCY_KEY_CONFLICT]
+    ownerDocument: docs/architecture/25-Async-Task-Execution-Design.md
+    ownerModule: packages/py/task-runtime
     status: active

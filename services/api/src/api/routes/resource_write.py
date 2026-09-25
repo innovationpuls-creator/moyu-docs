@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 from base64 import b64decode
 from datetime import UTC, datetime
 from typing import Annotated
@@ -53,6 +52,7 @@ from app_core.resource.application import RestoreResource as RestoreResourceUseC
 from app_core.resource.application import TrashResource as TrashResourceUseCase
 from app_core.resource.domain import (
     InvalidResourceNameError,
+    JournalSequenceConflictError,
     ResourceNameConflictError,
     ResourceNotFoundError,
     ResourcePermissionDeniedError,
@@ -64,6 +64,9 @@ from app_infra.nats.resource_broadcast_publisher import (
 from app_infra.postgres.audit.audit_repository import PostgresAuditRepository
 from app_infra.postgres.resource.journal_repository import PostgresJournalRepository
 from app_infra.postgres.resource.resource_repository import PostgresResourceRepository
+from app_infra.postgres.resource_journal_idempotency_repository import (
+    PostgresResourceJournalIdempotencyRepository,
+)
 from app_infra.postgres.resource_ownership_repository import (
     PostgresResourceOwnershipRepository,
 )
@@ -140,10 +143,14 @@ async def append_journal_op(
         NatsResourceBroadcastPublisher, Depends(get_broadcast_publisher)
     ],
 ) -> AppendJournalOpResponse:
+    if body.resourceId != resource_id:
+        raise HTTPException(status_code=400, detail="RESOURCE_ID_MISMATCH")
+    journal = PostgresJournalRepository(session)
     use_case = AppendJournalOpUseCase(
         PostgresResourceRepository(session),
-        PostgresJournalRepository(session),
+        journal,
         PostgresResourceOwnershipRepository(session),
+        idempotency=PostgresResourceJournalIdempotencyRepository(session),
     )
     update = b64decode(body.update)
     try:
@@ -152,11 +159,22 @@ async def append_journal_op(
             resource_id,
             update,
             ownership_epoch=1,
+            expected_seq=body.expectedSeq,
+            idempotency_key=str(body.idempotencyKey),
         )
     except ResourcePermissionDeniedError:
         raise HTTPException(status_code=403, detail="RESOURCE_PERMISSION_DENIED")
+    except JournalSequenceConflictError:
+        raise HTTPException(
+            status_code=409, detail="RESOURCE_JOURNAL_SEQUENCE_CONFLICT"
+        )
     except LookupError:
         raise HTTPException(status_code=404, detail="RESOURCE_NOT_FOUND")
+    if op.durable_at is None:
+        raise HTTPException(status_code=503, detail="JOURNAL_DURABILITY_UNCONFIRMED")
+    # The durable receipt is issued only after PostgreSQL confirms commit. A
+    # retry after a lost HTTP response replays the idempotent journal receipt.
+    await session.commit()
     # Realtime: relay the op to collaborating clients (rt.broadcast.<id>).
     try:
         await publisher.publish(
@@ -164,7 +182,7 @@ async def append_journal_op(
             "op",
             {
                 "journalSeq": op.journal_seq,
-                "updateSha256": hashlib.sha256(update).hexdigest(),
+                "updateSha256": op.update_hash,
             },
             sequence=op.journal_seq,
         )
@@ -173,7 +191,9 @@ async def append_journal_op(
     return AppendJournalOpResponse(
         resourceId=op.resource_id,
         journalSeq=op.journal_seq,
-        updateSha256=hashlib.sha256(update).hexdigest(),
+        updateSha256=op.update_hash,
+        acceptedWatermark=op.journal_seq,
+        durableWatermark=op.journal_seq,
     )
 
 

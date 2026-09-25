@@ -29,6 +29,18 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 DATABASE_URL = "postgresql+psycopg://torch@localhost:5432/dom_workspace_lifecycle_test"
+_ACCOUNT_IDS = (
+    "SELECT account_id FROM auth.accounts WHERE primary_email LIKE 'hist-%@test'"
+)
+_WORKSPACE_IDS = (
+    f"SELECT workspace_id FROM core.workspaces WHERE created_by IN ({_ACCOUNT_IDS})"
+)
+_PROJECT_IDS = (
+    f"SELECT project_id FROM core.projects WHERE workspace_id IN ({_WORKSPACE_IDS})"
+)
+_RESOURCE_IDS = (
+    f"SELECT resource_id FROM core.resources WHERE project_id IN ({_PROJECT_IDS})"
+)
 
 
 @pytest_asyncio.fixture(scope="module", autouse=True)
@@ -46,24 +58,63 @@ async def clean_tables() -> None:
     try:
         session = AsyncSession(connection)
         async with session.begin():
-            for t in (
+            for table in (
                 "collab.resource_search_index",
                 "collab.resource_assets",
                 "collab.ai_changesets",
                 "collab.resource_named_versions",
                 "collab.resource_comments",
+                "collab.comment_threads",
                 "collab.resource_ownership",
                 "collab.resource_checkpoints",
                 "collab.resource_update_journal",
-                "core.resources",
-                "core.workspace_members",
-                "core.folders",
-                "core.projects",
-                "core.workspaces",
             ):
-                await session.execute(text(f"DELETE FROM {t}"))
+                await session.execute(
+                    text(f"DELETE FROM {table} WHERE resource_id IN ({_RESOURCE_IDS})")
+                )
             await session.execute(
-                text("DELETE FROM auth.accounts WHERE primary_email LIKE 'hist-%@test'")
+                text(
+                    "DELETE FROM core.invitations WHERE "
+                    f"workspace_id IN ({_WORKSPACE_IDS}) OR "
+                    f"project_id IN ({_PROJECT_IDS}) OR "
+                    f"resource_id IN ({_RESOURCE_IDS})"
+                )
+            )
+            for table in ("core.resource_permissions", "core.share_links"):
+                await session.execute(
+                    text(f"DELETE FROM {table} WHERE resource_id IN ({_RESOURCE_IDS})")
+                )
+            await session.execute(
+                text(
+                    "DELETE FROM core.workspace_members "
+                    f"WHERE workspace_id IN ({_WORKSPACE_IDS})"
+                )
+            )
+            await session.execute(
+                text(
+                    "DELETE FROM core.project_members "
+                    f"WHERE project_id IN ({_PROJECT_IDS})"
+                )
+            )
+            await session.execute(
+                text(
+                    f"DELETE FROM core.resources WHERE resource_id IN ({_RESOURCE_IDS})"
+                )
+            )
+            await session.execute(
+                text(f"DELETE FROM core.folders WHERE project_id IN ({_PROJECT_IDS})")
+            )
+            await session.execute(
+                text(f"DELETE FROM core.projects WHERE project_id IN ({_PROJECT_IDS})")
+            )
+            await session.execute(
+                text(
+                    "DELETE FROM core.workspaces "
+                    f"WHERE workspace_id IN ({_WORKSPACE_IDS})"
+                )
+            )
+            await session.execute(
+                text(f"DELETE FROM auth.accounts WHERE account_id IN ({_ACCOUNT_IDS})")
             )
         await session.close()
     finally:

@@ -1,0 +1,24 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/permission/list-workspace-members.schema.json",
+	"title": "ListWorkspaceMembersResponse",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"members": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"accountId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+					"email": { "type": "string" },
+					"membershipKind": { "type": "string", "enum": ["Owner", "Member"] },
+					"createdAt": { "type": "string", "format": "date-time" }
+				},
+				"required": ["accountId", "email", "membershipKind", "createdAt"]
+			}
+		}
+	},
+	"required": ["members"]
+}

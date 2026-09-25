@@ -85,14 +85,14 @@ async def test_non_member_and_inactive_workspace_fail_closed() -> None:
 @pytest.mark.asyncio
 async def test_project_manage_is_inherited_only_from_workspace_owner() -> None:
     actor_id, workspace_id, project_id = uuid4(), uuid4(), uuid4()
-    owner = AccessSession(["Active", {"workspace_id": workspace_id}, "Owner"])
+    owner = AccessSession(["Active", {"workspace_id": workspace_id}, "Owner", None])
     await _repository(owner).authorize(
         actor_id,
         WorkspaceOperation.MANAGE,
         workspace_id=workspace_id,
         project_id=project_id,
     )
-    outsider = AccessSession(["Active", {"workspace_id": workspace_id}, None])
+    outsider = AccessSession(["Active", {"workspace_id": workspace_id}, None, None])
     with pytest.raises(PermissionDeniedError):
         await _repository(outsider).authorize(
             actor_id,

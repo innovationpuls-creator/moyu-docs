@@ -262,40 +262,6 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
-	"/v1/ai/propose-changeset": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/** Propose a reviewable AI ChangeSet without applying it */
-		post: operations["ProposeChangeSet"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/v1/changesets/{changesetId}/apply": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/** Apply a ChangeSet after explicit user approval */
-		post: operations["ApplyChangeSet"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
 	"/v1/resources/{resourceId}": {
 		parameters: {
 			query?: never;
@@ -348,6 +314,40 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/v1/ai/propose-changeset": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Create a reviewable AI proposal without applying it (FR-AI-003) */
+		post: operations["ProposeChangeSet"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/changesets/{changesetId}/apply": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Apply a user-approved ChangeSet to its Resource journal (FR-AI-004) */
+		post: operations["ApplyChangeSet"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/v1/resources/{resourceId}/import": {
 		parameters: {
 			query?: never;
@@ -359,6 +359,40 @@ export interface paths {
 		put?: never;
 		/** Import an exchange document into a Resource (FR-IE-002) */
 		post: operations["ImportResource"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/resources/{resourceId}/export-tasks": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Queue a Resource export for background execution (FR-IE-001) */
+		post: operations["CreateResourceExportTask"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/resources/{resourceId}/exports/{exportSessionId}/result": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Download a completed short-lived Resource export (FR-IE-001) */
+		get: operations["GetResourceExportResult"];
+		put?: never;
+		post?: never;
 		delete?: never;
 		options?: never;
 		head?: never;
@@ -401,6 +435,40 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/v1/resources/{resourceId}/comments/threads/{threadId}/resolve": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Resolve a comment thread in a Resource (FR-CMT-005) */
+		post: operations["ResolveCommentThread"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/resources/{resourceId}/comments/threads/{threadId}/reopen": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Reopen a resolved comment thread in a Resource (FR-CMT-006) */
+		post: operations["ReopenCommentThread"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/v1/resources/{resourceId}/versions": {
 		parameters: {
 			query?: never;
@@ -412,6 +480,23 @@ export interface paths {
 		put?: never;
 		/** Label a revision for later restore (FR-HS-003) */
 		post: operations["CreateNamedVersion"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/resources/{resourceId}/versions/{baseJournalSeq}/restore-tasks": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Queue a Resource version restore for background execution (FR-HS-002) */
+		post: operations["CreateVersionRestoreTask"];
 		delete?: never;
 		options?: never;
 		head?: never;
@@ -530,6 +615,40 @@ export interface paths {
 		};
 		/** Machine-client readable resources (PUB-002) */
 		get: operations["GetPublicResources"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/public/shares/{token}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Open an active anonymous read-only Resource share link */
+		get: operations["OpenPublicSharedResource"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/public/shares/{token}/assets/{assetId}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Read an asset referenced by a resource under an active share link */
+		get: operations["DownloadPublicSharedAsset"];
 		put?: never;
 		post?: never;
 		delete?: never;
@@ -1014,6 +1133,259 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/v1/workspaces/{workspaceId}/invitations": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components["schemas"]["WorkspaceId"];
+			};
+			cookie?: never;
+		};
+		/** List Workspace invitation states (FR-PERM-003) */
+		get: operations["ListWorkspaceInvitations"];
+		put?: never;
+		/** Create or reissue a copyable Workspace invitation (FR-PERM-001) */
+		post: operations["CreateWorkspaceInvitation"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/workspaces/{workspaceId}/members": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components["schemas"]["WorkspaceId"];
+			};
+			cookie?: never;
+		};
+		/** List Workspace membership identities (FR-PERM-002) */
+		get: operations["ListWorkspaceMembers"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/invitations/accept": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Accept a Workspace invitation for the matching Active Account */
+		post: operations["AcceptWorkspaceInvitation"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/workspaces/{workspaceId}/invitations/{invitationId}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components["schemas"]["WorkspaceId"];
+				invitationId: components["schemas"]["InvitationId"];
+			};
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		/** Revoke or expire a pending Workspace invitation (FR-PERM-004) */
+		delete: operations["RevokeWorkspaceInvitation"];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/workspaces/{workspaceId}/members/{accountId}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components["schemas"]["WorkspaceId"];
+				accountId: components["schemas"]["UserId"];
+			};
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		/** Remove a Workspace Member without changing independent Project roles */
+		delete: operations["RemoveWorkspaceMember"];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/projects/{projectId}/members": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				projectId: components["schemas"]["ProjectId"];
+			};
+			cookie?: never;
+		};
+		/** List explicit Project memberships and roles */
+		get: operations["ListProjectMembers"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/projects/{projectId}/members/{accountId}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				projectId: components["schemas"]["ProjectId"];
+				accountId: components["schemas"]["UserId"];
+			};
+			cookie?: never;
+		};
+		get?: never;
+		/** Set a direct Project role; Workspace membership remains separate */
+		put: operations["SetProjectMemberRole"];
+		post?: never;
+		/** Remove a direct Project role while preserving the Project Owner invariant */
+		delete: operations["RemoveProjectMember"];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/resources/{resourceId}/permissions": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				resourceId: components["schemas"]["ResourceId"];
+			};
+			cookie?: never;
+		};
+		/** List custom Resource permission overrides */
+		get: operations["ListResourcePermissions"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/resources/{resourceId}/capabilities": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				resourceId: components["schemas"]["ResourceId"];
+			};
+			cookie?: never;
+		};
+		/** Get the current actor's effective Resource capabilities */
+		get: operations["GetResourceCapabilities"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/resources/{resourceId}/share-links": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				resourceId: components["schemas"]["ResourceId"];
+			};
+			cookie?: never;
+		};
+		/** List share-link metadata without exposing tokens */
+		get: operations["ListResourceShareLinks"];
+		put?: never;
+		/** Create a read-only anonymous Resource share link */
+		post: operations["CreateResourceShareLink"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/resources/{resourceId}/share-links/{shareId}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				resourceId: components["schemas"]["ResourceId"];
+				shareId: components["schemas"]["ShareId"];
+			};
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		/** Revoke an anonymous Resource share link */
+		delete: operations["RevokeResourceShareLink"];
+		options?: never;
+		head?: never;
+		/** Set or clear the expiry time on an active share link */
+		patch: operations["SetResourceShareLinkExpiry"];
+		trace?: never;
+	};
+	"/v1/resources/{resourceId}/share-links/{shareId}/regenerate": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Rotate a share link secret and return the new URL once */
+		post: operations["RegenerateResourceShareLink"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/resources/{resourceId}/permissions/{accountId}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				resourceId: components["schemas"]["ResourceId"];
+				accountId: components["schemas"]["UserId"];
+			};
+			cookie?: never;
+		};
+		get?: never;
+		/** Set a custom Resource role override */
+		put: operations["SetResourcePermission"];
+		post?: never;
+		/** Remove a Resource override and restore Project-role inheritance */
+		delete: operations["RemoveResourcePermission"];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/v1/auth/my-workspace-ownership": {
 		parameters: {
 			query?: never;
@@ -1034,10 +1406,124 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/v1/resources/{resourceId}/assets": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** List Resource Asset metadata (FR-AST-001) */
+		get: operations["ListResourceAssets"];
+		put?: never;
+		/** Upload a binary Resource Asset (FR-AST-001) */
+		post: operations["UploadAsset"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/assets/{assetId}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Download a Resource Asset as raw bytes (FR-AST-001) */
+		get: operations["DownloadAsset"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/tasks": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** List tasks initiated by the authenticated Account (FR-TSK-003) */
+		get: operations["ListTasks"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/tasks/{taskId}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				taskId: components["schemas"]["TaskId"];
+			};
+			cookie?: never;
+		};
+		/** Get one task initiated by the authenticated Account (FR-TSK-003) */
+		get: operations["GetTask"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/tasks/{taskId}/retry": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				taskId: components["schemas"]["TaskId"];
+			};
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Retry a failed task with an idempotency key (FR-TSK-005) */
+		post: operations["RetryTask"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/tasks/{taskId}/cancel": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				taskId: components["schemas"]["TaskId"];
+			};
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Request cancellation of an active task (FR-TSK-004) */
+		post: operations["CancelTask"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 }
 export type webhooks = Record<string, never>;
 export interface components {
 	schemas: {
+		/**
+		 * IdempotencyKey
+		 * Format: uuid
+		 */
+		IdempotencyKey: string;
 		/**
 		 * RegisterWithEmail
 		 * @description FR-AUTH-001. Request root = email + password. Password length 12-128 per PRD FR-AUTH-001 / OQ-3 (reject common/leaked passwords at the application layer). Response is the anti-enumeration uniform payload (PRD FR-AUTH-005/007, BDD 'two requests get identical external hint'); the auto-established session (BDD FR-AUTH-001, PRD AC-001.1) is delivered as a Secure/HttpOnly Set-Cookie, modeled in OpenAPI, NOT in this body.
@@ -1419,11 +1905,6 @@ export interface components {
 		 */
 		FolderId: string;
 		/**
-		 * IdempotencyKey
-		 * Format: uuid
-		 */
-		IdempotencyKey: string;
-		/**
 		 * CreateResource
 		 * @description FR-RC-001. Create a Resource inside an authorized Project (the Project's Workspace Owner). Sibling names (normalized, incl. Trashed/Purged) are reserved.
 		 */
@@ -1478,6 +1959,8 @@ export interface components {
 					resourceId: components["schemas"]["UserId"];
 					journalSeq: number;
 					updateSha256: string;
+					acceptedWatermark: number;
+					durableWatermark: number;
 				};
 			};
 		};
@@ -1486,58 +1969,8 @@ export interface components {
 			resourceId: components["schemas"]["UserId"];
 			journalSeq: number;
 			updateSha256: string;
-		};
-		/**
-		 * ChangeSetId
-		 * Format: uuid
-		 */
-		ChangeSetId: string;
-		/**
-		 * ResourceId
-		 * Format: uuid
-		 */
-		ResourceId: string;
-		/**
-		 * ProposeChangeSet
-		 * @description Create a reviewable AI proposal for one resource. Proposing never applies the change.
-		 */
-		"propose-changeset.schema": {
-			resourceId: components["schemas"]["ResourceId"];
-			instruction: string;
-			$defs: {
-				/** ProposeChangeSetResponse */
-				ProposeChangeSetResponse: {
-					changesetId: components["schemas"]["ChangeSetId"];
-					resourceId: components["schemas"]["ResourceId"];
-					instruction: string;
-					operations: {
-						[key: string]: unknown;
-					}[];
-					/** @enum {string} */
-					status: "Proposed";
-				};
-			};
-		};
-		/** ProposeChangeSetResponse */
-		ProposeChangeSetResponse: {
-			changesetId: components["schemas"]["ChangeSetId"];
-			resourceId: components["schemas"]["ResourceId"];
-			instruction: string;
-			operations: {
-				[key: string]: unknown;
-			}[];
-			/** @enum {string} */
-			status: "Proposed";
-		};
-		/**
-		 * ApplyChangeSetResponse
-		 * @description Apply a previously proposed ChangeSet after explicit user approval.
-		 */
-		"apply-changeset.schema": {
-			changesetId: components["schemas"]["ChangeSetId"];
-			journalSeq: number;
-			/** @enum {string} */
-			status: "Applied";
+			acceptedWatermark: number;
+			durableWatermark: number;
 		};
 		/**
 		 * OpenResourceResponse
@@ -1599,6 +2032,11 @@ export interface components {
 			lifecycle: "Active" | "Trashed" | "Purging" | "Purged";
 		};
 		/**
+		 * ResourceId
+		 * Format: uuid
+		 */
+		ResourceId: string;
+		/**
 		 * ExportResourceResponse
 		 * @description FR-IE-001. Export one Resource as a versioned DOM exchange document (metadata + latest snapshot).
 		 */
@@ -1610,7 +2048,7 @@ export interface components {
 			/** Format: date-time */
 			exportedAt: string;
 			resource: {
-				resourceId: components["schemas"]["UserId"];
+				resourceId: components["schemas"]["ResourceId"];
 				/** @enum {string} */
 				resourceType: "document" | "code" | "markdown" | "text";
 				name: string;
@@ -1621,29 +2059,132 @@ export interface components {
 			};
 		};
 		/**
+		 * ChangeSetId
+		 * Format: uuid
+		 */
+		ChangeSetId: string;
+		/**
+		 * ProposeChangeSet
+		 * @description Create a reviewable AI proposal for one resource. Proposing never applies the change.
+		 */
+		"propose-changeset.schema": {
+			resourceId: components["schemas"]["ResourceId"];
+			instruction: string;
+			$defs: {
+				/** ProposeChangeSetResponse */
+				ProposeChangeSetResponse: {
+					changesetId: components["schemas"]["ChangeSetId"];
+					resourceId: components["schemas"]["ResourceId"];
+					instruction: string;
+					operations: {
+						[key: string]: unknown;
+					}[];
+					/** @enum {string} */
+					status: "Proposed";
+				};
+			};
+		};
+		/** ProposeChangeSetResponse */
+		ProposeChangeSetResponse: {
+			changesetId: components["schemas"]["ChangeSetId"];
+			resourceId: components["schemas"]["ResourceId"];
+			instruction: string;
+			operations: {
+				[key: string]: unknown;
+			}[];
+			/** @enum {string} */
+			status: "Proposed";
+		};
+		/**
+		 * ApplyChangeSetResponse
+		 * @description Apply a previously proposed ChangeSet after explicit user approval.
+		 */
+		"apply-changeset.schema": {
+			changesetId: components["schemas"]["ChangeSetId"];
+			journalSeq: number;
+			/** @enum {string} */
+			status: "Applied";
+		};
+		/**
+		 * TaskId
+		 * Format: uuid
+		 */
+		TaskId: string;
+		/**
+		 * TaskSummary
+		 * @description Current authoritative task summary. Progress values are null when unavailable; this shape does not imply that a task type currently emits progress.
+		 */
+		TaskSummary: {
+			taskId: components["schemas"]["TaskId"];
+			taskType: string;
+			/** @enum {string} */
+			state:
+				| "Created"
+				| "Queued"
+				| "Running"
+				| "WaitingForUser"
+				| "Retrying"
+				| "Succeeded"
+				| "PartialSucceeded"
+				| "Failed"
+				| "Cancelled";
+			stage: string | null;
+			messageCode: string | null;
+			current: number | null;
+			total: number | null;
+			percentage: number | null;
+			/** Format: date-time */
+			updatedAt: string | null;
+			retryCount: number;
+			retryOfTaskId: components["schemas"]["TaskId"] | null;
+			/** Format: date-time */
+			cancelRequestedAt: string | null;
+			/** Format: date-time */
+			queuedAt: string | null;
+			/** Format: date-time */
+			startedAt: string | null;
+			/** Format: date-time */
+			finishedAt: string | null;
+			failureCode: string | null;
+		};
+		/**
 		 * ImportResource
 		 * @description FR-IE-002. Import one exchange document INTO an existing Resource: the imported snapshot becomes a new checkpoint and the import is recorded as a journal op.
 		 */
 		"import-resource.schema": {
-			resourceId: components["schemas"]["UserId"];
-			document: Record<string, never>;
+			resourceId: components["schemas"]["ResourceId"];
+			document: components["schemas"]["export-resource.schema"];
 			idempotencyKey: components["schemas"]["IdempotencyKey"];
 			$defs: {
 				/** ImportResourceResponse */
 				ImportResourceResponse: {
-					resourceId: components["schemas"]["UserId"];
-					journalSeq: number;
+					taskId: components["schemas"]["TaskId"];
+					task: components["schemas"]["TaskSummary"];
 				};
 			};
 		};
 		/** ImportResourceResponse */
 		ImportResourceResponse: {
-			resourceId: components["schemas"]["UserId"];
-			journalSeq: number;
+			taskId: components["schemas"]["TaskId"];
+			task: components["schemas"]["TaskSummary"];
 		};
+		/**
+		 * CreateResourceExportTaskResponse
+		 * @description Accepts an export task and returns its short-lived export session identity.
+		 */
+		"create-resource-export-task.schema": {
+			taskId: components["schemas"]["TaskId"];
+			exportSessionId: components["schemas"]["SessionId"];
+			task: components["schemas"]["TaskSummary"];
+		};
+		/**
+		 * CommentId
+		 * Format: uuid
+		 */
+		CommentId: string;
 		/** DeleteCommentResponse */
 		DeleteCommentResponse: {
-			commentId: components["schemas"]["UserId"];
+			commentId: components["schemas"]["CommentId"];
 			/** @constant */
 			deleted: true;
 		};
@@ -1652,36 +2193,47 @@ export interface components {
 		 * @description FR-CMT-003. Author edits their own comment body.
 		 */
 		"edit-comment.schema": {
-			commentId: components["schemas"]["UserId"];
+			commentId: components["schemas"]["CommentId"];
 			body: string;
 			idempotencyKey: components["schemas"]["IdempotencyKey"];
 			$defs: {
 				/** EditCommentResponse */
 				EditCommentResponse: {
-					commentId: components["schemas"]["UserId"];
+					commentId: components["schemas"]["CommentId"];
 					body: string;
 				};
 			};
 		};
 		/** EditCommentResponse */
 		EditCommentResponse: {
-			commentId: components["schemas"]["UserId"];
+			commentId: components["schemas"]["CommentId"];
 			body: string;
 		};
+		/**
+		 * ThreadId
+		 * Format: uuid
+		 */
+		ThreadId: string;
 		/**
 		 * ListCommentsResponse
 		 * @description FR-CMT-002. List flat-thread comments of a Resource, oldest first.
 		 */
 		"list-comments.schema": {
-			resourceId: components["schemas"]["UserId"];
+			resourceId: components["schemas"]["ResourceId"];
 			items: {
-				commentId: components["schemas"]["UserId"];
-				threadId: components["schemas"]["WorkspaceId"];
+				commentId: components["schemas"]["CommentId"];
+				threadId: components["schemas"]["ThreadId"];
 				authorAccountId: components["schemas"]["UserId"];
 				body: string;
 				anchor: Record<string, never>;
 				/** Format: date-time */
 				createdAt: string;
+				/** @enum {unknown} */
+				status: "Open" | "Resolved" | "Detached";
+				createdBy: components["schemas"]["UserId"];
+				/** Format: date-time */
+				resolvedAt: string | null;
+				resolvedBy: components["schemas"]["UserId"] | null;
 			}[];
 		};
 		/**
@@ -1689,16 +2241,16 @@ export interface components {
 		 * @description FR-CMT-001. Append one flat-thread comment to a Resource (read access required). Anchor defaults to ResourceAnchor.
 		 */
 		"add-comment.schema": {
-			resourceId: components["schemas"]["UserId"];
-			threadId?: components["schemas"]["WorkspaceId"];
+			resourceId: components["schemas"]["ResourceId"];
+			threadId?: components["schemas"]["ThreadId"];
 			body: string;
 			anchor?: Record<string, never>;
 			idempotencyKey: components["schemas"]["IdempotencyKey"];
 			$defs: {
 				/** AddCommentResponse */
 				AddCommentResponse: {
-					commentId: components["schemas"]["UserId"];
-					threadId: components["schemas"]["WorkspaceId"];
+					commentId: components["schemas"]["CommentId"];
+					threadId: components["schemas"]["ThreadId"];
 					body: string;
 					/** Format: date-time */
 					createdAt: string;
@@ -1707,11 +2259,36 @@ export interface components {
 		};
 		/** AddCommentResponse */
 		AddCommentResponse: {
-			commentId: components["schemas"]["UserId"];
-			threadId: components["schemas"]["WorkspaceId"];
+			commentId: components["schemas"]["CommentId"];
+			threadId: components["schemas"]["ThreadId"];
 			body: string;
 			/** Format: date-time */
 			createdAt: string;
+		};
+		/**
+		 * ResolveCommentThreadResponse
+		 * @description FR-CMT-005. Result of resolving an open comment thread.
+		 */
+		"resolve-comment-thread.schema": {
+			threadId: components["schemas"]["ThreadId"];
+			resourceId: components["schemas"]["ResourceId"];
+			/** @constant */
+			status: "Resolved";
+			/** Format: date-time */
+			resolvedAt: string;
+			resolvedBy: components["schemas"]["UserId"];
+		};
+		/**
+		 * ReopenCommentThreadResponse
+		 * @description FR-CMT-006. Result of reopening a resolved comment thread.
+		 */
+		"reopen-comment-thread.schema": {
+			threadId: components["schemas"]["ThreadId"];
+			resourceId: components["schemas"]["ResourceId"];
+			/** @constant */
+			status: "Open";
+			resolvedAt: null;
+			resolvedBy: null;
 		};
 		/**
 		 * CreateNamedVersion
@@ -1738,6 +2315,14 @@ export interface components {
 			versionId: components["schemas"]["UserId"];
 			label: string;
 			baseJournalSeq: number;
+		};
+		/**
+		 * CreateVersionRestoreTaskResponse
+		 * @description Accepts a version restore task for a Resource and returns its queryable Task identity.
+		 */
+		"create-version-restore-task.schema": {
+			taskId: components["schemas"]["TaskId"];
+			task: components["schemas"]["TaskSummary"];
 		};
 		/**
 		 * TrashResource
@@ -1776,6 +2361,12 @@ export interface components {
 				/** @enum {string} */
 				lifecycle: "Active" | "Trashed" | "Purging" | "Purged";
 			}[];
+			$defs: {
+				/** ListResourcesQueryParameters */
+				ListResourcesQueryParameters: {
+					folderId?: components["schemas"]["FolderId"];
+				};
+			};
 		};
 		/**
 		 * MarkNotificationReadResponse
@@ -1832,6 +2423,28 @@ export interface components {
 				updatedAt: string | null;
 			}[];
 		};
+		/**
+		 * OpenPublicSharedResourceResponse
+		 * @description Anonymous, read-only view resolved through an active share link. Share tokens and owner metadata are not exposed.
+		 */
+		"open-public-shared-resource.schema": {
+			resourceId: components["schemas"]["ResourceId"];
+			name: string;
+			/** @enum {string} */
+			resourceType: "document" | "code" | "markdown" | "text";
+			snapshot: Record<string, never> | null;
+			journalSeq: number;
+		};
+		/**
+		 * AssetId
+		 * Format: uuid
+		 */
+		AssetId: string;
+		/**
+		 * DownloadPublicSharedAssetResponse
+		 * @description Raw bytes for an asset referenced by a Resource under an active public share link.
+		 */
+		"download-public-shared-asset.schema": string;
 		/**
 		 * GetOpsMetricsResponse
 		 * @description OPS-001. Process-local counters (requests by status, DL activity, rate-limit blocks).
@@ -2568,12 +3181,508 @@ export interface components {
 			transferredAt: string;
 		};
 		/**
+		 * InvitationId
+		 * Format: uuid
+		 */
+		InvitationId: string;
+		/** ListWorkspaceInvitationsResponse */
+		"list-workspace-invitations.schema": {
+			invitations: {
+				invitationId: components["schemas"]["InvitationId"];
+				workspaceId: components["schemas"]["WorkspaceId"];
+				/** Format: email */
+				targetEmail: string;
+				targetAccountId?: components["schemas"]["UserId"] | null;
+				/** @constant */
+				role: "Member";
+				/** @enum {string} */
+				state: "Pending" | "Accepted" | "Expired" | "Revoked";
+				/** Format: date-time */
+				expiresAt: string;
+				createdBy: components["schemas"]["UserId"];
+				/** Format: date-time */
+				createdAt: string;
+				acceptedAt?: string | null;
+			}[];
+		};
+		/** CreateWorkspaceInvitation */
+		"create-workspace-invitation.schema": {
+			workspaceId: components["schemas"]["WorkspaceId"];
+			/** Format: email */
+			targetEmail: string;
+			/** @default 7 */
+			expiresInDays: number;
+			$defs: {
+				/** CreateWorkspaceInvitationResponse */
+				CreateWorkspaceInvitationResponse: {
+					invitationId: components["schemas"]["InvitationId"];
+					workspaceId: components["schemas"]["WorkspaceId"];
+					/** Format: email */
+					targetEmail: string;
+					/** @constant */
+					role: "Member";
+					/** @constant */
+					state: "Pending";
+					/** Format: date-time */
+					expiresAt: string;
+					createdBy: components["schemas"]["UserId"];
+					/** Format: date-time */
+					createdAt: string;
+					invitationUrl: string;
+				};
+			};
+		};
+		/** CreateWorkspaceInvitationResponse */
+		CreateWorkspaceInvitationResponse: {
+			invitationId: components["schemas"]["InvitationId"];
+			workspaceId: components["schemas"]["WorkspaceId"];
+			/** Format: email */
+			targetEmail: string;
+			/** @constant */
+			role: "Member";
+			/** @constant */
+			state: "Pending";
+			/** Format: date-time */
+			expiresAt: string;
+			createdBy: components["schemas"]["UserId"];
+			/** Format: date-time */
+			createdAt: string;
+			invitationUrl: string;
+		};
+		/** ListWorkspaceMembersResponse */
+		"list-workspace-members.schema": {
+			members: {
+				accountId: components["schemas"]["UserId"];
+				email: string;
+				/** @enum {string} */
+				membershipKind: "Owner" | "Member";
+				/** Format: date-time */
+				createdAt: string;
+			}[];
+		};
+		/** AcceptWorkspaceInvitation */
+		"accept-workspace-invitation.schema": {
+			token: string;
+			$defs: {
+				/** AcceptWorkspaceInvitationResponse */
+				AcceptWorkspaceInvitationResponse: {
+					workspaceId: components["schemas"]["WorkspaceId"];
+					accountId: components["schemas"]["UserId"];
+					/** @enum {string} */
+					membershipKind: "Owner" | "Member";
+					email: string;
+					/** Format: date-time */
+					createdAt: string;
+				};
+			};
+		};
+		/** AcceptWorkspaceInvitationResponse */
+		AcceptWorkspaceInvitationResponse: {
+			workspaceId: components["schemas"]["WorkspaceId"];
+			accountId: components["schemas"]["UserId"];
+			/** @enum {string} */
+			membershipKind: "Owner" | "Member";
+			email: string;
+			/** Format: date-time */
+			createdAt: string;
+		};
+		/** RevokeWorkspaceInvitation */
+		"revoke-workspace-invitation.schema": {
+			workspaceId: components["schemas"]["WorkspaceId"];
+			invitationId: components["schemas"]["InvitationId"];
+			$defs: {
+				/** RevokeWorkspaceInvitationResponse */
+				RevokeWorkspaceInvitationResponse: {
+					invitationId: components["schemas"]["InvitationId"];
+					/** @enum {string} */
+					state: "Expired" | "Revoked";
+					/** Format: date-time */
+					expiresAt: string;
+				};
+			};
+		};
+		/** RevokeWorkspaceInvitationResponse */
+		RevokeWorkspaceInvitationResponse: {
+			invitationId: components["schemas"]["InvitationId"];
+			/** @enum {string} */
+			state: "Expired" | "Revoked";
+			/** Format: date-time */
+			expiresAt: string;
+		};
+		/** RemoveWorkspaceMember */
+		"remove-workspace-member.schema": {
+			workspaceId: components["schemas"]["WorkspaceId"];
+			accountId: components["schemas"]["UserId"];
+			$defs: {
+				/** RemoveWorkspaceMemberResponse */
+				RemoveWorkspaceMemberResponse: {
+					/** @constant */
+					removed: true;
+					workspaceId: components["schemas"]["WorkspaceId"];
+					accountId: components["schemas"]["UserId"];
+				};
+			};
+		};
+		/** RemoveWorkspaceMemberResponse */
+		RemoveWorkspaceMemberResponse: {
+			/** @constant */
+			removed: true;
+			workspaceId: components["schemas"]["WorkspaceId"];
+			accountId: components["schemas"]["UserId"];
+		};
+		/** ListProjectMembersResponse */
+		"list-project-members.schema": {
+			members: {
+				projectId: components["schemas"]["ProjectId"];
+				accountId: components["schemas"]["UserId"];
+				email: string;
+				/** @enum {string} */
+				role: "Owner" | "Manage" | "Edit" | "Comment" | "Read";
+				/** @enum {string} */
+				membershipKind: "Owner" | "Member";
+				/** Format: date-time */
+				createdAt: string;
+				/** Format: date-time */
+				updatedAt: string;
+			}[];
+		};
+		/** SetProjectMemberRole */
+		"set-project-member-role.schema": {
+			projectId: components["schemas"]["ProjectId"];
+			accountId: components["schemas"]["UserId"];
+			/** @enum {string} */
+			role: "Owner" | "Manage" | "Edit" | "Comment" | "Read";
+			$defs: {
+				/** SetProjectMemberRoleResponse */
+				SetProjectMemberRoleResponse: {
+					projectId: components["schemas"]["ProjectId"];
+					accountId: components["schemas"]["UserId"];
+					email: string;
+					/** @enum {string} */
+					role: "Owner" | "Manage" | "Edit" | "Comment" | "Read";
+					/** @enum {string} */
+					membershipKind: "Owner" | "Member";
+					/** Format: date-time */
+					createdAt: string;
+					/** Format: date-time */
+					updatedAt: string;
+				};
+			};
+		};
+		/** SetProjectMemberRoleResponse */
+		SetProjectMemberRoleResponse: {
+			projectId: components["schemas"]["ProjectId"];
+			accountId: components["schemas"]["UserId"];
+			email: string;
+			/** @enum {string} */
+			role: "Owner" | "Manage" | "Edit" | "Comment" | "Read";
+			/** @enum {string} */
+			membershipKind: "Owner" | "Member";
+			/** Format: date-time */
+			createdAt: string;
+			/** Format: date-time */
+			updatedAt: string;
+		};
+		/** RemoveProjectMember */
+		"remove-project-member.schema": {
+			projectId: components["schemas"]["ProjectId"];
+			accountId: components["schemas"]["UserId"];
+			$defs: {
+				/** RemoveProjectMemberResponse */
+				RemoveProjectMemberResponse: {
+					/** @constant */
+					removed: true;
+					projectId: components["schemas"]["ProjectId"];
+					accountId: components["schemas"]["UserId"];
+				};
+			};
+		};
+		/** RemoveProjectMemberResponse */
+		RemoveProjectMemberResponse: {
+			/** @constant */
+			removed: true;
+			projectId: components["schemas"]["ProjectId"];
+			accountId: components["schemas"]["UserId"];
+		};
+		/** ListResourcePermissionsResponse */
+		"list-resource-permissions.schema": {
+			permissions: {
+				resourceId: components["schemas"]["ResourceId"];
+				accountId: components["schemas"]["UserId"];
+				email: string;
+				/** @enum {string} */
+				role: "Owner" | "Manage" | "Edit" | "Comment" | "Read";
+				/** Format: date-time */
+				createdAt: string;
+				/** Format: date-time */
+				updatedAt: string;
+			}[];
+		};
+		/** GetResourceCapabilitiesResponse */
+		"get-resource-capabilities.schema": {
+			resourceId: components["schemas"]["ResourceId"];
+			canRead: boolean;
+			canUpdate: boolean;
+			canComment: boolean;
+			canManage: boolean;
+			canResolveCommentThread: boolean;
+			canReopenCommentThread: boolean;
+		};
+		/**
+		 * ShareId
+		 * Format: uuid
+		 */
+		ShareId: string;
+		/** ShareLinkMetadata */
+		ShareLinkMetadata: {
+			shareId: components["schemas"]["ShareId"];
+			resourceId: components["schemas"]["ResourceId"];
+			/** @constant */
+			capability: "Read";
+			/** @enum {string} */
+			status: "Active" | "Revoked" | "Expired";
+			expiresAt: string | null;
+			createdBy: components["schemas"]["UserId"];
+			/** Format: date-time */
+			createdAt: string;
+			revokedAt: string | null;
+		};
+		/** ListResourceShareLinksResponse */
+		"list-resource-share-links.schema": {
+			resourceId: components["schemas"]["ResourceId"];
+			shareLinks: components["schemas"]["ShareLinkMetadata"][];
+			$defs: {
+				/** ShareLinkMetadata */
+				ShareLinkMetadata: {
+					shareId: components["schemas"]["ShareId"];
+					resourceId: components["schemas"]["ResourceId"];
+					/** @constant */
+					capability: "Read";
+					/** @enum {string} */
+					status: "Active" | "Revoked" | "Expired";
+					expiresAt: string | null;
+					createdBy: components["schemas"]["UserId"];
+					/** Format: date-time */
+					createdAt: string;
+					revokedAt: string | null;
+				};
+			};
+		};
+		/** CreateResourceShareLink */
+		"create-resource-share-link.schema": {
+			expiresAt: string | null;
+			$defs: {
+				/** CreateResourceShareLinkResponse */
+				CreateResourceShareLinkResponse: {
+					shareLink: components["schemas"]["ShareLinkMetadata"];
+					shareUrl: string;
+				};
+			};
+		};
+		/** CreateResourceShareLinkResponse */
+		CreateResourceShareLinkResponse: {
+			shareLink: components["schemas"]["ShareLinkMetadata"];
+			shareUrl: string;
+		};
+		/** RevokeResourceShareLinkResponse */
+		"revoke-resource-share-link.schema": {
+			shareLink: components["schemas"]["ShareLinkMetadata"];
+		};
+		/** SetResourceShareLinkExpiry */
+		"set-resource-share-link-expiry.schema": {
+			expiresAt: string | null;
+			$defs: {
+				/** SetResourceShareLinkExpiryResponse */
+				SetResourceShareLinkExpiryResponse: {
+					shareLink: components["schemas"]["ShareLinkMetadata"];
+				};
+			};
+		};
+		/** SetResourceShareLinkExpiryResponse */
+		SetResourceShareLinkExpiryResponse: {
+			shareLink: components["schemas"]["ShareLinkMetadata"];
+		};
+		/** RegenerateResourceShareLink */
+		"regenerate-resource-share-link.schema": {
+			expiresAt: string | null;
+			$defs: {
+				/** RegenerateResourceShareLinkResponse */
+				RegenerateResourceShareLinkResponse: {
+					shareLink: components["schemas"]["ShareLinkMetadata"];
+					shareUrl: string;
+				};
+			};
+		};
+		/** RegenerateResourceShareLinkResponse */
+		RegenerateResourceShareLinkResponse: {
+			shareLink: components["schemas"]["ShareLinkMetadata"];
+			shareUrl: string;
+		};
+		/** SetResourcePermission */
+		"set-resource-permission.schema": {
+			resourceId: components["schemas"]["ResourceId"];
+			accountId: components["schemas"]["UserId"];
+			/** @enum {string} */
+			role: "Owner" | "Manage" | "Edit" | "Comment" | "Read";
+			$defs: {
+				/** SetResourcePermissionResponse */
+				SetResourcePermissionResponse: {
+					resourceId: components["schemas"]["ResourceId"];
+					accountId: components["schemas"]["UserId"];
+					email: string;
+					/** @enum {string} */
+					role: "Owner" | "Manage" | "Edit" | "Comment" | "Read";
+					/** Format: date-time */
+					createdAt: string;
+					/** Format: date-time */
+					updatedAt: string;
+				};
+			};
+		};
+		/** SetResourcePermissionResponse */
+		SetResourcePermissionResponse: {
+			resourceId: components["schemas"]["ResourceId"];
+			accountId: components["schemas"]["UserId"];
+			email: string;
+			/** @enum {string} */
+			role: "Owner" | "Manage" | "Edit" | "Comment" | "Read";
+			/** Format: date-time */
+			createdAt: string;
+			/** Format: date-time */
+			updatedAt: string;
+		};
+		/** RemoveResourcePermission */
+		"remove-resource-permission.schema": {
+			resourceId: components["schemas"]["ResourceId"];
+			accountId: components["schemas"]["UserId"];
+			$defs: {
+				/** RemoveResourcePermissionResponse */
+				RemoveResourcePermissionResponse: {
+					/** @constant */
+					removed: true;
+					resourceId: components["schemas"]["ResourceId"];
+					accountId: components["schemas"]["UserId"];
+				};
+			};
+		};
+		/** RemoveResourcePermissionResponse */
+		RemoveResourcePermissionResponse: {
+			/** @constant */
+			removed: true;
+			resourceId: components["schemas"]["ResourceId"];
+			accountId: components["schemas"]["UserId"];
+		};
+		/**
 		 * HasSoleWorkspaceOwnershipResponse
 		 * @description FR-WRL-009/011 Permission-owned owner query adapter behind Auth WorkspaceOwnershipQueryPort. Evaluates the same authoritative membership source as Workspace create/transfer. The API actor is the authenticated account; no account ID is accepted from the request body.
 		 */
 		"has-sole-workspace-ownership.schema": {
 			hasSoleWorkspaceOwnership: boolean;
 			workspaceId: components["schemas"]["WorkspaceId"] | null;
+		};
+		/**
+		 * ListResourceAssetsResponse
+		 * @description Metadata for binary assets attached to a Resource. Storage keys and object provider details are never returned.
+		 */
+		"list-resource-assets.schema": {
+			resourceId: components["schemas"]["ResourceId"];
+			assets: {
+				assetId: components["schemas"]["AssetId"];
+				originalName: string;
+				mime: string | null;
+				sizeBytes: number;
+				sha256: string;
+				/** Format: date-time */
+				createdAt: string;
+			}[];
+		};
+		UploadAssetBody: {
+			/**
+			 * Format: binary
+			 * @description The file bytes sent as the multipart field named file.
+			 */
+			file: string;
+			mime?: string | null;
+		};
+		/** UploadAssetResponse */
+		UploadAssetResponse: {
+			assetId: components["schemas"]["AssetId"];
+			sha256: string;
+			sizeBytes: number;
+		};
+		/**
+		 * DownloadAssetResponse
+		 * @description Raw bytes for an authenticated Resource Asset download. Asset metadata is conveyed through response headers; binary content is not Base64-encoded JSON.
+		 */
+		"download-asset.schema": string;
+		/**
+		 * ListTasksResponse
+		 * @description Lists tasks owned by the authenticated account. Progress fields may be null when no value is available.
+		 */
+		"list-tasks.schema": {
+			tasks: components["schemas"]["TaskSummary"][];
+			limit: number;
+			offset: number;
+			$defs: {
+				/**
+				 * TaskSummary
+				 * @description Current authoritative task summary. Progress values are null when unavailable; this shape does not imply that a task type currently emits progress.
+				 */
+				TaskSummary: {
+					taskId: components["schemas"]["TaskId"];
+					taskType: string;
+					/** @enum {string} */
+					state:
+						| "Created"
+						| "Queued"
+						| "Running"
+						| "WaitingForUser"
+						| "Retrying"
+						| "Succeeded"
+						| "PartialSucceeded"
+						| "Failed"
+						| "Cancelled";
+					stage: string | null;
+					messageCode: string | null;
+					current: number | null;
+					total: number | null;
+					percentage: number | null;
+					/** Format: date-time */
+					updatedAt: string | null;
+					retryCount: number;
+					retryOfTaskId: components["schemas"]["TaskId"] | null;
+					/** Format: date-time */
+					cancelRequestedAt: string | null;
+					/** Format: date-time */
+					queuedAt: string | null;
+					/** Format: date-time */
+					startedAt: string | null;
+					/** Format: date-time */
+					finishedAt: string | null;
+					failureCode: string | null;
+				};
+			};
+		};
+		/**
+		 * GetTaskResponse
+		 * @description Returns the current authoritative state of one task.
+		 */
+		"get-task.schema": {
+			task: components["schemas"]["TaskSummary"];
+		};
+		/**
+		 * RetryTaskResponse
+		 * @description Creates a fresh task that retries a terminal task and returns the new task state.
+		 */
+		"retry-task.schema": {
+			task: components["schemas"]["TaskSummary"];
+		};
+		/**
+		 * CancelTaskResponse
+		 * @description Requests cooperative cancellation and returns the accepted task state.
+		 */
+		"cancel-task.schema": {
+			task: components["schemas"]["TaskSummary"];
 		};
 	};
 	responses: {
@@ -2589,7 +3698,9 @@ export interface components {
 	};
 	parameters: {
 		/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
-		IdempotencyKey: string;
+		IdempotencyKey: components["schemas"]["IdempotencyKey"];
+		/** @description Stable UUIDv7 key for retries of the same UploadAsset request (docs 10 §53 and 28 §13) */
+		RequiredIdempotencyKey: components["schemas"]["IdempotencyKey"];
 	};
 	requestBodies: never;
 	headers: never;
@@ -2989,58 +4100,6 @@ export interface operations {
 			503: components["responses"]["ErrorEnvelopeResponse"];
 		};
 	};
-	ProposeChangeSet: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["propose-changeset.schema"];
-			};
-		};
-		responses: {
-			/** @description Proposed ChangeSet */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["ProposeChangeSetResponse"];
-				};
-			};
-			401: components["responses"]["ErrorEnvelopeResponse"];
-			403: components["responses"]["ErrorEnvelopeResponse"];
-			404: components["responses"]["ErrorEnvelopeResponse"];
-		};
-	};
-	ApplyChangeSet: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				changesetId: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Applied ChangeSet */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["apply-changeset.schema"];
-				};
-			};
-			401: components["responses"]["ErrorEnvelopeResponse"];
-			403: components["responses"]["ErrorEnvelopeResponse"];
-			404: components["responses"]["ErrorEnvelopeResponse"];
-		};
-	};
 	OpenResource: {
 		parameters: {
 			query?: never;
@@ -3162,6 +4221,59 @@ export interface operations {
 			503: components["responses"]["ErrorEnvelopeResponse"];
 		};
 	};
+	ProposeChangeSet: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["propose-changeset.schema"];
+			};
+		};
+		responses: {
+			/** @description Proposed ChangeSet for user review */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ProposeChangeSetResponse"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	ApplyChangeSet: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				changesetId: components["schemas"]["ChangeSetId"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description ChangeSet applied to the Resource */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["apply-changeset.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
 	ImportResource: {
 		parameters: {
 			query?: never;
@@ -3180,8 +4292,8 @@ export interface operations {
 			};
 		};
 		responses: {
-			/** @description Imported as a new checkpoint */
-			200: {
+			/** @description Import task accepted and queryable in Task Center */
+			202: {
 				headers: {
 					[name: string]: unknown;
 				};
@@ -3190,6 +4302,65 @@ export interface operations {
 				};
 			};
 			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			413: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	CreateResourceExportTask: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				resourceId: components["schemas"]["ResourceId"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Export task accepted and queryable in Task Center */
+			202: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["create-resource-export-task.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	GetResourceExportResult: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				resourceId: components["schemas"]["ResourceId"];
+				exportSessionId: components["schemas"]["SessionId"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Completed exchange document */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["export-resource.schema"];
+				};
+			};
 			401: components["responses"]["ErrorEnvelopeResponse"];
 			403: components["responses"]["ErrorEnvelopeResponse"];
 			404: components["responses"]["ErrorEnvelopeResponse"];
@@ -3262,7 +4433,7 @@ export interface operations {
 			query?: never;
 			header?: never;
 			path: {
-				resourceId: string;
+				resourceId: components["schemas"]["ResourceId"];
 			};
 			cookie?: never;
 		};
@@ -3291,7 +4462,7 @@ export interface operations {
 				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
 			};
 			path: {
-				resourceId: string;
+				resourceId: components["schemas"]["ResourceId"];
 			};
 			cookie?: never;
 		};
@@ -3315,6 +4486,60 @@ export interface operations {
 			403: components["responses"]["ErrorEnvelopeResponse"];
 			404: components["responses"]["ErrorEnvelopeResponse"];
 			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	ResolveCommentThread: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				resourceId: components["schemas"]["ResourceId"];
+				threadId: components["schemas"]["ThreadId"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Thread marked Resolved */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["resolve-comment-thread.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	ReopenCommentThread: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				resourceId: components["schemas"]["ResourceId"];
+				threadId: components["schemas"]["ThreadId"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Thread marked Open */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["reopen-comment-thread.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
 		};
 	};
 	CreateNamedVersion: {
@@ -3348,6 +4573,37 @@ export interface operations {
 			403: components["responses"]["ErrorEnvelopeResponse"];
 			404: components["responses"]["ErrorEnvelopeResponse"];
 			409: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	CreateVersionRestoreTask: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				resourceId: components["schemas"]["ResourceId"];
+				baseJournalSeq: number;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Restore task accepted and queryable in Task Center */
+			202: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["create-version-restore-task.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
 		};
 	};
 	ListVersions: {
@@ -3459,7 +4715,7 @@ export interface operations {
 		parameters: {
 			query?: {
 				/** @description Restrict results to this folder. Omit to list resources at the project root. */
-				folderId?: string;
+				folderId?: components["schemas"]["FolderId"];
 			};
 			header?: never;
 			path: {
@@ -3582,6 +4838,55 @@ export interface operations {
 			};
 			401: components["responses"]["ErrorEnvelopeResponse"];
 			429: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	OpenPublicSharedResource: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				token: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Current read-only Resource content granted by the share link */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["open-public-shared-resource.schema"];
+				};
+			};
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	DownloadPublicSharedAsset: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				token: string;
+				assetId: components["schemas"]["AssetId"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Binary asset bytes scoped to the shared Resource */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/octet-stream": components["schemas"]["download-public-shared-asset.schema"];
+				};
+			};
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
 		};
 	};
 	GetOpsMetrics: {
@@ -4561,6 +5866,577 @@ export interface operations {
 			503: components["responses"]["ErrorEnvelopeResponse"];
 		};
 	};
+	ListWorkspaceInvitations: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components["schemas"]["WorkspaceId"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Workspace invitation status and expiry information */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["list-workspace-invitations.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	CreateWorkspaceInvitation: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				workspaceId: components["schemas"]["WorkspaceId"];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["create-workspace-invitation.schema"];
+			};
+		};
+		responses: {
+			/** @description Invitation created; the URL is returned once and may be copied */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["CreateWorkspaceInvitationResponse"];
+				};
+			};
+			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	ListWorkspaceMembers: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components["schemas"]["WorkspaceId"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Workspace members and Owner */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["list-workspace-members.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	AcceptWorkspaceInvitation: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["accept-workspace-invitation.schema"];
+			};
+		};
+		responses: {
+			/** @description Workspace Member membership is granted atomically */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["AcceptWorkspaceInvitationResponse"];
+				};
+			};
+			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	RevokeWorkspaceInvitation: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				workspaceId: components["schemas"]["WorkspaceId"];
+				invitationId: components["schemas"]["InvitationId"];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["revoke-workspace-invitation.schema"];
+			};
+		};
+		responses: {
+			/** @description Invitation is no longer usable */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["RevokeWorkspaceInvitationResponse"];
+				};
+			};
+			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	RemoveWorkspaceMember: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				workspaceId: components["schemas"]["WorkspaceId"];
+				accountId: components["schemas"]["UserId"];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["remove-workspace-member.schema"];
+			};
+		};
+		responses: {
+			/** @description Workspace membership removed */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["RemoveWorkspaceMemberResponse"];
+				};
+			};
+			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	ListProjectMembers: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				projectId: components["schemas"]["ProjectId"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Explicit Project role rows; Workspace Owner inheritance is not materialized */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["list-project-members.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	SetProjectMemberRole: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				projectId: components["schemas"]["ProjectId"];
+				accountId: components["schemas"]["UserId"];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["set-project-member-role.schema"];
+			};
+		};
+		responses: {
+			/** @description Explicit Project role saved */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["SetProjectMemberRoleResponse"];
+				};
+			};
+			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	RemoveProjectMember: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				projectId: components["schemas"]["ProjectId"];
+				accountId: components["schemas"]["UserId"];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["remove-project-member.schema"];
+			};
+		};
+		responses: {
+			/** @description Explicit Project role removed */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["RemoveProjectMemberResponse"];
+				};
+			};
+			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	ListResourcePermissions: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				resourceId: components["schemas"]["ResourceId"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Direct override rows; absence means inherit the Project role */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["list-resource-permissions.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	GetResourceCapabilities: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				resourceId: components["schemas"]["ResourceId"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Effective capabilities for the authenticated actor */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["get-resource-capabilities.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	ListResourceShareLinks: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				resourceId: components["schemas"]["ResourceId"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Share-link metadata for the Resource */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["list-resource-share-links.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	CreateResourceShareLink: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				resourceId: components["schemas"]["ResourceId"];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["create-resource-share-link.schema"];
+			};
+		};
+		responses: {
+			/** @description Share link created; the secret URL is returned once */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["CreateResourceShareLinkResponse"];
+				};
+			};
+			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	RevokeResourceShareLink: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				resourceId: components["schemas"]["ResourceId"];
+				shareId: components["schemas"]["ShareId"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Revoked share-link metadata */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["revoke-resource-share-link.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	SetResourceShareLinkExpiry: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				resourceId: components["schemas"]["ResourceId"];
+				shareId: components["schemas"]["ShareId"];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["set-resource-share-link-expiry.schema"];
+			};
+		};
+		responses: {
+			/** @description Updated share-link metadata */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["SetResourceShareLinkExpiryResponse"];
+				};
+			};
+			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	RegenerateResourceShareLink: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				resourceId: components["schemas"]["ResourceId"];
+				shareId: components["schemas"]["ShareId"];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["regenerate-resource-share-link.schema"];
+			};
+		};
+		responses: {
+			/** @description Rotated share link; the new secret URL is returned once */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["RegenerateResourceShareLinkResponse"];
+				};
+			};
+			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	SetResourcePermission: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				resourceId: components["schemas"]["ResourceId"];
+				accountId: components["schemas"]["UserId"];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["set-resource-permission.schema"];
+			};
+		};
+		responses: {
+			/** @description Custom Resource permission saved */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["SetResourcePermissionResponse"];
+				};
+			};
+			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	RemoveResourcePermission: {
+		parameters: {
+			query?: never;
+			header?: {
+				/** @description Stable key for safe retry of a logical mutating command (doc 28 §13) */
+				"Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+			};
+			path: {
+				resourceId: components["schemas"]["ResourceId"];
+				accountId: components["schemas"]["UserId"];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["remove-resource-permission.schema"];
+			};
+		};
+		responses: {
+			/** @description Custom override removed */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["RemoveResourcePermissionResponse"];
+				};
+			};
+			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
 	HasSoleWorkspaceOwnership: {
 		parameters: {
 			query?: never;
@@ -4581,6 +6457,193 @@ export interface operations {
 			};
 			401: components["responses"]["ErrorEnvelopeResponse"];
 			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	ListResourceAssets: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				resourceId: components["schemas"]["ResourceId"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Asset metadata associated with the Resource */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["list-resource-assets.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	UploadAsset: {
+		parameters: {
+			query?: never;
+			header: {
+				/** @description Stable UUIDv7 key for retries of the same UploadAsset request (docs 10 §53 and 28 §13) */
+				"Idempotency-Key": components["parameters"]["RequiredIdempotencyKey"];
+			};
+			path: {
+				resourceId: components["schemas"]["ResourceId"];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"multipart/form-data": components["schemas"]["UploadAssetBody"];
+			};
+		};
+		responses: {
+			/** @description Asset stored and associated with the Resource */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["UploadAssetResponse"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	DownloadAsset: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				assetId: components["schemas"]["AssetId"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Binary Asset content; response headers include asset id and digest */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/octet-stream": components["schemas"]["download-asset.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	ListTasks: {
+		parameters: {
+			query?: {
+				limit?: number;
+				offset?: number;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Current authoritative task summaries */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["list-tasks.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			422: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	GetTask: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				taskId: components["schemas"]["TaskId"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Current authoritative task state */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["get-task.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	RetryTask: {
+		parameters: {
+			query?: never;
+			header: {
+				/** @description Stable UUID key for replaying this retry command */
+				"Idempotency-Key": string;
+			};
+			path: {
+				taskId: components["schemas"]["TaskId"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Newly created retry task, or the same task for an idempotent replay */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["retry-task.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	CancelTask: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				taskId: components["schemas"]["TaskId"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Current task state after the cancellation request */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["cancel-task.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
 		};
 	};
 }

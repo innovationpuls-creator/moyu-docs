@@ -34,5 +34,17 @@
 			}
 		}
 	},
-	"required": ["projectId", "items"]
+	"required": ["projectId", "items"],
+	"$defs": {
+		"ListResourcesQueryParameters": {
+			"title": "ListResourcesQueryParameters",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"folderId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/FolderId"
+				}
+			}
+		}
+	}
 }

@@ -6,7 +6,7 @@
 	"type": "object",
 	"additionalProperties": false,
 	"properties": {
-		"commentId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+		"commentId": { "$ref": "../../ids/ids.schema.json#/$defs/CommentId" },
 		"body": { "type": "string", "minLength": 1 },
 		"idempotencyKey": {
 			"$ref": "../../ids/ids.schema.json#/$defs/IdempotencyKey"
@@ -18,7 +18,7 @@
 			"type": "object",
 			"additionalProperties": false,
 			"properties": {
-				"commentId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+				"commentId": { "$ref": "../../ids/ids.schema.json#/$defs/CommentId" },
 				"body": { "type": "string" }
 			},
 			"required": ["commentId", "body"],

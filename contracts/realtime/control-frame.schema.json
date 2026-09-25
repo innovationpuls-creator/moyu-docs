@@ -1,0 +1,19 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/realtime/control-frame.schema.json",
+	"title": "RealtimeControlFrame",
+	"description": "Reliable low-frequency Control envelope. Message-specific payload fields remain defined by the owning control operation.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"header": {
+			"$ref": "./frame-header.schema.json#/$defs/RealtimeControlFrameHeader"
+		},
+		"payload": {
+			"type": "object",
+			"description": "Operation-specific Control payload; its fields are validated by the corresponding operation contract.",
+			"additionalProperties": true
+		}
+	},
+	"required": ["header", "payload"]
+}

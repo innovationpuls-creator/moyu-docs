@@ -1,0 +1,16 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/comments/reopen-comment-thread.schema.json",
+	"title": "ReopenCommentThreadResponse",
+	"description": "FR-CMT-006. Result of reopening a resolved comment thread.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"threadId": { "$ref": "../../ids/ids.schema.json#/$defs/ThreadId" },
+		"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/ResourceId" },
+		"status": { "const": "Open" },
+		"resolvedAt": { "type": "null" },
+		"resolvedBy": { "type": "null" }
+	},
+	"required": ["threadId", "resourceId", "status", "resolvedAt", "resolvedBy"]
+}

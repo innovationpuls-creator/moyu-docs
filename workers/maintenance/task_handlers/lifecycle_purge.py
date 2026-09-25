@@ -24,6 +24,15 @@ class _Context(Protocol):
 
     async def checkpoint(self) -> None: ...
 
+    async def report_progress(
+        self,
+        *,
+        stage: str | None = None,
+        message_code: str | None = None,
+        current: int | None = None,
+        total: int | None = None,
+    ) -> None: ...
+
 
 class _Effects(Protocol):
     async def record_effect(self, *args: object, **kwargs: object) -> object: ...
@@ -43,6 +52,9 @@ class LifecyclePurgeHandler:
     async def execute(self, context: _Context) -> None:
         await context.checkpoint()
         workspace_id = _workspace_id(context)
+        await context.report_progress(
+            stage="purging", message_code="lifecycle.purge.workspace.running"
+        )
         try:
             result = await self._purge.execute(workspace_id)
         except RetryablePurgeError as exc:
@@ -57,6 +69,9 @@ class LifecyclePurgeHandler:
             {"workspaceId": str(workspace_id), "disposition": result.disposition},
             attempt_id=context.attempt_id,
             execution_epoch=context.execution_epoch,
+        )
+        await context.report_progress(
+            stage="completed", message_code="lifecycle.purge.workspace.completed"
         )
 
 

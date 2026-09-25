@@ -68,6 +68,24 @@ export function toProseMirror(nodes: ContentNode[]): ProseMirrorJson {
 							],
 						})),
 					};
+				case "image":
+					return {
+						type: "image",
+						attrs: {
+							nodeId: node.nodeId,
+							assetId: node.assetId,
+							label: node.label,
+						},
+					};
+				case "attachment":
+					return {
+						type: "attachment",
+						attrs: {
+							nodeId: node.nodeId,
+							assetId: node.assetId,
+							label: node.label,
+						},
+					};
 				default:
 					throw new ContentNodeError(
 						`$: unsupported kind ${(node as { kind: string }).kind}`,
@@ -99,7 +117,7 @@ function pmNodeToCanonical(item: ProseMirrorJson): ContentNode {
 				children: (item.content ?? []).map(pmTextOrThrow),
 			};
 		case "heading": {
-			const level = Number((item.attrs ?? {}).level ?? 1) as 1 | 2 | 3;
+			const level = Number(item.attrs?.level ?? 1) as 1 | 2 | 3;
 			return {
 				kind: "heading",
 				level,
@@ -121,6 +139,18 @@ function pmNodeToCanonical(item: ProseMirrorJson): ContentNode {
 					};
 				}),
 			};
+		case "image":
+		case "attachment": {
+			const attrs = item.attrs ?? {};
+			const node: ContentNode = {
+				kind: item.type as "image" | "attachment",
+				nodeId: String(attrs.nodeId ?? ""),
+				assetId: String(attrs.assetId ?? ""),
+				label: String(attrs.label ?? ""),
+			};
+			validateNode(node);
+			return node;
+		}
 		default:
 			throw new ContentNodeError(`unknown pm type ${item.type}`);
 	}

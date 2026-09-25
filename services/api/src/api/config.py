@@ -63,6 +63,12 @@ class Settings:
     mail_link_base_url: str = field(
         default_factory=lambda: os.getenv("MAIL_LINK_BASE_URL", "http://localhost:5173")
     )
+    invitation_idempotency_encryption_key: str | None = field(
+        default_factory=lambda: os.getenv("INVITATION_IDEMPOTENCY_ENCRYPTION_KEY")
+    )
+    share_link_idempotency_encryption_key: str | None = field(
+        default_factory=lambda: os.getenv("SHARE_LINK_IDEMPOTENCY_ENCRYPTION_KEY")
+    )
 
 
 settings = Settings()

@@ -1,0 +1,51 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/permission/create-workspace-invitation.schema.json",
+	"title": "CreateWorkspaceInvitation",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"workspaceId": { "$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId" },
+		"targetEmail": { "type": "string", "format": "email", "maxLength": 255 },
+		"expiresInDays": {
+			"type": "integer",
+			"minimum": 1,
+			"maximum": 30,
+			"default": 7
+		}
+	},
+	"required": ["workspaceId", "targetEmail"],
+	"$defs": {
+		"CreateWorkspaceInvitationResponse": {
+			"title": "CreateWorkspaceInvitationResponse",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"invitationId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/InvitationId"
+				},
+				"workspaceId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId"
+				},
+				"targetEmail": { "type": "string", "format": "email" },
+				"role": { "const": "Member" },
+				"state": { "const": "Pending" },
+				"expiresAt": { "type": "string", "format": "date-time" },
+				"createdBy": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+				"createdAt": { "type": "string", "format": "date-time" },
+				"invitationUrl": { "type": "string", "minLength": 1 }
+			},
+			"required": [
+				"invitationId",
+				"workspaceId",
+				"targetEmail",
+				"role",
+				"state",
+				"expiresAt",
+				"createdBy",
+				"createdAt",
+				"invitationUrl"
+			]
+		}
+	}
+}

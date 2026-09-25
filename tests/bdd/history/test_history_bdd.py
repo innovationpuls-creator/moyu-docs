@@ -45,6 +45,7 @@ async def migrated_database() -> None:
 @pytest_asyncio.fixture
 async def db_session() -> AsyncSession:
     async with engine.connect() as connection:
+        # Keep every case on its own outer transaction, including session commits.
         transaction = await connection.begin()
         factory = async_sessionmaker(
             bind=connection,
@@ -52,40 +53,15 @@ async def db_session() -> AsyncSession:
             class_=AsyncSession,
             join_transaction_mode="create_savepoint",
         )
-        async with factory() as session:
-            yield session
-            await session.rollback()
-        await transaction.rollback()
-
-
-@pytest_asyncio.fixture(autouse=True)
-async def clean_tables() -> None:
-    connection = await engine.connect()
-    try:
-        session = AsyncSession(connection)
-        async with session.begin():
-            for t in (
-                "collab.resource_search_index",
-                "collab.resource_assets",
-                "collab.ai_changesets",
-                "collab.resource_named_versions",
-                "collab.resource_comments",
-                "collab.resource_ownership",
-                "collab.resource_checkpoints",
-                "collab.resource_update_journal",
-                "core.resources",
-                "core.workspace_members",
-                "core.folders",
-                "core.projects",
-                "core.workspaces",
-            ):
-                await session.execute(text(f"DELETE FROM {t}"))
-            await session.execute(
-                text("DELETE FROM auth.accounts WHERE primary_email LIKE 'hsv-%@test'")
-            )
-        await session.close()
-    finally:
-        await connection.close()
+        try:
+            async with factory() as session:
+                try:
+                    yield session
+                finally:
+                    await session.rollback()
+        finally:
+            if transaction.is_active:
+                await transaction.rollback()
 
 
 async def _seed_resource(db_session: AsyncSession):

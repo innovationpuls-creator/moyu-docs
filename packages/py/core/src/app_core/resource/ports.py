@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from typing import Protocol
 from uuid import UUID
 
@@ -33,12 +34,23 @@ class JournalRepository(Protocol):
         ownership_epoch: int,
         update_bytes: bytes,
         update_hash: str,
+        *,
+        expected_seq: int | None = None,
     ) -> JournalOp: ...
     async def read_cursor(
         self, resource_id: UUID, after_seq: int, *, limit: int = 200
     ) -> list[JournalOp]: ...
     async def max_seq(self, resource_id: UUID) -> int: ...
     async def mark_durable(self, resource_id: UUID, journal_seq: int) -> None: ...
+
+
+class JournalIdempotencyPort(Protocol):
+    async def execute(
+        self,
+        key: str,
+        fingerprint: str,
+        operation: Callable[[], Awaitable[JournalOp]],
+    ) -> JournalOp: ...
 
 
 class CheckpointRepository(Protocol):

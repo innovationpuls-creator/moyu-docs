@@ -629,12 +629,29 @@ async def test_owner_transfer_audit_and_outbox_share_transaction(
         text("SELECT action FROM audit.entries WHERE workspace_id=:id"),
         {"id": workspace_id},
     )
-    event_type = await db_session.scalar(
-        text("SELECT event_type FROM integration.outbox_events WHERE aggregate_id=:id"),
-        {"id": workspace_id},
+    events = (
+        (
+            await db_session.execute(
+                text(
+                    "SELECT event_type, schema_version, payload "
+                    "FROM integration.outbox_events WHERE aggregate_id=:id"
+                ),
+                {"id": workspace_id},
+            )
+        )
+        .mappings()
+        .all()
     )
     assert audit_action == "WorkspaceOwnerTransferred"
-    assert event_type == "WorkspaceOwnerTransferred"
+    assert len(events) == 2
+    assert {event["event_type"] for event in events} == {"event.permission.changed.v1"}
+    assert {event["schema_version"] for event in events} == {"1.0.0"}
+    changes = {event["payload"]["payload"]["accountId"]: event for event in events}
+    assert changes[str(owner)]["payload"]["payload"]["role"] == "Member"
+    assert changes[str(target)]["payload"]["payload"]["role"] == "Owner"
+    assert all(
+        event["payload"]["payload"]["action"] == "owner_transferred" for event in events
+    )
 
 
 @pytest.mark.asyncio

@@ -1,8 +1,16 @@
+import { randomUUID } from "node:crypto";
+import type { CommentRealtimeEvent } from "@dom/contracts/realtime/comment-event";
 import * as Y from "yjs";
 import type { PresenceStore } from "../backlog/presence_store.js";
 import { MemoryPresenceStore } from "../backlog/presence_store.js";
 import type { YjsBacklogStore } from "../backlog/yjs_backlog_store.js";
 import { MemoryYjsBacklogStore } from "../backlog/yjs_backlog_store.js";
+import {
+	type AwarenessEvent,
+	type AwarenessParticipant,
+	type AwarenessState,
+	parseAwarenessState,
+} from "../protocol/realtime_frame.js";
 /**
  * RT1 — resource subject subscriptions (arch 05 §11).
  *
@@ -28,10 +36,38 @@ export interface OpEnvelope {
 	subject: string;
 	resourceId: string;
 	subscriptionId?: string;
-	kind: "op" | "presence" | "subscribe" | "unsubscribe";
+	kind:
+		| "op"
+		| "presence"
+		| "subscribe"
+		| "unsubscribe"
+		| CommentRealtimeEvent["kind"];
 	payload: unknown;
 	occurredAt?: string;
 }
+
+export interface AuthenticatedPresenceIdentity {
+	accountId: string;
+}
+
+interface PresenceRecord {
+	connectionId: string;
+	resourceId: string;
+	participant: AwarenessParticipant;
+	state: AwarenessState;
+	lastSentAt: number;
+	timer: ReturnType<typeof setTimeout> | null;
+}
+
+const AWARENESS_THROTTLE_MS = 80;
+const PARTICIPANT_COLORS = [
+	"#2563eb",
+	"#9333ea",
+	"#db2777",
+	"#ea580c",
+	"#059669",
+	"#0891b2",
+] as const;
 
 export const SUBSCRIPTION_DENIED = "denied";
 export const SUBSCRIPTION_OK = "ok";
@@ -40,7 +76,13 @@ export class ResourceSubscriptionManager {
 	private readonly subscriptions = new Map<string, Set<string>>(); // conn -> subjects
 	private readonly bySubject = new Map<string, Set<string>>(); // subject -> conns
 	private readonly actors = new Map<string, string>(); // conn -> actor
+	private readonly publicShareConnections = new Set<string>();
 	private readonly subscriptionIds = new Map<string, string>(); // conn + resource -> subscription
+	private readonly participants = new Map<string, PresenceRecord>(); // conn + resource -> ephemeral presence
+	private readonly participantsByResource = new Map<
+		string,
+		Map<string, PresenceRecord>
+	>();
 
 	constructor(
 		private readonly authorize: SubscriptionAuthorizer,
@@ -57,9 +99,13 @@ export class ResourceSubscriptionManager {
 		actorId: string,
 		resourceId: string,
 		subscriptionId = "",
+		presenceIdentity?: AuthenticatedPresenceIdentity,
 	): Promise<"ok" | "denied"> {
 		if (!(await this.authorize.authorizeResource(actorId, resourceId))) {
 			return SUBSCRIPTION_DENIED;
+		}
+		if (this.isSubscribed(connectionId, resourceId)) {
+			this.unsubscribe(connectionId, resourceId);
 		}
 		const subject = subjectFor(resourceId);
 		let connSubjects = this.subscriptions.get(connectionId);
@@ -78,6 +124,10 @@ export class ResourceSubscriptionManager {
 			subscriptionKey(connectionId, resourceId),
 			subscriptionId,
 		);
+		this.actors.set(connectionId, actorId);
+		if (presenceIdentity?.accountId) {
+			this.addParticipant(connectionId, resourceId, presenceIdentity.accountId);
+		}
 		this.sender.send(connectionId, {
 			subject,
 			resourceId,
@@ -86,17 +136,205 @@ export class ResourceSubscriptionManager {
 			payload: { status: "ok" },
 		});
 		this.broadcastRoster(subject, resourceId);
+		this.sendPresenceSnapshot(connectionId, resourceId);
+		const ownPresence = this.participants.get(
+			subscriptionKey(connectionId, resourceId),
+		);
+		if (ownPresence) this.broadcastPresence(ownPresence, connectionId);
 		this.sendBacklog(subject, resourceId, connectionId);
-		this.actors.set(connectionId, actorId);
 		void this.presence?.join(resourceId, actorId);
 		return SUBSCRIPTION_OK;
+	}
+
+	/** Public share subscriptions receive body updates only and never enter Presence. */
+	subscribePublicShare(
+		connectionId: string,
+		resourceId: string,
+		subscriptionId: string,
+	): void {
+		if (this.isSubscribed(connectionId, resourceId)) {
+			this.unsubscribe(connectionId, resourceId);
+		}
+		const subject = subjectFor(resourceId);
+		const connSubjects =
+			this.subscriptions.get(connectionId) ?? new Set<string>();
+		connSubjects.add(subject);
+		this.subscriptions.set(connectionId, connSubjects);
+		const conns = this.bySubject.get(subject) ?? new Set<string>();
+		conns.add(connectionId);
+		this.bySubject.set(subject, conns);
+		this.subscriptionIds.set(
+			subscriptionKey(connectionId, resourceId),
+			subscriptionId,
+		);
+		this.publicShareConnections.add(connectionId);
+		this.sender.send(connectionId, {
+			subject,
+			resourceId,
+			subscriptionId,
+			kind: "subscribe",
+			payload: { status: "ok" },
+		});
+		this.broadcastRoster(subject, resourceId);
+	}
+
+	sendPublicShareState(
+		connectionId: string,
+		resourceId: string,
+		subscriptionId: string,
+		updateBase64: string,
+	): void {
+		if (!this.isSubscribed(connectionId, resourceId, subscriptionId)) return;
+		this.sender.send(connectionId, {
+			subject: subjectFor(resourceId),
+			resourceId,
+			subscriptionId,
+			kind: "op",
+			payload: { kind: "yjs", update: updateBase64 },
+			occurredAt: new Date().toISOString(),
+		});
+	}
+
+	isPublicShareConnection(connectionId: string): boolean {
+		return this.publicShareConnections.has(connectionId);
+	}
+
+	private addParticipant(
+		connectionId: string,
+		resourceId: string,
+		accountId: string,
+	): void {
+		const compactId = accountId.replaceAll("-", "");
+		const participant: AwarenessParticipant = {
+			participantId: randomUUID(),
+			displayName: `协作者-${compactId.slice(-4).toUpperCase()}`,
+			color: stableParticipantColor(accountId),
+		};
+		const record: PresenceRecord = {
+			connectionId,
+			resourceId,
+			participant,
+			state: { cursor: null },
+			lastSentAt: Number.NEGATIVE_INFINITY,
+			timer: null,
+		};
+		this.participants.set(subscriptionKey(connectionId, resourceId), record);
+		const room = this.participantsByResource.get(resourceId) ?? new Map();
+		room.set(participant.participantId, record);
+		this.participantsByResource.set(resourceId, room);
+	}
+
+	private sendPresenceSnapshot(connectionId: string, resourceId: string): void {
+		for (const record of this.participantsByResource
+			.get(resourceId)
+			?.values() ?? []) {
+			if (record.connectionId === connectionId) continue;
+			this.sendAwarenessEvent(connectionId, resourceId, {
+				kind: "update",
+				participant: record.participant,
+				state: record.state,
+			});
+		}
+	}
+
+	private sendAwarenessEvent(
+		connectionId: string,
+		resourceId: string,
+		event: AwarenessEvent,
+	): void {
+		if (this.publicShareConnections.has(connectionId)) return;
+		this.sender.send(connectionId, {
+			subject: subjectFor(resourceId),
+			resourceId,
+			subscriptionId: this.getSubscriptionId(connectionId, resourceId),
+			kind: "op",
+			payload: { kind: "awareness", event },
+			occurredAt: new Date().toISOString(),
+		});
+	}
+
+	private broadcastPresence(
+		record: PresenceRecord,
+		exceptConnectionId?: string,
+	): void {
+		const event: AwarenessEvent = {
+			kind: "update",
+			participant: record.participant,
+			state: record.state,
+		};
+		for (const connectionId of this.bySubject.get(
+			subjectFor(record.resourceId),
+		) ?? []) {
+			if (connectionId === exceptConnectionId) continue;
+			this.sendAwarenessEvent(connectionId, record.resourceId, event);
+		}
+	}
+
+	/** Only a current, authorized Resource subscription can publish ephemeral cursor state. */
+	publishAwareness(
+		connectionId: string,
+		resourceId: string,
+		subscriptionId: string,
+		state: unknown,
+	): boolean {
+		if (!this.isSubscribed(connectionId, resourceId, subscriptionId))
+			return false;
+		const record = this.participants.get(
+			subscriptionKey(connectionId, resourceId),
+		);
+		const parsed = parseAwarenessState(state);
+		if (!record || parsed === null) return false;
+		record.state = parsed;
+		const waitMs = AWARENESS_THROTTLE_MS - (Date.now() - record.lastSentAt);
+		if (waitMs <= 0) {
+			this.flushPresence(record);
+		} else if (record.timer === null) {
+			record.timer = setTimeout(() => {
+				record.timer = null;
+				if (
+					this.participants.get(subscriptionKey(connectionId, resourceId)) ===
+					record
+				) {
+					this.flushPresence(record);
+				}
+			}, waitMs);
+		}
+		return true;
+	}
+
+	private flushPresence(record: PresenceRecord): void {
+		record.lastSentAt = Date.now();
+		this.broadcastPresence(record, record.connectionId);
+	}
+
+	private removeParticipant(connectionId: string, resourceId: string): void {
+		const key = subscriptionKey(connectionId, resourceId);
+		const record = this.participants.get(key);
+		if (!record) return;
+		if (record.timer !== null) clearTimeout(record.timer);
+		this.participants.delete(key);
+		const room = this.participantsByResource.get(resourceId);
+		room?.delete(record.participant.participantId);
+		if (room?.size === 0) this.participantsByResource.delete(resourceId);
+		const event: AwarenessEvent = {
+			kind: "remove",
+			participantId: record.participant.participantId,
+		};
+		for (const peer of this.bySubject.get(subjectFor(resourceId)) ?? []) {
+			if (peer === connectionId || this.publicShareConnections.has(peer))
+				continue;
+			this.sendAwarenessEvent(peer, resourceId, event);
+		}
 	}
 
 	/** Roster presence (arch 05): every subscribe/leave pushes the peer count. */
 	private broadcastRoster(subject: string, resourceId: string): void {
 		const conns = this.bySubject.get(subject);
-		const peers = conns?.size ?? 0;
+		const peers = [...(conns ?? [])].filter(
+			(connectionId) => !this.publicShareConnections.has(connectionId),
+		).length;
 		for (const connectionId of conns ?? []) {
+			if (this.publicShareConnections.has(connectionId)) continue;
 			this.sender.send(connectionId, {
 				subject,
 				resourceId,
@@ -134,9 +372,9 @@ export class ResourceSubscriptionManager {
 		void this.backlogStore?.record(resourceId, updateBase64);
 	}
 
-	/** Validate the current session's write capability before persisting or
-	 * broadcasting a client-originated Yjs update. Read subscriptions remain
-	 * active for receiving updates; only this publish path requires write access. */
+	/** Revalidate edit capability for this Session and Subscription before the
+	 * update becomes visible or enters the reconnect backlog. Read-only peers
+	 * keep their subscription and can continue receiving updates. */
 	async publishYjsUpdate(
 		connectionId: string,
 		resourceId: string,
@@ -146,29 +384,35 @@ export class ResourceSubscriptionManager {
 		const actorId = this.actors.get(connectionId);
 		if (
 			!actorId ||
+			this.publicShareConnections.has(connectionId) ||
 			!this.isSubscribed(connectionId, resourceId, subscriptionId)
 		) {
 			return false;
 		}
 
-		let mayUpdate = false;
+		let canUpdate = false;
 		try {
-			mayUpdate = await this.authorize.authorizeResourceUpdate(
+			canUpdate = await this.authorize.authorizeResourceUpdate(
 				actorId,
 				resourceId,
 			);
 		} catch {
-			// Fail closed when the authoritative capability check is unavailable.
 			return false;
 		}
+
+		// Permission lookup is asynchronous; do not let a result for a stale or
+		// replaced subscription authorize a delayed frame.
 		if (
-			!mayUpdate ||
+			!canUpdate ||
 			this.actors.get(connectionId) !== actorId ||
 			!this.isSubscribed(connectionId, resourceId, subscriptionId)
 		) {
 			return false;
 		}
 
+		// Persist into the reconnect backlog before notifying peers. In
+		// particular, a subscriber that joins immediately after fan-out must not
+		// miss an update whose asynchronous backlog write is still pending.
 		await this.backlogStore?.record(resourceId, updateBase64);
 		this.dispatch(
 			resourceId,
@@ -242,23 +486,37 @@ export class ResourceSubscriptionManager {
 				this.subscriptions.delete(connectionId);
 			}
 		}
+		this.removeParticipant(connectionId, resourceId);
 		this.bySubject.get(subject)?.delete(connectionId);
+		if (this.bySubject.get(subject)?.size === 0) this.bySubject.delete(subject);
 		this.subscriptionIds.delete(subscriptionKey(connectionId, resourceId));
+		const actorId = this.actors.get(connectionId);
+		if (actorId) void this.presence?.leave(resourceId, actorId);
+		if ((this.subscriptions.get(connectionId)?.size ?? 0) === 0) {
+			this.publicShareConnections.delete(connectionId);
+		}
+		if ((this.subscriptions.get(connectionId)?.size ?? 0) === 0) {
+			this.actors.delete(connectionId);
+		}
+		this.broadcastRoster(subject, resourceId);
 	}
 
 	dropConnection(connectionId: string): void {
 		const subjects = this.subscriptions.get(connectionId);
 		const actorId = this.actors.get(connectionId);
-		if (!subjects) return;
-		for (const subject of subjects) {
-			this.bySubject.get(subject)?.delete(connectionId);
+		for (const subject of subjects ?? []) {
 			const resourceId = subject.replace(/^rt\.resource\./, "");
+			this.removeParticipant(connectionId, resourceId);
+			this.bySubject.get(subject)?.delete(connectionId);
+			if (this.bySubject.get(subject)?.size === 0)
+				this.bySubject.delete(subject);
 			this.subscriptionIds.delete(subscriptionKey(connectionId, resourceId));
 			if (actorId) void this.presence?.leave(resourceId, actorId);
 			this.broadcastRoster(subject, resourceId);
 		}
 		this.subscriptions.delete(connectionId);
 		this.actors.delete(connectionId);
+		this.publicShareConnections.delete(connectionId);
 	}
 
 	dispatch(
@@ -278,6 +536,10 @@ export class ResourceSubscriptionManager {
 		let sent = 0;
 		for (const connectionId of conns) {
 			if (connectionId === exceptConnectionId) continue;
+			if (this.publicShareConnections.has(connectionId)) {
+				const payload = message.payload as { kind?: unknown } | undefined;
+				if (message.kind !== "op" || payload?.kind !== "yjs") continue;
+			}
 			this.sender.send(connectionId, {
 				...message,
 				subscriptionId: this.getSubscriptionId(connectionId, resourceId),
@@ -294,4 +556,13 @@ export function subjectFor(resourceId: string): string {
 
 function subscriptionKey(connectionId: string, resourceId: string): string {
 	return `${connectionId}\u0000${resourceId}`;
+}
+
+function stableParticipantColor(accountId: string): string {
+	let hash = 2166136261;
+	for (const character of accountId.toLowerCase()) {
+		hash ^= character.charCodeAt(0);
+		hash = Math.imul(hash, 16777619);
+	}
+	return PARTICIPANT_COLORS[(hash >>> 0) % PARTICIPANT_COLORS.length];
 }

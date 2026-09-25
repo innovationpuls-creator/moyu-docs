@@ -1,0 +1,236 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/realtime/comment-event.schema.json",
+	"title": "CommentRealtimeEvent",
+	"description": "A Resource-scoped comment event delivered on the authenticated Realtime subscription.",
+	"oneOf": [
+		{ "$ref": "#/$defs/CommentAddedFrame" },
+		{ "$ref": "#/$defs/CommentEditedFrame" },
+		{ "$ref": "#/$defs/CommentDeletedFrame" },
+		{ "$ref": "#/$defs/ThreadResolvedFrame" },
+		{ "$ref": "#/$defs/ThreadReopenedFrame" }
+	],
+	"$defs": {
+		"CommentAddedFrame": {
+			"title": "CommentAddedFrame",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"protocolVersion": { "type": "integer", "const": 1 },
+				"subject": {
+					"type": "string",
+					"pattern": "^rt\\.resource\\.[0-9a-fA-F-]{36}$"
+				},
+				"resourceId": { "$ref": "../ids/ids.schema.json#/$defs/ResourceId" },
+				"subscriptionId": {
+					"$ref": "../ids/ids.schema.json#/$defs/SubscriptionId"
+				},
+				"kind": { "const": "comment.added" },
+				"payload": { "$ref": "#/$defs/CommentAddedPayload" },
+				"sequence": { "type": ["integer", "null"], "minimum": 0 },
+				"occurredAt": { "type": "string", "format": "date-time" }
+			},
+			"required": [
+				"protocolVersion",
+				"subject",
+				"resourceId",
+				"subscriptionId",
+				"kind",
+				"payload",
+				"occurredAt"
+			]
+		},
+		"CommentEditedFrame": {
+			"title": "CommentEditedFrame",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"protocolVersion": { "type": "integer", "const": 1 },
+				"subject": {
+					"type": "string",
+					"pattern": "^rt\\.resource\\.[0-9a-fA-F-]{36}$"
+				},
+				"resourceId": { "$ref": "../ids/ids.schema.json#/$defs/ResourceId" },
+				"subscriptionId": {
+					"$ref": "../ids/ids.schema.json#/$defs/SubscriptionId"
+				},
+				"kind": { "const": "comment.edited" },
+				"payload": { "$ref": "#/$defs/CommentEditedPayload" },
+				"sequence": { "type": ["integer", "null"], "minimum": 0 },
+				"occurredAt": { "type": "string", "format": "date-time" }
+			},
+			"required": [
+				"protocolVersion",
+				"subject",
+				"resourceId",
+				"subscriptionId",
+				"kind",
+				"payload",
+				"occurredAt"
+			]
+		},
+		"CommentDeletedFrame": {
+			"title": "CommentDeletedFrame",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"protocolVersion": { "type": "integer", "const": 1 },
+				"subject": {
+					"type": "string",
+					"pattern": "^rt\\.resource\\.[0-9a-fA-F-]{36}$"
+				},
+				"resourceId": { "$ref": "../ids/ids.schema.json#/$defs/ResourceId" },
+				"subscriptionId": {
+					"$ref": "../ids/ids.schema.json#/$defs/SubscriptionId"
+				},
+				"kind": { "const": "comment.deleted" },
+				"payload": { "$ref": "#/$defs/CommentDeletedPayload" },
+				"sequence": { "type": ["integer", "null"], "minimum": 0 },
+				"occurredAt": { "type": "string", "format": "date-time" }
+			},
+			"required": [
+				"protocolVersion",
+				"subject",
+				"resourceId",
+				"subscriptionId",
+				"kind",
+				"payload",
+				"occurredAt"
+			]
+		},
+		"ThreadResolvedFrame": {
+			"title": "ThreadResolvedFrame",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"protocolVersion": { "type": "integer", "const": 1 },
+				"subject": {
+					"type": "string",
+					"pattern": "^rt\\.resource\\.[0-9a-fA-F-]{36}$"
+				},
+				"resourceId": { "$ref": "../ids/ids.schema.json#/$defs/ResourceId" },
+				"subscriptionId": {
+					"$ref": "../ids/ids.schema.json#/$defs/SubscriptionId"
+				},
+				"kind": { "const": "ThreadResolved" },
+				"payload": { "$ref": "#/$defs/ThreadResolvedPayload" },
+				"sequence": { "type": ["integer", "null"], "minimum": 0 },
+				"occurredAt": { "type": "string", "format": "date-time" }
+			},
+			"required": [
+				"protocolVersion",
+				"subject",
+				"resourceId",
+				"subscriptionId",
+				"kind",
+				"payload",
+				"occurredAt"
+			]
+		},
+		"ThreadReopenedFrame": {
+			"title": "ThreadReopenedFrame",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"protocolVersion": { "type": "integer", "const": 1 },
+				"subject": {
+					"type": "string",
+					"pattern": "^rt\\.resource\\.[0-9a-fA-F-]{36}$"
+				},
+				"resourceId": { "$ref": "../ids/ids.schema.json#/$defs/ResourceId" },
+				"subscriptionId": {
+					"$ref": "../ids/ids.schema.json#/$defs/SubscriptionId"
+				},
+				"kind": { "const": "ThreadReopened" },
+				"payload": { "$ref": "#/$defs/ThreadReopenedPayload" },
+				"sequence": { "type": ["integer", "null"], "minimum": 0 },
+				"occurredAt": { "type": "string", "format": "date-time" }
+			},
+			"required": [
+				"protocolVersion",
+				"subject",
+				"resourceId",
+				"subscriptionId",
+				"kind",
+				"payload",
+				"occurredAt"
+			]
+		},
+		"CommentAddedPayload": {
+			"title": "CommentAddedPayload",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"resourceId": { "$ref": "../ids/ids.schema.json#/$defs/ResourceId" },
+				"commentId": { "$ref": "../ids/ids.schema.json#/$defs/CommentId" },
+				"threadId": { "$ref": "../ids/ids.schema.json#/$defs/ThreadId" },
+				"author": { "$ref": "../ids/ids.schema.json#/$defs/UserId" },
+				"body": { "type": "string", "minLength": 1 }
+			},
+			"required": ["resourceId", "commentId", "threadId", "author", "body"]
+		},
+		"CommentEditedPayload": {
+			"title": "CommentEditedPayload",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"commentId": { "$ref": "../ids/ids.schema.json#/$defs/CommentId" },
+				"body": { "type": "string", "minLength": 1 }
+			},
+			"required": ["commentId", "body"]
+		},
+		"CommentDeletedPayload": {
+			"title": "CommentDeletedPayload",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"commentId": { "$ref": "../ids/ids.schema.json#/$defs/CommentId" }
+			},
+			"required": ["commentId"]
+		},
+		"ThreadResolvedPayload": {
+			"title": "ThreadResolvedPayload",
+			"allOf": [
+				{ "$ref": "#/$defs/ThreadTransitionPayload" },
+				{
+					"properties": { "status": { "const": "Resolved" } },
+					"required": ["status"]
+				}
+			]
+		},
+		"ThreadReopenedPayload": {
+			"title": "ThreadReopenedPayload",
+			"allOf": [
+				{ "$ref": "#/$defs/ThreadTransitionPayload" },
+				{
+					"properties": { "status": { "const": "Open" } },
+					"required": ["status"]
+				}
+			]
+		},
+		"ThreadTransitionPayload": {
+			"title": "ThreadTransitionPayload",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"threadId": { "$ref": "../ids/ids.schema.json#/$defs/ThreadId" },
+				"resourceId": { "$ref": "../ids/ids.schema.json#/$defs/ResourceId" },
+				"status": { "enum": ["Open", "Resolved"] },
+				"resolvedBy": {
+					"oneOf": [
+						{ "$ref": "../ids/ids.schema.json#/$defs/UserId" },
+						{ "type": "null" }
+					]
+				},
+				"resolvedAt": { "type": ["string", "null"], "format": "date-time" }
+			},
+			"required": [
+				"threadId",
+				"resourceId",
+				"status",
+				"resolvedBy",
+				"resolvedAt"
+			]
+		}
+	}
+}

@@ -1,0 +1,33 @@
+.app-shell-status {
+	position: fixed;
+	left: 50%;
+	bottom: 20px;
+	z-index: 1000;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	max-width: calc(100vw - 32px);
+	padding: 10px 14px;
+	border: 1px solid rgba(19, 59, 73, 0.14);
+	border-radius: 999px;
+	background: #183f4a;
+	box-shadow: 0 12px 32px rgba(9, 35, 43, 0.2);
+	color: #f2f8f6;
+	font-size: 13px;
+	transform: translateX(-50%);
+}
+
+.app-shell-status-action {
+	margin-left: 10px;
+	padding: 5px 9px;
+	border: 0;
+	border-radius: 999px;
+	background: #d5f1e4;
+	color: #123b46;
+	font: inherit;
+	cursor: pointer;
+}
+
+.app-shell-status-action:hover {
+	background: #fff;
+}

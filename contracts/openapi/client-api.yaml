@@ -26,8 +26,14 @@ components:
       required: false
       description: Stable key for safe retry of a logical mutating command (doc 28 §13)
       schema:
-        type: string
-        format: uuid
+        $ref: "../ids/ids.schema.json#/$defs/IdempotencyKey"
+    RequiredIdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Stable UUIDv7 key for retries of the same UploadAsset request (docs 10 §53 and 28 §13)
+      schema:
+        $ref: "../ids/ids.schema.json#/$defs/IdempotencyKey"
 paths:
   /v1/auth/register:
     post:
@@ -60,7 +66,6 @@ paths:
           $ref: "#/components/responses/ErrorEnvelopeResponse"
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
-
   /v1/auth/verify-email:
     post:
       operationId: VerifyEmail
@@ -379,57 +384,6 @@ paths:
             format: uuid
         - $ref: "#/components/parameters/IdempotencyKey"
 
-  /v1/ai/propose-changeset:
-    post:
-      operationId: ProposeChangeSet
-      summary: Propose a reviewable AI ChangeSet without applying it
-      tags: [ai]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "../commands/ai/propose-changeset.schema.json"
-      responses:
-        "200":
-          description: Proposed ChangeSet
-          content:
-            application/json:
-              schema:
-                $ref: "../commands/ai/propose-changeset.schema.json#/$defs/ProposeChangeSetResponse"
-        "401":
-          $ref: "#/components/responses/ErrorEnvelopeResponse"
-        "403":
-          $ref: "#/components/responses/ErrorEnvelopeResponse"
-        "404":
-          $ref: "#/components/responses/ErrorEnvelopeResponse"
-
-  /v1/changesets/{changesetId}/apply:
-    post:
-      operationId: ApplyChangeSet
-      summary: Apply a ChangeSet after explicit user approval
-      tags: [ai]
-      parameters:
-        - name: changesetId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "200":
-          description: Applied ChangeSet
-          content:
-            application/json:
-              schema:
-                $ref: "../commands/ai/apply-changeset.schema.json"
-        "401":
-          $ref: "#/components/responses/ErrorEnvelopeResponse"
-        "403":
-          $ref: "#/components/responses/ErrorEnvelopeResponse"
-        "404":
-          $ref: "#/components/responses/ErrorEnvelopeResponse"
-
   /v1/resources/{resourceId}:
     get:
       operationId: OpenResource
@@ -560,6 +514,58 @@ paths:
         "503":
           $ref: "#/components/responses/ErrorEnvelopeResponse"
 
+  /v1/ai/propose-changeset:
+    post:
+      operationId: ProposeChangeSet
+      summary: Create a reviewable AI proposal without applying it (FR-AI-003)
+      tags: [ai]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/ai/propose-changeset.schema.json"
+      responses:
+        "200":
+          description: Proposed ChangeSet for user review
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/ai/propose-changeset.schema.json#/$defs/ProposeChangeSetResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/changesets/{changesetId}/apply:
+    post:
+      operationId: ApplyChangeSet
+      summary: Apply a user-approved ChangeSet to its Resource journal (FR-AI-004)
+      tags: [ai]
+      parameters:
+        - name: changesetId
+          in: path
+          required: true
+          schema:
+            $ref: "../ids/ids.schema.json#/$defs/ChangeSetId"
+      responses:
+        "200":
+          description: ChangeSet applied to the Resource
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/ai/apply-changeset.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
   /v1/resources/{resourceId}/import:
     post:
       operationId: ImportResource
@@ -572,8 +578,8 @@ paths:
             schema:
               $ref: "../commands/importexport/import-resource.schema.json"
       responses:
-        "200":
-          description: Imported as a new checkpoint
+        "202":
+          description: Import task accepted and queryable in Task Center
           content:
             application/json:
               schema:
@@ -586,6 +592,10 @@ paths:
           $ref: "#/components/responses/ErrorEnvelopeResponse"
         "404":
           $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "413":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
         "503":
           $ref: "#/components/responses/ErrorEnvelopeResponse"
       parameters:
@@ -596,6 +606,68 @@ paths:
             type: string
             format: uuid
         - $ref: "#/components/parameters/IdempotencyKey"
+
+  /v1/resources/{resourceId}/export-tasks:
+    post:
+      operationId: CreateResourceExportTask
+      summary: Queue a Resource export for background execution (FR-IE-001)
+      tags: [importexport]
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            $ref: "../ids/ids.schema.json#/$defs/ResourceId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202":
+          description: Export task accepted and queryable in Task Center
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/importexport/create-resource-export-task.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/resources/{resourceId}/exports/{exportSessionId}/result:
+    get:
+      operationId: GetResourceExportResult
+      summary: Download a completed short-lived Resource export (FR-IE-001)
+      tags: [importexport]
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            $ref: "../ids/ids.schema.json#/$defs/ResourceId"
+        - name: exportSessionId
+          in: path
+          required: true
+          schema:
+            $ref: "../ids/ids.schema.json#/$defs/SessionId"
+      responses:
+        "200":
+          description: Completed exchange document
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/importexport/export-resource.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
 
   /v1/comments/{commentId}:
     patch:
@@ -662,6 +734,13 @@ paths:
       operationId: AddComment
       summary: Append one flat-thread comment to a Resource (FR-CMT-001)
       tags: [comments]
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            $ref: "../ids/ids.schema.json#/$defs/ResourceId"
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
@@ -685,14 +764,6 @@ paths:
           $ref: "#/components/responses/ErrorEnvelopeResponse"
         "503":
           $ref: "#/components/responses/ErrorEnvelopeResponse"
-      parameters:
-        - name: resourceId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - $ref: "#/components/parameters/IdempotencyKey"
     get:
       operationId: ListComments
       summary: List flat-thread comments of a Resource (FR-CMT-002)
@@ -702,8 +773,7 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            $ref: "../ids/ids.schema.json#/$defs/ResourceId"
       responses:
         "200":
           description: Comments oldest-first
@@ -718,6 +788,70 @@ paths:
         "404":
           $ref: "#/components/responses/ErrorEnvelopeResponse"
         "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/resources/{resourceId}/comments/threads/{threadId}/resolve:
+    post:
+      operationId: ResolveCommentThread
+      summary: Resolve a comment thread in a Resource (FR-CMT-005)
+      tags: [comments]
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            $ref: "../ids/ids.schema.json#/$defs/ResourceId"
+        - name: threadId
+          in: path
+          required: true
+          schema:
+            $ref: "../ids/ids.schema.json#/$defs/ThreadId"
+      responses:
+        "200":
+          description: Thread marked Resolved
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/comments/resolve-comment-thread.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/resources/{resourceId}/comments/threads/{threadId}/reopen:
+    post:
+      operationId: ReopenCommentThread
+      summary: Reopen a resolved comment thread in a Resource (FR-CMT-006)
+      tags: [comments]
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            $ref: "../ids/ids.schema.json#/$defs/ResourceId"
+        - name: threadId
+          in: path
+          required: true
+          schema:
+            $ref: "../ids/ids.schema.json#/$defs/ThreadId"
+      responses:
+        "200":
+          description: Thread marked Open
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/comments/reopen-comment-thread.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
           $ref: "#/components/responses/ErrorEnvelopeResponse"
 
   /v1/resources/{resourceId}/versions:
@@ -754,6 +888,42 @@ paths:
             type: string
             format: uuid
         - $ref: "#/components/parameters/IdempotencyKey"
+
+  /v1/resources/{resourceId}/versions/{baseJournalSeq}/restore-tasks:
+    post:
+      operationId: CreateVersionRestoreTask
+      summary: Queue a Resource version restore for background execution (FR-HS-002)
+      tags: [history]
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            $ref: "../ids/ids.schema.json#/$defs/ResourceId"
+        - name: baseJournalSeq
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202":
+          description: Restore task accepted and queryable in Task Center
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/history/create-version-restore-task.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
 
   /v1/resources/{resourceId}/history:
     get:
@@ -893,8 +1063,7 @@ paths:
           required: false
           description: Restrict results to this folder. Omit to list resources at the project root.
           schema:
-            type: string
-            format: uuid
+            $ref: "../queries/resource/list-resources.schema.json#/$defs/ListResourcesQueryParameters/properties/folderId"
       responses:
         "200":
           description: Resources of the Project
@@ -1013,6 +1182,63 @@ paths:
         "401":
           $ref: "#/components/responses/ErrorEnvelopeResponse"
         "429":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/public/shares/{token}:
+    get:
+      operationId: OpenPublicSharedResource
+      summary: Open an active anonymous read-only Resource share link
+      tags: [permission]
+      parameters:
+        - name: token
+          in: path
+          required: true
+          x-sensitive: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 256
+      responses:
+        "200":
+          description: Current read-only Resource content granted by the share link
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/permission/open-public-shared-resource.schema.json"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/public/shares/{token}/assets/{assetId}:
+    get:
+      operationId: DownloadPublicSharedAsset
+      summary: Read an asset referenced by a resource under an active share link
+      tags: [assets]
+      parameters:
+        - name: token
+          in: path
+          required: true
+          x-sensitive: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 256
+        - name: assetId
+          in: path
+          required: true
+          schema:
+            $ref: "../ids/ids.schema.json#/$defs/AssetId"
+      responses:
+        "200":
+          description: Binary asset bytes scoped to the shared Resource
+          content:
+            application/octet-stream:
+              schema:
+                $ref: "../queries/assets/download-public-shared-asset.schema.json"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
           $ref: "#/components/responses/ErrorEnvelopeResponse"
 
   /v1/ops/metrics:
@@ -2010,6 +2236,602 @@ paths:
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
 
+  /v1/workspaces/{workspaceId}/invitations:
+    parameters:
+      - name: workspaceId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/WorkspaceId"
+    post:
+      operationId: CreateWorkspaceInvitation
+      summary: Create or reissue a copyable Workspace invitation (FR-PERM-001)
+      tags: [permission]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/permission/create-workspace-invitation.schema.json"
+      responses:
+        "201":
+          description: Invitation created; the URL is returned once and may be copied
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/permission/create-workspace-invitation.schema.json#/$defs/CreateWorkspaceInvitationResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+
+    get:
+      operationId: ListWorkspaceInvitations
+      summary: List Workspace invitation states (FR-PERM-003)
+      tags: [permission]
+      responses:
+        "200":
+          description: Workspace invitation status and expiry information
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/permission/list-workspace-invitations.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/workspaces/{workspaceId}/members:
+    parameters:
+      - name: workspaceId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/WorkspaceId"
+    get:
+      operationId: ListWorkspaceMembers
+      summary: List Workspace membership identities (FR-PERM-002)
+      tags: [permission]
+      responses:
+        "200":
+          description: Workspace members and Owner
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/permission/list-workspace-members.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/invitations/accept:
+    post:
+      operationId: AcceptWorkspaceInvitation
+      summary: Accept a Workspace invitation for the matching Active Account
+      tags: [permission]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/permission/accept-workspace-invitation.schema.json"
+      responses:
+        "200":
+          description: Workspace Member membership is granted atomically
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/permission/accept-workspace-invitation.schema.json#/$defs/AcceptWorkspaceInvitationResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/workspaces/{workspaceId}/invitations/{invitationId}:
+    parameters:
+      - name: workspaceId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/WorkspaceId"
+      - name: invitationId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/InvitationId"
+    delete:
+      operationId: RevokeWorkspaceInvitation
+      summary: Revoke or expire a pending Workspace invitation (FR-PERM-004)
+      tags: [permission]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/permission/revoke-workspace-invitation.schema.json"
+      responses:
+        "200":
+          description: Invitation is no longer usable
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/permission/revoke-workspace-invitation.schema.json#/$defs/RevokeWorkspaceInvitationResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+
+  /v1/workspaces/{workspaceId}/members/{accountId}:
+    parameters:
+      - name: workspaceId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/WorkspaceId"
+      - name: accountId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/UserId"
+    delete:
+      operationId: RemoveWorkspaceMember
+      summary: Remove a Workspace Member without changing independent Project roles
+      tags: [permission]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/permission/remove-workspace-member.schema.json"
+      responses:
+        "200":
+          description: Workspace membership removed
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/permission/remove-workspace-member.schema.json#/$defs/RemoveWorkspaceMemberResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+
+  /v1/projects/{projectId}/members:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/ProjectId"
+    get:
+      operationId: ListProjectMembers
+      summary: List explicit Project memberships and roles
+      tags: [permission]
+      responses:
+        "200":
+          description: Explicit Project role rows; Workspace Owner inheritance is not materialized
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/permission/list-project-members.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/projects/{projectId}/members/{accountId}:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/ProjectId"
+      - name: accountId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/UserId"
+    put:
+      operationId: SetProjectMemberRole
+      summary: Set a direct Project role; Workspace membership remains separate
+      tags: [permission]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/permission/set-project-member-role.schema.json"
+      responses:
+        "200":
+          description: Explicit Project role saved
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/permission/set-project-member-role.schema.json#/$defs/SetProjectMemberRoleResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+    delete:
+      operationId: RemoveProjectMember
+      summary: Remove a direct Project role while preserving the Project Owner invariant
+      tags: [permission]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/permission/remove-project-member.schema.json"
+      responses:
+        "200":
+          description: Explicit Project role removed
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/permission/remove-project-member.schema.json#/$defs/RemoveProjectMemberResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+
+  /v1/resources/{resourceId}/permissions:
+    parameters:
+      - name: resourceId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/ResourceId"
+    get:
+      operationId: ListResourcePermissions
+      summary: List custom Resource permission overrides
+      tags: [permission]
+      responses:
+        "200":
+          description: Direct override rows; absence means inherit the Project role
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/permission/list-resource-permissions.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/resources/{resourceId}/capabilities:
+    parameters:
+      - name: resourceId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/ResourceId"
+    get:
+      operationId: GetResourceCapabilities
+      summary: Get the current actor's effective Resource capabilities
+      tags: [permission]
+      responses:
+        "200":
+          description: Effective capabilities for the authenticated actor
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/permission/get-resource-capabilities.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/resources/{resourceId}/share-links:
+    parameters:
+      - name: resourceId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/ResourceId"
+    get:
+      operationId: ListResourceShareLinks
+      summary: List share-link metadata without exposing tokens
+      tags: [permission]
+      responses:
+        "200":
+          description: Share-link metadata for the Resource
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/permission/list-resource-share-links.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+    post:
+      operationId: CreateResourceShareLink
+      summary: Create a read-only anonymous Resource share link
+      tags: [permission]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/permission/create-resource-share-link.schema.json"
+      responses:
+        "201":
+          description: Share link created; the secret URL is returned once
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/permission/create-resource-share-link.schema.json#/$defs/CreateResourceShareLinkResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+
+  /v1/resources/{resourceId}/share-links/{shareId}:
+    parameters:
+      - name: resourceId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/ResourceId"
+      - name: shareId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/ShareId"
+    patch:
+      operationId: SetResourceShareLinkExpiry
+      summary: Set or clear the expiry time on an active share link
+      tags: [permission]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/permission/set-resource-share-link-expiry.schema.json"
+      responses:
+        "200":
+          description: Updated share-link metadata
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/permission/set-resource-share-link-expiry.schema.json#/$defs/SetResourceShareLinkExpiryResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+    delete:
+      operationId: RevokeResourceShareLink
+      summary: Revoke an anonymous Resource share link
+      tags: [permission]
+      responses:
+        "200":
+          description: Revoked share-link metadata
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/permission/revoke-resource-share-link.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+
+  /v1/resources/{resourceId}/share-links/{shareId}/regenerate:
+    post:
+      operationId: RegenerateResourceShareLink
+      summary: Rotate a share link secret and return the new URL once
+      tags: [permission]
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            $ref: "../ids/ids.schema.json#/$defs/ResourceId"
+        - name: shareId
+          in: path
+          required: true
+          schema:
+            $ref: "../ids/ids.schema.json#/$defs/ShareId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/permission/regenerate-resource-share-link.schema.json"
+      responses:
+        "200":
+          description: Rotated share link; the new secret URL is returned once
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/permission/regenerate-resource-share-link.schema.json#/$defs/RegenerateResourceShareLinkResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/resources/{resourceId}/permissions/{accountId}:
+    parameters:
+      - name: resourceId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/ResourceId"
+      - name: accountId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/UserId"
+    put:
+      operationId: SetResourcePermission
+      summary: Set a custom Resource role override
+      tags: [permission]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/permission/set-resource-permission.schema.json"
+      responses:
+        "200":
+          description: Custom Resource permission saved
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/permission/set-resource-permission.schema.json#/$defs/SetResourcePermissionResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+    delete:
+      operationId: RemoveResourcePermission
+      summary: Remove a Resource override and restore Project-role inheritance
+      tags: [permission]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/permission/remove-resource-permission.schema.json"
+      responses:
+        "200":
+          description: Custom override removed
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/permission/remove-resource-permission.schema.json#/$defs/RemoveResourcePermissionResponse"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+
   /v1/auth/my-workspace-ownership:
     get:
       operationId: HasSoleWorkspaceOwnership
@@ -2026,4 +2848,204 @@ paths:
         "401":
           $ref: "#/components/responses/ErrorEnvelopeResponse"
         "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/resources/{resourceId}/assets:
+    get:
+      operationId: ListResourceAssets
+      summary: List Resource Asset metadata (FR-AST-001)
+      tags: [assets]
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            $ref: "../ids/ids.schema.json#/$defs/ResourceId"
+      responses:
+        "200":
+          description: Asset metadata associated with the Resource
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/assets/list-resource-assets.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+    post:
+      operationId: UploadAsset
+      summary: Upload a binary Resource Asset (FR-AST-001)
+      tags: [assets]
+      parameters:
+        - $ref: "#/components/parameters/RequiredIdempotencyKey"
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            $ref: "../ids/ids.schema.json#/$defs/ResourceId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "../commands/assets/upload-asset.schema.json#/$defs/UploadAssetBody"
+      responses:
+        "201":
+          description: Asset stored and associated with the Resource
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/assets/upload-asset.schema.json#/$defs/UploadAssetResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/assets/{assetId}:
+    get:
+      operationId: DownloadAsset
+      summary: Download a Resource Asset as raw bytes (FR-AST-001)
+      tags: [assets]
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          schema:
+            $ref: "../ids/ids.schema.json#/$defs/AssetId"
+      responses:
+        "200":
+          description: Binary Asset content; response headers include asset id and digest
+          content:
+            application/octet-stream:
+              schema:
+                $ref: "../queries/assets/download-asset.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/tasks:
+    get:
+      operationId: ListTasks
+      summary: List tasks initiated by the authenticated Account (FR-TSK-003)
+      tags: [tasks]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: Current authoritative task summaries
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/tasks/list-tasks.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "422":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/tasks/{taskId}:
+    parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/TaskId"
+    get:
+      operationId: GetTask
+      summary: Get one task initiated by the authenticated Account (FR-TSK-003)
+      tags: [tasks]
+      responses:
+        "200":
+          description: Current authoritative task state
+          content:
+            application/json:
+              schema:
+                $ref: "../queries/tasks/get-task.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/tasks/{taskId}/retry:
+    parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/TaskId"
+    post:
+      operationId: RetryTask
+      summary: Retry a failed task with an idempotency key (FR-TSK-005)
+      tags: [tasks]
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Stable UUID key for replaying this retry command
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Newly created retry task, or the same task for an idempotent replay
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/tasks/retry-task.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/tasks/{taskId}/cancel:
+    parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          $ref: "../ids/ids.schema.json#/$defs/TaskId"
+    post:
+      operationId: CancelTask
+      summary: Request cancellation of an active task (FR-TSK-004)
+      tags: [tasks]
+      responses:
+        "200":
+          description: Current task state after the cancellation request
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/tasks/cancel-task.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
           $ref: "#/components/responses/ErrorEnvelopeResponse"

@@ -1,0 +1,8 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/assets/download-public-shared-asset.schema.json",
+	"title": "DownloadPublicSharedAssetResponse",
+	"description": "Raw bytes for an asset referenced by a Resource under an active public share link.",
+	"type": "string",
+	"contentMediaType": "application/octet-stream"
+}

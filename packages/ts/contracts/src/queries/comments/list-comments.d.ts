@@ -4,20 +4,26 @@
  * Do not edit; run `just contract` instead.
  */
 
+export type ResourceId = string;
+export type CommentId = string;
+export type ThreadId = string;
 export type UserId = string;
-export type WorkspaceId = string;
 
 /**
  * FR-CMT-002. List flat-thread comments of a Resource, oldest first.
  */
 export interface ListCommentsResponse {
-	resourceId: UserId;
+	resourceId: ResourceId;
 	items: {
-		commentId: UserId;
-		threadId: WorkspaceId;
+		commentId: CommentId;
+		threadId: ThreadId;
 		authorAccountId: UserId;
 		body: string;
 		anchor: {};
 		createdAt: string;
+		status: "Open" | "Resolved" | "Detached";
+		createdBy: UserId;
+		resolvedAt: string | null;
+		resolvedBy: UserId | null;
 	}[];
 }

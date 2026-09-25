@@ -4,13 +4,13 @@
  * Do not edit; run `just contract` instead.
  */
 
-export type UserId = string;
+export type CommentId = string;
 export type IdempotencyKey = string;
 
 /**
  * FR-CMT-004. Author soft-deletes their comment (thread integrity kept).
  */
 export interface DeleteComment {
-	commentId: UserId;
+	commentId: CommentId;
 	idempotencyKey: IdempotencyKey;
 }

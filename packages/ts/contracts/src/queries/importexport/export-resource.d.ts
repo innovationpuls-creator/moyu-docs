@@ -4,7 +4,7 @@
  * Do not edit; run `just contract` instead.
  */
 
-export type UserId = string;
+export type ResourceId = string;
 
 /**
  * FR-IE-001. Export one Resource as a versioned DOM exchange document (metadata + latest snapshot).
@@ -14,7 +14,7 @@ export interface ExportResourceResponse {
 	schemaVersion: "1.0.0";
 	exportedAt: string;
 	resource: {
-		resourceId: UserId;
+		resourceId: ResourceId;
 		resourceType: "document" | "code" | "markdown" | "text";
 		name: string;
 	};

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Awaitable
 from typing import Any, Callable
 from uuid import UUID
 
@@ -79,12 +80,27 @@ class RestoreAtVersion:
         target_seq: int,
         *,
         actor_id: UUID | None = None,
+        on_progress: Callable[[str, int | None, int | None], Awaitable[None]]
+        | None = None,
     ) -> VersionNode:
         current = await self._resources.get(resource_id)
         if current is None:
             raise LookupError("resource not found")
         restore = RestoreAtRevision(self._journal, self._checkpoints, self._apply)
-        restored_state = await restore.execute(resource_id, target_seq)
+        if on_progress is not None:
+            await on_progress("materializing", None, None)
+
+        async def report_replay(current_count: int, total_count: int) -> None:
+            if on_progress is not None:
+                await on_progress("replaying", current_count, total_count)
+
+        restored_state = await restore.execute(
+            resource_id,
+            target_seq,
+            on_progress=report_replay if on_progress is not None else None,
+        )
+        if on_progress is not None:
+            await on_progress("saving", None, None)
         base_seq = await self._journal.max_seq(resource_id)
         next_seq = base_seq + 1
         marker = f"restore@v{target_seq}".encode()

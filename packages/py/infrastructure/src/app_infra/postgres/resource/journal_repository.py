@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from app_core.resource.domain import JournalOp
+from app_core.resource.domain import JournalOp, JournalSequenceConflictError
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,12 +28,28 @@ class PostgresJournalRepository:
         ownership_epoch: int,
         update_bytes: bytes,
         update_hash: str,
+        *,
+        expected_seq: int | None = None,
     ) -> JournalOp:
+        await self._session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:resource_id, 0))"),
+            {"resource_id": str(resource_id)},
+        )
+        next_seq = await self.max_seq(resource_id) + 1
+        if expected_seq is not None and expected_seq != next_seq:
+            raise JournalSequenceConflictError(next_seq)
+        if journal_seq < next_seq:
+            raise DuplicateJournalSeqError(
+                f"journal_seq {journal_seq} already present for {resource_id}"
+            )
+        if journal_seq > next_seq:
+            raise JournalSequenceConflictError(next_seq)
         result = await self._session.execute(
             text(
                 "INSERT INTO collab.resource_update_journal "
-                "(resource_id,journal_seq,ownership_epoch,update_bytes,update_hash) "
-                "VALUES (:rid,:seq,:epoch,:bytes,:hash) ON CONFLICT DO NOTHING "
+                "(resource_id,journal_seq,ownership_epoch,update_bytes,update_hash,"
+                "durable_at) "
+                "VALUES (:rid,:seq,:epoch,:bytes,:hash,now()) ON CONFLICT DO NOTHING "
                 "RETURNING resource_id,journal_seq,ownership_epoch,update_bytes,"
                 "update_hash,accepted_at,durable_at"
             ),

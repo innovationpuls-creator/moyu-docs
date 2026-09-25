@@ -48,6 +48,7 @@ class IdentityIds(BaseModel):
     )
     userId: UUID | None = Field(None, title="UserId")
     workspaceId: UUID | None = Field(None, title="WorkspaceId")
+    invitationId: UUID | None = Field(None, title="InvitationId")
     projectId: UUID | None = Field(None, title="ProjectId")
     folderId: UUID | None = Field(None, title="FolderId")
     resourceId: UUID | None = Field(None, title="ResourceId")
@@ -63,6 +64,7 @@ class IdentityIds(BaseModel):
     operationId: UUID | None = Field(None, title="OperationId")
     sessionId: UUID | None = Field(None, title="SessionId")
     subscriptionId: UUID | None = Field(None, title="SubscriptionId")
+    shareId: UUID | None = Field(None, title="ShareId")
     deliveryId: UUID | None = Field(None, title="DeliveryId")
     idempotencyKey: UUID | None = Field(None, title="IdempotencyKey")
     accountStatusValue: AccountStatusValue | None = None

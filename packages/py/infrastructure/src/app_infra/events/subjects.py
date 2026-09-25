@@ -14,6 +14,8 @@ EVENT_SUBJECTS: dict[str, str] = {
     "workspace.folder-trashed": "event.workspace.folder-trashed.v1",
     "workspace.folder-restored": "event.workspace.folder-restored.v1",
     "auth.session-replaced": "event.auth.session-replaced.v1",
+    "permission.changed": "event.permission.changed.v1",
+    "task.progress-updated": "event.task.progress-updated.v1",
     "resource.checkpoint": "resource.checkpoint",
     "rt.broadcast": "rt.broadcast",
 }

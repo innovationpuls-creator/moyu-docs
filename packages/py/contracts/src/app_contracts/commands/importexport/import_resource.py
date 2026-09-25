@@ -3,18 +3,20 @@
 
 from __future__ import annotations
 
-from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from ...queries.importexport import export_resource
+from ...queries.tasks import list_tasks
 
 
 class ImportResource(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    resourceId: UUID = Field(..., title="UserId")
-    document: dict[str, Any]
+    resourceId: UUID = Field(..., title="ResourceId")
+    document: export_resource.ExportResourceResponse
     idempotencyKey: UUID = Field(..., title="IdempotencyKey")
 
 
@@ -22,5 +24,5 @@ class ImportResourceResponse(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    resourceId: UUID = Field(..., title="UserId")
-    journalSeq: int
+    taskId: UUID = Field(..., title="TaskId")
+    task: list_tasks.TaskSummary

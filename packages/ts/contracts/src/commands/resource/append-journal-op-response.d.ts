@@ -10,4 +10,6 @@ export interface AppendJournalOpResponse {
 	resourceId: UserId;
 	journalSeq: number;
 	updateSha256: string;
+	acceptedWatermark: number;
+	durableWatermark: number;
 }

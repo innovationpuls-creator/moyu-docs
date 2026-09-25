@@ -1,0 +1,55 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/permission/list-resource-share-links.schema.json",
+	"title": "ListResourceShareLinksResponse",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/ResourceId" },
+		"shareLinks": {
+			"type": "array",
+			"items": { "$ref": "#/$defs/ShareLinkMetadata" }
+		}
+	},
+	"required": ["resourceId", "shareLinks"],
+	"$defs": {
+		"ShareLinkMetadata": {
+			"title": "ShareLinkMetadata",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"shareId": { "$ref": "../../ids/ids.schema.json#/$defs/ShareId" },
+				"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/ResourceId" },
+				"capability": { "type": "string", "const": "Read" },
+				"status": {
+					"type": "string",
+					"enum": ["Active", "Revoked", "Expired"]
+				},
+				"expiresAt": {
+					"anyOf": [
+						{ "type": "string", "format": "date-time" },
+						{ "type": "null" }
+					]
+				},
+				"createdBy": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+				"createdAt": { "type": "string", "format": "date-time" },
+				"revokedAt": {
+					"anyOf": [
+						{ "type": "string", "format": "date-time" },
+						{ "type": "null" }
+					]
+				}
+			},
+			"required": [
+				"shareId",
+				"resourceId",
+				"capability",
+				"status",
+				"expiresAt",
+				"createdBy",
+				"createdAt",
+				"revokedAt"
+			]
+		}
+	}
+}

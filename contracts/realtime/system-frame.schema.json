@@ -1,0 +1,19 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/realtime/system-frame.schema.json",
+	"title": "RealtimeSystemFrame",
+	"description": "System envelope for service-health and protocol-maintenance messages; it carries no document-content semantics.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"header": {
+			"$ref": "./frame-header.schema.json#/$defs/RealtimeSystemFrameHeader"
+		},
+		"payload": {
+			"type": "object",
+			"description": "System message-specific fields; exact fields are owned by each system message definition.",
+			"additionalProperties": true
+		}
+	},
+	"required": ["header", "payload"]
+}

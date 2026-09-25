@@ -7,10 +7,10 @@
 # doc 04 §23 / Constitution §3.19.
 #
 # Scope note: this PRD (docs/product/features/account-auth-session.md §7) excludes
-# WeChat/Feishu provider login, Provider binding, and anonymous Share Links. Therefore
-# the doc 16 §64 codes SHARE_LINK_INVALID / SHARE_LINK_EXPIRED / SHARE_LINK_REVOKED and
-# PROVIDER_ERROR / PROVIDER_IDENTITY_CONFLICT are intentionally NOT registered here -
-# registering them now would be speculative. EMAIL_NOT_VERIFIED is likewise omitted
+# WeChat/Feishu provider login and Provider binding. Therefore PROVIDER_ERROR /
+# PROVIDER_IDENTITY_CONFLICT are intentionally NOT registered here. Anonymous share
+# links are now an active product capability and their reachable errors are registered
+# below. EMAIL_NOT_VERIFIED is likewise omitted
 # because this PRD permits PendingVerification accounts to log in (PRD AC-006.2), so no
 # command surfaces an "email not verified" error; adding it would be unreachable.
 #
@@ -205,6 +205,82 @@ codes:
     messageKey: "workspace.error.requestIdMismatch"
     retryable: false
     description: "请求路径与请求体内的对象 ID 不一致（FR-WRL-001/003/005/006）"
+  WORKSPACE_OWNER_PROTECTED:
+    category: Conflict
+    messageKey: "permission.error.workspaceOwnerProtected"
+    retryable: false
+    description: "Workspace Owner 必须先通过显式 Owner 转移，不能由成员移除操作删除"
+
+  INVITATION_EMAIL_INVALID:
+    category: Validation
+    messageKey: "permission.error.invitationEmailInvalid"
+    retryable: false
+    description: "邀请目标邮箱格式无效"
+  INVITATION_EXPIRY_INVALID:
+    category: Validation
+    messageKey: "permission.error.invitationExpiryInvalid"
+    retryable: false
+    description: "邀请有效期必须在 1 到 30 天之间"
+  INVITATION_INVALID:
+    category: NotFound
+    messageKey: "permission.error.invitationInvalid"
+    retryable: false
+    description: "邀请 Token 无效或不存在"
+  INVITATION_EXPIRED:
+    category: Conflict
+    messageKey: "permission.error.invitationExpired"
+    retryable: false
+    description: "邀请已过期"
+  INVITATION_REVOKED:
+    category: Conflict
+    messageKey: "permission.error.invitationRevoked"
+    retryable: false
+    description: "邀请已撤销"
+  INVITATION_NOT_FOUND:
+    category: NotFound
+    messageKey: "permission.error.invitationNotFound"
+    retryable: false
+    description: "Workspace 邀请不存在"
+  INVITATION_STATE_CONFLICT:
+    category: Conflict
+    messageKey: "permission.error.invitationStateConflict"
+    retryable: false
+    description: "邀请当前状态不允许该变更"
+  INVITATION_EMAIL_MISMATCH:
+    category: Permission
+    messageKey: "permission.error.invitationEmailMismatch"
+    retryable: false
+    description: "接受邀请的 Active Account 邮箱与目标邮箱不匹配"
+  INVITATION_CREATOR_UNAUTHORIZED:
+    category: Conflict
+    messageKey: "permission.error.invitationCreatorUnauthorized"
+    retryable: false
+    description: "邀请创建者已失去 Workspace 管理授权"
+  INVITATION_SCOPE_UNSUPPORTED:
+    category: Conflict
+    messageKey: "permission.error.invitationScopeUnsupported"
+    retryable: false
+    description: "当前接受入口只支持 Workspace 成员邀请"
+  TARGET_ACCOUNT_INACTIVE:
+    category: Conflict
+    messageKey: "permission.error.targetAccountInactive"
+    retryable: false
+    description: "权限目标 Account 当前不是 Active 状态"
+  PROJECT_OWNER_REQUIRED:
+    category: Permission
+    messageKey: "permission.error.projectOwnerRequired"
+    retryable: false
+    description: "该 Project 或 Resource Owner 权限变更仅限 Project Owner"
+  PROJECT_OWNER_PROTECTED:
+    category: Conflict
+    messageKey: "permission.error.projectOwnerProtected"
+    retryable: false
+    description: "Project 必须至少保留一名 Owner"
+  PROJECT_LIFECYCLE_CONFLICT:
+    category: Conflict
+    messageKey: "permission.error.projectLifecycleConflict"
+    retryable: false
+    description: "当前 Project 生命周期不允许修改权限"
 
   RESOURCE_NAME_CONFLICT:
     category: Conflict
@@ -226,6 +302,36 @@ codes:
     messageKey: "resource.error.authorizationUnavailable"
     retryable: true
     description: "权限判定服务不可用，无法完成授权检查（FR-RC-001）"
+  RESOURCE_JOURNAL_SEQUENCE_CONFLICT:
+    category: Conflict
+    messageKey: "resource.error.journalSequenceConflict"
+    retryable: true
+    description: "客户端期望的 Journal 序号与服务端当前序号不一致（FR-RC-002）"
+  SHARE_MANAGE_DENIED:
+    category: Permission
+    messageKey: "share.error.manageDenied"
+    retryable: false
+    description: "需要 Resource Owner 或 Manage 权限才能管理分享链接"
+  SHARE_SCOPE_INACTIVE:
+    category: Conflict
+    messageKey: "share.error.scopeInactive"
+    retryable: false
+    description: "Workspace、Project 或 Resource 不在可分享的活动状态"
+  SHARE_LINK_NOT_FOUND:
+    category: NotFound
+    messageKey: "share.error.linkNotFound"
+    retryable: false
+    description: "分享链接不存在、已撤销、过期或所属 Resource 不可用"
+  SHARE_LINK_REVOKED:
+    category: Conflict
+    messageKey: "share.error.linkRevoked"
+    retryable: false
+    description: "已撤销的分享链接不能修改过期时间"
+  SHARE_EXPIRY_INVALID:
+    category: Validation
+    messageKey: "share.error.expiryInvalid"
+    retryable: false
+    description: "分享链接过期时间必须是未来的时区时间"
 
   COMMENT_BODY_INVALID:
     category: Validation
@@ -238,6 +344,31 @@ codes:
     messageKey: "importexport.error.documentInvalid"
     retryable: false
     description: "Import 文档格式无效（FR-IE-002）"
+  IMPORT_PAYLOAD_TOO_LARGE:
+    category: Validation
+    messageKey: "importexport.error.payloadTooLarge"
+    retryable: false
+    description: "Import exchange document 超出允许大小（FR-IE-002）"
+  IMPORT_EXPORT_STORAGE_UNAVAILABLE:
+    category: DependencyFailure
+    messageKey: "importexport.error.storageUnavailable"
+    retryable: true
+    description: "短期 Import/Export 对象存储暂时不可用（FR-IE-001/002）"
+  EXPORT_RESULT_NOT_FOUND:
+    category: NotFound
+    messageKey: "importexport.error.resultNotFound"
+    retryable: false
+    description: "Export 结果不存在、未就绪或已过期（FR-IE-001）"
+  EXPORT_RESULT_TOO_LARGE:
+    category: Validation
+    messageKey: "importexport.error.resultTooLarge"
+    retryable: false
+    description: "Export exchange document 超出允许大小（FR-IE-001）"
+  CHANGESET_NOT_FOUND:
+    category: NotFound
+    messageKey: "ai.error.changesetNotFound"
+    retryable: false
+    description: "ChangeSet 不存在或不属于当前账户（FR-AI-004）"
 
   COMMENT_NOT_FOUND:
     category: NotFound
@@ -248,7 +379,55 @@ codes:
     category: Permission
     messageKey: "comment.error.permissionDenied"
     retryable: false
-    description: "仅作者可编辑/删除评论（FR-CMT-003/004）"
+    description: "评论或线程操作缺少作者身份/Resource Capability（FR-CMT-003/004/005/006）"
+
+  COMMENT_THREAD_NOT_FOUND:
+    category: NotFound
+    messageKey: "comment.error.threadNotFound"
+    retryable: false
+    description: "Resource 内的评论线程不存在（FR-CMT-001/005/006）"
+  COMMENT_THREAD_RESOLVED:
+    category: Conflict
+    messageKey: "comment.error.threadResolved"
+    retryable: false
+    description: "已解决的评论线程不能继续回复，请先重新打开（FR-CMT-005）"
+  COMMENT_THREAD_STATE_CONFLICT:
+    category: Conflict
+    messageKey: "comment.error.threadStateConflict"
+    retryable: false
+    description: "评论线程当前状态不允许该解决/重新打开转换（FR-CMT-005/006）"
+
+  ASSET_NOT_FOUND:
+    category: NotFound
+    messageKey: "asset.error.notFound"
+    retryable: false
+    description: "Asset 不存在、不可访问或已清除（FR-AST-001）"
+
+  TASK_NOT_FOUND:
+    category: NotFound
+    messageKey: "task.error.notFound"
+    retryable: false
+    description: "Task 不存在或不属于当前账户（FR-TSK-003）"
+  TASK_PAGINATION_INVALID:
+    category: Validation
+    messageKey: "task.error.paginationInvalid"
+    retryable: false
+    description: "Task 列表分页参数超出契约允许范围（FR-TSK-003）"
+  TASK_NOT_CANCELLABLE:
+    category: Conflict
+    messageKey: "task.error.notCancellable"
+    retryable: false
+    description: "Task 已结束，不能再请求取消（FR-TSK-004）"
+  TASK_CANCEL_NOT_ACCEPTED:
+    category: Conflict
+    messageKey: "task.error.cancelNotAccepted"
+    retryable: true
+    description: "Task 执行器未接受取消请求，稍后可重新读取状态（FR-TSK-004）"
+  TASK_NOT_RETRYABLE:
+    category: Conflict
+    messageKey: "task.error.notRetryable"
+    retryable: false
+    description: "只有 Failed Task 可以手动重试（FR-TSK-005）"
 
   VERSION_LABEL_CONFLICT:
     category: Conflict

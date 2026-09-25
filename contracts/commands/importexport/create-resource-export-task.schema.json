@@ -1,0 +1,16 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/importexport/create-resource-export-task.schema.json",
+	"title": "CreateResourceExportTaskResponse",
+	"description": "Accepts an export task and returns its short-lived export session identity.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"taskId": { "$ref": "../../ids/ids.schema.json#/$defs/TaskId" },
+		"exportSessionId": { "$ref": "../../ids/ids.schema.json#/$defs/SessionId" },
+		"task": {
+			"$ref": "../../queries/tasks/list-tasks.schema.json#/$defs/TaskSummary"
+		}
+	},
+	"required": ["taskId", "exportSessionId", "task"]
+}

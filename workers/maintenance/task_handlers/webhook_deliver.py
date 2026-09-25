@@ -46,12 +46,10 @@ class WebhookDeliverHandler:
                 event,
             )
         except Exception as exc:
-            raise RetryableTaskError(str(exc)) from exc
+            raise RetryableTaskError("WEBHOOK_DELIVERY_FAILED") from exc
         if not result.delivered:
             # Non-2xx/transport failures are retryable (backoff on the runner).
-            raise RetryableTaskError(
-                f"webhook delivery failed status={result.status_code}"
-            )
+            raise RetryableTaskError("WEBHOOK_DELIVERY_REJECTED")
         await context.checkpoint()
 
 

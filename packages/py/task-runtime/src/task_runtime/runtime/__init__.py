@@ -3,21 +3,25 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Protocol
+from decimal import ROUND_HALF_UP, Decimal
+from typing import Any, AsyncContextManager, Protocol
 from uuid import UUID
 
+from app_core.operations.task.domain import StaleAttemptError
 from opentelemetry import trace
 
-from task_runtime.domain import (
-    RetryableTaskError,
-    StaleAttemptError,
-)
+from task_runtime.domain import RetryableTaskError
 from task_runtime.registry import (
     HandlerRegistry,
     UnknownTaskTypeError,
     UnsupportedTaskVersionError,
 )
+
+UNKNOWN_TASK_TYPE_FAILURE_CODE = "UNKNOWN_TASK_TYPE"
+UNSUPPORTED_TASK_VERSION_FAILURE_CODE = "UNSUPPORTED_TASK_VERSION"
+TASK_EXECUTION_FAILURE_CODE = "TASK_EXECUTION_FAILED"
 
 
 class TaskRuntimeRepository(Protocol):
@@ -27,10 +31,28 @@ class TaskRuntimeRepository(Protocol):
         self, task_id: UUID, attempt_id: UUID, epoch: int, lease_seconds: int
     ) -> bool: ...
     async def finish(
-        self, task_id: UUID, attempt_id: UUID, epoch: int, succeeded: bool
+        self,
+        task_id: UUID,
+        attempt_id: UUID,
+        epoch: int,
+        succeeded: bool,
+        *,
+        failure_code: str | None = None,
     ) -> None: ...
     async def finish_cancelled(
         self, task_id: UUID, attempt_id: UUID, epoch: int
+    ) -> None: ...
+    async def update_progress(
+        self,
+        task_id: UUID,
+        attempt_id: UUID,
+        execution_epoch: int,
+        *,
+        stage: str | None,
+        message_code: str | None,
+        current: int | None,
+        total: int | None,
+        percentage: Decimal | None,
     ) -> None: ...
     async def schedule_retry(
         self, task_id: UUID, next_attempt_at: Any, failure_code: str
@@ -47,6 +69,13 @@ class RuntimeTracer(Protocol):
     def start_as_current_span(self, name: str, **kwargs: Any) -> Any: ...
 
 
+class WorkerExecutionScope(Protocol):
+    """Repositories and handlers bound to one caller-owned execution unit."""
+
+    repository: TaskRuntimeRepository
+    registry: HandlerRegistry
+
+
 class CancellationRequested(Exception):
     pass
 
@@ -57,9 +86,11 @@ class HandlerContext:
     attempt_id: UUID
     execution_epoch: int
     repository: TaskRuntimeRepository
+    control_repository: TaskRuntimeRepository | None = None
 
     async def checkpoint(self) -> None:
-        current = await self.repository.get(self.task.task_id)
+        repository = self.control_repository or self.repository
+        current = await repository.get(self.task.task_id)
         if current is None:
             raise StaleAttemptError("task no longer exists")
         if (
@@ -69,6 +100,41 @@ class HandlerContext:
             raise StaleAttemptError("attempt is no longer authoritative")
         if current.cancel_requested_at is not None:
             raise CancellationRequested
+
+    async def report_progress(
+        self,
+        *,
+        stage: str | None = None,
+        message_code: str | None = None,
+        current: int | None = None,
+        total: int | None = None,
+    ) -> None:
+        """Persist a fenced progress snapshot at a cooperative cancel point."""
+        if current is not None and current < 0:
+            raise ValueError("progress current must not be negative")
+        if total is not None and total < 0:
+            raise ValueError("progress total must not be negative")
+        if current is not None and total is not None and current > total:
+            raise ValueError("progress current must not exceed total")
+
+        await self.checkpoint()
+        percentage = None
+        if current is not None and total is not None and total > 0:
+            percentage = (Decimal(current * 100) / Decimal(total)).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+        repository = self.control_repository or self.repository
+        await repository.update_progress(
+            self.task.task_id,
+            self.attempt_id,
+            self.execution_epoch,
+            stage=stage,
+            message_code=message_code,
+            current=current,
+            total=total,
+            percentage=percentage,
+        )
+        await self.checkpoint()
 
 
 class WorkerHost:
@@ -81,6 +147,9 @@ class WorkerHost:
         lease_seconds: int = 30,
         heartbeat_seconds: float = 10.0,
         tracer: RuntimeTracer | None = None,
+        execution_scope_factory: (
+            Callable[[], AsyncContextManager[WorkerExecutionScope]] | None
+        ) = None,
     ) -> None:
         self.repository = repository
         self.registry = registry
@@ -88,6 +157,7 @@ class WorkerHost:
         self.lease_seconds = lease_seconds
         self.heartbeat_seconds = heartbeat_seconds
         self.tracer = tracer or trace.get_tracer("task-runtime")
+        self.execution_scope_factory = execution_scope_factory
         self._stopping = False
         self._active = 0
         self._execution_logger = logging.getLogger("dom.worker.execution")
@@ -97,76 +167,124 @@ class WorkerHost:
         if claim is None:
             return False
         self._active += 1
-        task = await self.repository.get(claim.task_id)
-        if task is None:
-            self._active -= 1
-            return False
         started = time.monotonic()
         try:
-            try:
-                spec = self.registry.resolve(task.task_type, task.schema_version)
-            except UnknownTaskTypeError:
-                task.failure_code = "unknown-type"
-                await self.repository.finish(
-                    task.task_id, claim.attempt_id, claim.execution_epoch, False
-                )
-                return True
-            except UnsupportedTaskVersionError:
-                task.failure_code = "unsupported-version"
-                await self.repository.finish(
-                    task.task_id, claim.attempt_id, claim.execution_epoch, False
-                )
-                return True
-            context = HandlerContext(
-                task, claim.attempt_id, claim.execution_epoch, self.repository
-            )
-            heartbeat = asyncio.create_task(self._heartbeat(task.task_id, claim))
-            try:
-                with self.tracer.start_as_current_span("task.execute") as span:
-                    span.set_attribute("taskId", str(task.task_id))
-                    await spec.handler.execute(context)
-                await self.repository.finish(
-                    task.task_id, claim.attempt_id, claim.execution_epoch, True
-                )
-                result = "ok"
-            except CancellationRequested:
-                await self.repository.finish_cancelled(
-                    task.task_id, claim.attempt_id, claim.execution_epoch
-                )
-                result = "cancelled"
-            except RetryableTaskError as exc:
-                if spec.retry_policy.can_retry(claim.attempt_number):
-                    from datetime import UTC, datetime, timedelta
-
-                    await self.repository.schedule_retry(
-                        task.task_id,
-                        datetime.now(UTC)
-                        + timedelta(seconds=spec.retry_policy.backoff_seconds),
-                        exc.failure_code,
-                    )
-                else:
-                    task.failure_code = exc.failure_code
-                    await self.repository.finish(
-                        task.task_id, claim.attempt_id, claim.execution_epoch, False
-                    )
-                result = (
-                    "retry"
-                    if spec.retry_policy.can_retry(claim.attempt_number)
-                    else "failed"
-                )
-            except Exception:
-                task.failure_code = "handler-failed"
-                await self.repository.finish(
-                    task.task_id, claim.attempt_id, claim.execution_epoch, False
-                )
-                result = "failed"
-            finally:
-                heartbeat.cancel()
-                await asyncio.gather(heartbeat, return_exceptions=True)
+            task, result = await self._execute_claim(claim)
         finally:
             self._active -= 1
-        self._log_execution(task, result, claim, started)
+        if task is not None:
+            self._log_execution(task, result, claim, started)
         return True
+
+    async def _execute_claim(self, claim: Any) -> tuple[Any | None, str]:
+        task = None
+        spec = None
+        try:
+            if self.execution_scope_factory is None:
+                repository = self.repository
+                registry = self.registry
+                task = await repository.get(claim.task_id)
+                if task is not None:
+                    spec = registry.resolve(task.task_type, task.schema_version)
+                    await self._execute_handler_and_finish(
+                        claim, repository, task, spec
+                    )
+            else:
+                async with self.execution_scope_factory() as scope:
+                    repository = scope.repository
+                    task = await repository.get(claim.task_id)
+                    if task is not None:
+                        spec = scope.registry.resolve(
+                            task.task_type, task.schema_version
+                        )
+                        await self._execute_handler_and_finish(
+                            claim, repository, task, spec
+                        )
+            return task, "ok" if task is not None else "missing-task"
+        except Exception as exc:
+            return task, await self._record_execution_failure(claim, spec, exc)
+
+    async def _record_execution_failure(
+        self, claim: Any, spec: Any | None, error: Exception
+    ) -> str:
+        if isinstance(error, UnknownTaskTypeError):
+            await self.repository.finish(
+                claim.task_id,
+                claim.attempt_id,
+                claim.execution_epoch,
+                False,
+                failure_code=UNKNOWN_TASK_TYPE_FAILURE_CODE,
+            )
+            return "unknown-type"
+        if isinstance(error, UnsupportedTaskVersionError):
+            await self.repository.finish(
+                claim.task_id,
+                claim.attempt_id,
+                claim.execution_epoch,
+                False,
+                failure_code=UNSUPPORTED_TASK_VERSION_FAILURE_CODE,
+            )
+            return "unsupported-version"
+        if isinstance(error, CancellationRequested):
+            await self.repository.finish_cancelled(
+                claim.task_id, claim.attempt_id, claim.execution_epoch
+            )
+            return "cancelled"
+        if isinstance(error, RetryableTaskError):
+            if spec is not None and spec.retry_policy.can_retry(claim.attempt_number):
+                from datetime import UTC, datetime, timedelta
+
+                await self.repository.schedule_retry(
+                    claim.task_id,
+                    datetime.now(UTC)
+                    + timedelta(seconds=spec.retry_policy.backoff_seconds),
+                    error.failure_code,
+                )
+                return "retry"
+            await self.repository.finish(
+                claim.task_id,
+                claim.attempt_id,
+                claim.execution_epoch,
+                False,
+                failure_code=error.failure_code,
+            )
+            return "failed"
+        await self.repository.finish(
+            claim.task_id,
+            claim.attempt_id,
+            claim.execution_epoch,
+            False,
+            failure_code=TASK_EXECUTION_FAILURE_CODE,
+        )
+        return "failed"
+
+    async def _execute_handler_and_finish(
+        self, claim: Any, repository: TaskRuntimeRepository, task: Any, spec: Any
+    ) -> None:
+        context = HandlerContext(
+            task,
+            claim.attempt_id,
+            claim.execution_epoch,
+            repository,
+            control_repository=self.repository,
+        )
+        heartbeat = asyncio.create_task(self._heartbeat(task.task_id, claim))
+        try:
+            with self.tracer.start_as_current_span("task.execute") as span:
+                span.set_attribute("taskId", str(task.task_id))
+                await spec.handler.execute(context)
+            # In a scoped runner, handler writes and the terminal success update
+            # share the caller-owned transaction and commit atomically.
+            await repository.finish(
+                task.task_id,
+                claim.attempt_id,
+                claim.execution_epoch,
+                True,
+                failure_code=None,
+            )
+        finally:
+            heartbeat.cancel()
+            await asyncio.gather(heartbeat, return_exceptions=True)
 
     def _log_execution(
         self, task: Any, result: str, claim: Any, started: float

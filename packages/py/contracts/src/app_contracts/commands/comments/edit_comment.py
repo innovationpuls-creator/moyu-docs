@@ -12,7 +12,7 @@ class EditComment(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    commentId: UUID = Field(..., title="UserId")
+    commentId: UUID = Field(..., title="CommentId")
     body: constr(min_length=1)
     idempotencyKey: UUID = Field(..., title="IdempotencyKey")
 
@@ -21,5 +21,5 @@ class EditCommentResponse(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    commentId: UUID = Field(..., title="UserId")
+    commentId: UUID = Field(..., title="CommentId")
     body: str

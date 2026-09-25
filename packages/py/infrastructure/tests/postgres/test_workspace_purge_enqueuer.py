@@ -45,21 +45,6 @@ async def test_duplicate_scans_create_one_task_row() -> None:
         async with session.begin():
             await session.execute(
                 text(
-                    "DELETE FROM work.tasks WHERE task_type='lifecycle.purge.workspace'"
-                )
-            )
-            await session.execute(
-                text(
-                    "DELETE FROM core.workspace_members "
-                    "WHERE workspace_id IN (SELECT workspace_id FROM core.workspaces "
-                    "WHERE status='DeletionPending')"
-                )
-            )
-            await session.execute(
-                text("DELETE FROM core.workspaces WHERE status='DeletionPending'")
-            )
-            await session.execute(
-                text(
                     "INSERT INTO auth.accounts "
                     "(account_id,status,primary_email,normalized_email) "
                     "VALUES (:a,'Active',:email,:email)"
@@ -102,5 +87,25 @@ async def test_duplicate_scans_create_one_task_row() -> None:
         assert count == 1
     finally:
         await session.rollback()
+        async with session.begin():
+            await session.execute(
+                text(
+                    "DELETE FROM work.tasks WHERE task_type="
+                    "'lifecycle.purge.workspace' AND input_ref=:workspace_id"
+                ),
+                {"workspace_id": str(workspace_id)},
+            )
+            await session.execute(
+                text("DELETE FROM core.workspace_members WHERE workspace_id=:id"),
+                {"id": workspace_id},
+            )
+            await session.execute(
+                text("DELETE FROM core.workspaces WHERE workspace_id=:id"),
+                {"id": workspace_id},
+            )
+            await session.execute(
+                text("DELETE FROM auth.accounts WHERE account_id=:id"),
+                {"id": account_id},
+            )
         await session.close()
         await connection.close()

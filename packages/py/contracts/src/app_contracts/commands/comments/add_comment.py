@@ -13,8 +13,8 @@ class AddComment(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    resourceId: UUID = Field(..., title="UserId")
-    threadId: UUID | None = Field(None, title="WorkspaceId")
+    resourceId: UUID = Field(..., title="ResourceId")
+    threadId: UUID | None = Field(None, title="ThreadId")
     body: constr(min_length=1)
     anchor: dict[str, Any] | None = None
     idempotencyKey: UUID = Field(..., title="IdempotencyKey")
@@ -24,7 +24,7 @@ class AddCommentResponse(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    commentId: UUID = Field(..., title="UserId")
-    threadId: UUID = Field(..., title="WorkspaceId")
+    commentId: UUID = Field(..., title="CommentId")
+    threadId: UUID = Field(..., title="ThreadId")
     body: str
     createdAt: AwareDatetime

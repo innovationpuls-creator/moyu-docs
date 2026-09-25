@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID, uuid5
 
+from app_core.operations.task.domain import Priority, Task
 from app_core.workspace.application.purge import PurgePolicy
 from app_core.workspace.ports.purge import PurgeCandidate
 
@@ -43,8 +44,6 @@ def purge_task_id(workspace_id: UUID) -> UUID:
 
 
 def _purge_task(candidate: PurgeCandidate) -> object:
-    from task_runtime.domain import Priority, Task
-
     task = Task(
         task_id=purge_task_id(candidate.workspace_id),
         task_type=PURGE_TASK_TYPE,

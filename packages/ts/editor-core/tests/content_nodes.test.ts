@@ -59,4 +59,35 @@ describe("content-node model", () => {
 			}),
 		).toThrowError(ContentNodeError);
 	});
+
+	it("projects stable image and attachment asset references", () => {
+		const nodes = parseDoc([
+			{
+				kind: "image",
+				nodeId: "n_image-1",
+				assetId: "asset-image-1",
+				label: "diagram 1.png",
+			},
+			{
+				kind: "attachment",
+				nodeId: "n_file-1",
+				assetId: "asset-file-1",
+				label: "notes.txt",
+			},
+		]);
+
+		expect(toText(nodes)).toBe(
+			"![diagram 1.png](asset://asset-image-1)\n[notes.txt](asset://asset-file-1)",
+		);
+	});
+
+	it("requires stable identity and asset IDs for references", () => {
+		expect(() =>
+			validateNode({
+				kind: "image",
+				assetId: "asset-image-1",
+				label: "diagram.png",
+			} as never),
+		).toThrowError(ContentNodeError);
+	});
 });

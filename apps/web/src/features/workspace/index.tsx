@@ -7,10 +7,14 @@ import {
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { client } from "../../shared/api/client";
+import { resourceRuntime } from "../../shared/api/resource-runtime";
 import { ConsoleIcon, ResourceTypeIcon } from "../../shared/ui/console-icons";
 import { useShellUiStore } from "../../shared/ui-store";
 import { NotificationCenter } from "../notifications";
 import { SearchPalette } from "../search";
+import { WorkspaceMembersPanel } from "./members-panel";
+
+export { InvitationAcceptPage } from "./invitation-accept-page";
 
 type Workspace = Awaited<
 	ReturnType<typeof client.listWorkspaces>
@@ -23,6 +27,9 @@ type Folder = Awaited<
 	ReturnType<typeof client.getProjectTree>
 >["folders"][number];
 type CreateKind = "workspace" | "project" | "folder" | ResourceType;
+type UnsyncedDraft = Awaited<
+	ReturnType<typeof resourceRuntime.listUnsyncedResources>
+>[number];
 
 function resourceTypeLabel(type: ResourceType): string {
 	return {
@@ -483,6 +490,13 @@ export function WorkspacePage() {
 	const [params, setParams] = useSearchParams();
 	const [workspaceMenu, setWorkspaceMenu] = useState(false);
 	const [accountMenu, setAccountMenu] = useState(false);
+	const [membersPanelOpen, setMembersPanelOpen] = useState(false);
+	const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+	const [logoutDrafts, setLogoutDrafts] = useState<UnsyncedDraft[] | null>(
+		null,
+	);
+	const [logoutError, setLogoutError] = useState("");
+	const [logoutBusy, setLogoutBusy] = useState(false);
 	const [expandedProject, setExpandedProject] = useState<{
 		projectId: string;
 		open: boolean;
@@ -591,11 +605,78 @@ export function WorkspacePage() {
 		setParams(next);
 		setSidebarOpen(false);
 	}
-	async function logout() {
+	async function completeLogout() {
 		try {
 			await client.logout();
-		} finally {
+			resourceRuntime.clearCachedAccountId();
+			setLogoutDialogOpen(false);
+			setLogoutDrafts(null);
 			navigate("/login");
+		} catch (error) {
+			setLogoutError(error instanceof Error ? error.message : "退出登录失败。");
+		}
+	}
+
+	async function logout() {
+		setAccountMenu(false);
+		setLogoutError("");
+		setLogoutDialogOpen(true);
+		const accountId = accountQuery.data?.accountId;
+		if (!accountId) {
+			await completeLogout();
+			return;
+		}
+		setLogoutBusy(true);
+		try {
+			const drafts = await resourceRuntime.listUnsyncedResources(accountId);
+			if (drafts.length === 0) {
+				await completeLogout();
+				return;
+			}
+			setLogoutDrafts(drafts);
+		} catch (error) {
+			setLogoutDrafts([]);
+			setLogoutError(
+				error instanceof Error
+					? `无法检查本地未同步内容：${error.message}`
+					: "无法检查本地未同步内容。请重试或取消退出。",
+			);
+		} finally {
+			setLogoutBusy(false);
+		}
+	}
+
+	async function discardDraftsAndLogout() {
+		const accountId = accountQuery.data?.accountId;
+		if (!accountId || !logoutDrafts?.length) return;
+		if (
+			!window.confirm(
+				"将删除此浏览器中列出的资源副本和未同步修改。服务器上已保存的内容不受影响。确定丢弃并退出吗？",
+			)
+		) {
+			return;
+		}
+		setLogoutBusy(true);
+		setLogoutError("");
+		try {
+			const currentDrafts =
+				await resourceRuntime.listUnsyncedResources(accountId);
+			for (const draft of currentDrafts) {
+				await resourceRuntime.clearLocalResource(
+					accountId,
+					draft.resource.resourceId,
+					{ confirmDiscardUnsyncedChanges: true },
+				);
+			}
+			await completeLogout();
+		} catch (error) {
+			setLogoutError(
+				error instanceof Error
+					? `无法清除本地修改：${error.message}`
+					: "无法清除本地修改；仍保留在此页面。",
+			);
+		} finally {
+			setLogoutBusy(false);
 		}
 	}
 
@@ -974,6 +1055,16 @@ export function WorkspacePage() {
 							)}
 						</nav>
 						<div className="header-actions">
+							{workspace && (
+								<button
+									type="button"
+									className="btn-quiet"
+									data-testid="open-workspace-members"
+									onClick={() => setMembersPanelOpen(true)}
+								>
+									成员与权限
+								</button>
+							)}
 							{projects.length > 0 && !trashMode && (
 								<>
 									<button
@@ -1080,6 +1171,84 @@ export function WorkspacePage() {
 					folderId={create.folderId}
 					onClose={() => setCreate(null)}
 				/>
+			)}
+			{membersPanelOpen && workspace && workspaceId && (
+				<WorkspaceMembersPanel
+					workspaceId={workspaceId}
+					workspaceName={workspace.name}
+					workspaceMembershipKind={workspace.membershipKind}
+					projects={projects}
+					currentAccountId={accountQuery.data?.accountId}
+					onClose={() => setMembersPanelOpen(false)}
+				/>
+			)}
+			{logoutDialogOpen && (
+				<div className="console-modal-backdrop">
+					<section
+						className="console-modal"
+						role="dialog"
+						aria-modal="true"
+						aria-labelledby="logout-recovery-title"
+						data-testid="logout-recovery-dialog"
+					>
+						<h2 id="logout-recovery-title">退出前检查本地修改</h2>
+						{logoutBusy && <p>正在检查本地未同步修改…</p>}
+						{logoutDrafts && logoutDrafts.length > 0 && (
+							<>
+								<p>
+									有 {logoutDrafts.length} 份文档包含尚未同步的修改。
+									取消退出可以保留这些修改并继续同步。
+								</p>
+								<ul>
+									{logoutDrafts.map((draft) => (
+										<li key={draft.resource.resourceId}>
+											{draft.resource.name}
+										</li>
+									))}
+								</ul>
+							</>
+						)}
+						{logoutError && (
+							<p className="console-error" role="alert">
+								{logoutError}
+							</p>
+						)}
+						<div className="console-modal-actions">
+							<button
+								type="button"
+								className="btn-quiet"
+								disabled={logoutBusy}
+								onClick={() => {
+									setLogoutDialogOpen(false);
+									setLogoutDrafts(null);
+									setLogoutError("");
+								}}
+							>
+								取消退出
+							</button>
+							{logoutDrafts && logoutDrafts.length > 0 && (
+								<button
+									type="button"
+									className="btn-quiet"
+									disabled={logoutBusy}
+									onClick={() => void discardDraftsAndLogout()}
+								>
+									丢弃本地修改并退出
+								</button>
+							)}
+							{logoutError && !logoutDrafts?.length && (
+								<button
+									type="button"
+									className="btn-quiet"
+									disabled={logoutBusy}
+									onClick={() => void logout()}
+								>
+									重新检查
+								</button>
+							)}
+						</div>
+					</section>
+				</div>
 			)}
 		</div>
 	);

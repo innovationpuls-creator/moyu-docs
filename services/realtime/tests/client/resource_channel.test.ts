@@ -6,7 +6,7 @@ import {
 import {
 	decodeRealtimeBinaryFrame,
 	encodeRealtimeBinaryFrame,
-} from "../../../../packages/ts/realtime-protocol/src/index.js";
+} from "../../src/protocol/realtime_frame.js";
 
 type Listener = (event: never) => void;
 
@@ -77,7 +77,7 @@ describe("ManagedResourceRealtimeClient", () => {
 			sockets.push(socket);
 			return socket;
 		});
-		const callbacks = handlers();
+		const callbacks = handlers({ onAwareness: vi.fn() });
 		const unsubscribe = client.subscribeResource("resource-1", callbacks);
 		const first = sockets[0];
 		first.open();
@@ -86,6 +86,7 @@ describe("ManagedResourceRealtimeClient", () => {
 			JSON.stringify({
 				protocolVersion: 1,
 				resourceId: "resource-1",
+				subscriptionId: subscribe.subscriptionId,
 				kind: "subscribe",
 				payload: { status: "ok" },
 			}),
@@ -119,6 +120,46 @@ describe("ManagedResourceRealtimeClient", () => {
 			}),
 		);
 		expect(callbacks.onPeers).toHaveBeenCalledWith(3);
+		client.publishAwareness("resource-1", {
+			cursor: { anchor: 5, head: 8 },
+		});
+		const awarenessFrame = first.sent.at(-1);
+		expect(typeof awarenessFrame).toBe("string");
+		expect(JSON.parse(String(awarenessFrame))).toMatchObject({
+			type: "awareness",
+			resourceId: "resource-1",
+			subscriptionId: subscribe.subscriptionId,
+			payload: { cursor: { anchor: 5, head: 8 } },
+		});
+		first.receive(
+			JSON.stringify({
+				protocolVersion: 1,
+				resourceId: "resource-1",
+				subscriptionId: subscribe.subscriptionId,
+				kind: "op",
+				payload: {
+					kind: "awareness",
+					event: {
+						kind: "update",
+						participant: {
+							participantId: "peer-1",
+							displayName: "协作者-00A1",
+							color: "#2563eb",
+						},
+						state: { cursor: { anchor: 9, head: 12 } },
+					},
+				},
+			}),
+		);
+		expect(callbacks.onAwareness).toHaveBeenCalledWith({
+			kind: "update",
+			participant: {
+				participantId: "peer-1",
+				displayName: "协作者-00A1",
+				color: "#2563eb",
+			},
+			state: { cursor: { anchor: 9, head: 12 } },
+		});
 
 		first.close(1006, "network lost");
 		await vi.advanceTimersByTimeAsync(500);
@@ -126,6 +167,20 @@ describe("ManagedResourceRealtimeClient", () => {
 		expect(second).toBeDefined();
 		second.open();
 		expect(sentControl(second, 0).type).toBe("subscribe");
+		const reconnectedSubscription = sentControl(second, 0);
+		second.receive(
+			JSON.stringify({
+				protocolVersion: 1,
+				resourceId: "resource-1",
+				subscriptionId: reconnectedSubscription.subscriptionId,
+				kind: "subscribe",
+				payload: { status: "ok" },
+			}),
+		);
+		expect(JSON.parse(String(second.sent.at(-1)))).toMatchObject({
+			type: "awareness",
+			payload: { cursor: { anchor: 5, head: 8 } },
+		});
 		client.close();
 		unsubscribe();
 		vi.useRealTimers();

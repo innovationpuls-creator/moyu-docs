@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Framework-independent generic async task runtime."
 requires-python = ">=3.12"
 dependencies = [
+    "app-core",
     "opentelemetry-api>=1.25.0",
 ]
 

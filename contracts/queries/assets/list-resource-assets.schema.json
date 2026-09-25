@@ -1,0 +1,39 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/assets/list-resource-assets.schema.json",
+	"title": "ListResourceAssetsResponse",
+	"description": "Metadata for binary assets attached to a Resource. Storage keys and object provider details are never returned.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/ResourceId" },
+		"assets": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"assetId": { "$ref": "../../ids/ids.schema.json#/$defs/AssetId" },
+					"originalName": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 255
+					},
+					"mime": { "type": ["string", "null"], "maxLength": 128 },
+					"sizeBytes": { "type": "integer", "minimum": 0 },
+					"sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+					"createdAt": { "type": "string", "format": "date-time" }
+				},
+				"required": [
+					"assetId",
+					"originalName",
+					"mime",
+					"sizeBytes",
+					"sha256",
+					"createdAt"
+				]
+			}
+		}
+	},
+	"required": ["resourceId", "assets"]
+}

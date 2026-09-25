@@ -16,7 +16,7 @@ from app_infra.postgres.permission_workspace_repository import (
     PostgresWorkspaceMembershipRepository,
 )
 from app_infra.postgres.task.effect_repository import PostgresTaskEffectRepository
-from app_infra.postgres.task.task_repository import PostgresTaskRepository
+from app_infra.postgres.task.task_repository import ClaimResult, PostgresTaskRepository
 from app_infra.postgres.test_database_guard import require_isolated_database
 from app_infra.postgres.workspace_purge_enqueuer import PostgresWorkspacePurgeEnqueuer
 from app_infra.postgres.workspace_purge_repository import (
@@ -32,6 +32,17 @@ from workers.maintenance.task_handlers.lifecycle_purge import LifecyclePurgeHand
 DATABASE_URL = "postgresql+psycopg://torch@localhost:5432/dom_workspace_lifecycle_test"
 
 
+class _TaskScopedRepository(PostgresTaskRepository):
+    def __init__(self, session: AsyncSession, task_id: UUID) -> None:
+        super().__init__(session)
+        self._task_id = task_id
+
+    async def claim_next(
+        self, worker_id: str, lease_seconds: int
+    ) -> ClaimResult | None:
+        return await self.claim(self._task_id, worker_id, lease_seconds)
+
+
 @pytest_asyncio.fixture(scope="module", autouse=True)
 async def migrated_database() -> None:
     database_url = require_isolated_database(os.environ["DATABASE_URL"])
@@ -41,36 +52,10 @@ async def migrated_database() -> None:
     command.upgrade(config, "head")
 
 
-@pytest_asyncio.fixture(autouse=True)
-async def clean_shared_state() -> None:
-    connection = await engine.connect()
-    try:
-        session = AsyncSession(connection)
-        async with session.begin():
-            for t in (
-                "work.task_effects",
-                "work.task_attempts",
-                "work.tasks",
-                "core.workspace_members",
-                "core.folders",
-                "core.projects",
-                "core.workspaces",
-            ):
-                await session.execute(text(f"DELETE FROM {t}"))
-            await session.execute(
-                text(
-                    "DELETE FROM auth.accounts "
-                    "WHERE primary_email LIKE 'purge-bdd-%@test'"
-                )
-            )
-        await session.close()
-    finally:
-        await connection.close()
-
-
 @pytest_asyncio.fixture
 async def db_session() -> AsyncSession:
     async with engine.connect() as connection:
+        # Keep every case on its own outer transaction, including session commits.
         transaction = await connection.begin()
         factory = async_sessionmaker(
             bind=connection,
@@ -78,10 +63,15 @@ async def db_session() -> AsyncSession:
             class_=AsyncSession,
             join_transaction_mode="create_savepoint",
         )
-        async with factory() as session:
-            yield session
-            await session.rollback()
-        await transaction.rollback()
+        try:
+            async with factory() as session:
+                try:
+                    yield session
+                finally:
+                    await session.rollback()
+        finally:
+            if transaction.is_active:
+                await transaction.rollback()
 
 
 def _cleanup(session: AsyncSession) -> WorkspaceMembershipCleanupPort:
@@ -183,7 +173,8 @@ async def test_real_task_worker_handler_purges_and_records_effect(
         text("SELECT task_id FROM work.tasks WHERE input_ref=:id"),
         {"id": str(workspace_id)},
     )
-    task_repo = PostgresTaskRepository(db_session)
+    assert task_id is not None
+    task_repo = _TaskScopedRepository(db_session, task_id)
     effects = PostgresTaskEffectRepository(db_session)
     handler = LifecyclePurgeHandler(
         PurgeWorkspace(purge_repo, _cleanup(db_session)), effects

@@ -1,0 +1,8 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/assets/download-asset.schema.json",
+	"title": "DownloadAssetResponse",
+	"description": "Raw bytes for an authenticated Resource Asset download. Asset metadata is conveyed through response headers; binary content is not Base64-encoded JSON.",
+	"type": "string",
+	"contentMediaType": "application/octet-stream"
+}

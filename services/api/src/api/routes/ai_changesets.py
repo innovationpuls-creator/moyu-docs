@@ -3,11 +3,21 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from app_contracts.commands.ai.apply_changeset import ApplyChangeSetResponse
+from app_contracts.commands.ai.apply_changeset import (
+    ApplyChangeSetResponse,
+)
+from app_contracts.commands.ai.apply_changeset import (
+    Status as ApplyChangeSetStatus,
+)
 from app_contracts.commands.ai.propose_changeset import (
     ProposeChangeSet as ProposeChangeSetRequest,
 )
-from app_contracts.commands.ai.propose_changeset import ProposeChangeSetResponse
+from app_contracts.commands.ai.propose_changeset import (
+    ProposeChangeSetResponse,
+)
+from app_contracts.commands.ai.propose_changeset import (
+    Status as ProposeChangeSetStatus,
+)
 from app_core.ai.application import ApplyChangeSet, ProposeChangeSet
 from app_core.ai.domain import ChangesetError
 from app_core.session.domain.session import Session
@@ -54,7 +64,7 @@ async def propose_changeset(
         resourceId=changeset.resource_id,
         instruction=changeset.instruction,
         operations=changeset.ops,
-        status="Proposed",
+        status=ProposeChangeSetStatus.Proposed,
     )
 
 
@@ -78,5 +88,7 @@ async def apply_changeset(
     except LookupError:
         raise HTTPException(status_code=404, detail="CHANGESET_NOT_FOUND")
     return ApplyChangeSetResponse(
-        changesetId=changeset_id, journalSeq=seq, status="Applied"
+        changesetId=changeset_id,
+        journalSeq=seq,
+        status=ApplyChangeSetStatus.Applied,
     )

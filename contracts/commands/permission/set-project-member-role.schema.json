@@ -1,0 +1,44 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/permission/set-project-member-role.schema.json",
+	"title": "SetProjectMemberRole",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+		"accountId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+		"role": {
+			"type": "string",
+			"enum": ["Owner", "Manage", "Edit", "Comment", "Read"]
+		}
+	},
+	"required": ["projectId", "accountId", "role"],
+	"$defs": {
+		"SetProjectMemberRoleResponse": {
+			"title": "SetProjectMemberRoleResponse",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+				"accountId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+				"email": { "type": "string" },
+				"role": {
+					"type": "string",
+					"enum": ["Owner", "Manage", "Edit", "Comment", "Read"]
+				},
+				"membershipKind": { "type": "string", "enum": ["Owner", "Member"] },
+				"createdAt": { "type": "string", "format": "date-time" },
+				"updatedAt": { "type": "string", "format": "date-time" }
+			},
+			"required": [
+				"projectId",
+				"accountId",
+				"email",
+				"role",
+				"membershipKind",
+				"createdAt",
+				"updatedAt"
+			]
+		}
+	}
+}

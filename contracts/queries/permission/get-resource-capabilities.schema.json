@@ -1,0 +1,27 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/permission/get-resource-capabilities.schema.json",
+	"title": "GetResourceCapabilitiesResponse",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"resourceId": {
+			"$ref": "../../ids/ids.schema.json#/$defs/ResourceId"
+		},
+		"canRead": { "type": "boolean" },
+		"canUpdate": { "type": "boolean" },
+		"canComment": { "type": "boolean" },
+		"canManage": { "type": "boolean" },
+		"canResolveCommentThread": { "type": "boolean" },
+		"canReopenCommentThread": { "type": "boolean" }
+	},
+	"required": [
+		"resourceId",
+		"canRead",
+		"canUpdate",
+		"canComment",
+		"canManage",
+		"canResolveCommentThread",
+		"canReopenCommentThread"
+	]
+}

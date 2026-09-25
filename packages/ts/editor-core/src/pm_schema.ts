@@ -40,6 +40,76 @@ export const schema = new Schema({
 			parseDOM: [{ tag: "li" }],
 			toDOM: () => ["li", 0],
 		},
+		image: {
+			group: "block",
+			atom: true,
+			selectable: true,
+			draggable: true,
+			attrs: { nodeId: {}, assetId: {}, label: { default: "" } },
+			parseDOM: [
+				{
+					tag: "img[data-asset-kind='image']",
+					getAttrs: (dom) => {
+						const element = dom as HTMLElement;
+						return {
+							nodeId: element.dataset.nodeId,
+							assetId: element.dataset.assetId,
+							label: element.dataset.label ?? element.getAttribute("alt") ?? "",
+						};
+					},
+				},
+				{
+					tag: "figure[data-asset-kind='image']",
+					getAttrs: (dom) => {
+						const element = dom as HTMLElement;
+						return {
+							nodeId: element.dataset.nodeId,
+							assetId: element.dataset.assetId,
+							label: element.dataset.label ?? "",
+						};
+					},
+				},
+			],
+			toDOM: (node) => [
+				"img",
+				{
+					"data-asset-kind": "image",
+					"data-node-id": node.attrs.nodeId,
+					"data-asset-id": node.attrs.assetId,
+					"data-label": node.attrs.label,
+					alt: node.attrs.label,
+				},
+			],
+		},
+		attachment: {
+			group: "block",
+			atom: true,
+			selectable: true,
+			draggable: true,
+			attrs: { nodeId: {}, assetId: {}, label: { default: "" } },
+			parseDOM: [
+				{
+					tag: "div[data-asset-kind='attachment']",
+					getAttrs: (dom) => {
+						const element = dom as HTMLElement;
+						return {
+							nodeId: element.dataset.nodeId,
+							assetId: element.dataset.assetId,
+							label: element.dataset.label ?? "",
+						};
+					},
+				},
+			],
+			toDOM: (node) => [
+				"div",
+				{
+					"data-asset-kind": "attachment",
+					"data-node-id": node.attrs.nodeId,
+					"data-asset-id": node.attrs.assetId,
+					"data-label": node.attrs.label,
+				},
+			],
+		},
 		text: { group: "inline" },
 	},
 	marks: {

@@ -1,0 +1,33 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/realtime/awareness-event.schema.json",
+	"title": "AwarenessEvent",
+	"description": "Ephemeral, lossy Resource Awareness update or participant removal. It is not persisted as document content.",
+	"oneOf": [
+		{ "$ref": "#/$defs/AwarenessUpdate" },
+		{ "$ref": "#/$defs/AwarenessRemove" }
+	],
+	"$defs": {
+		"AwarenessUpdate": {
+			"title": "AwarenessUpdate",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"kind": { "const": "update" },
+				"participant": { "$ref": "./awareness-participant.schema.json" },
+				"state": { "$ref": "./awareness-state.schema.json" }
+			},
+			"required": ["kind", "participant", "state"]
+		},
+		"AwarenessRemove": {
+			"title": "AwarenessRemove",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"kind": { "const": "remove" },
+				"participantId": { "type": "string", "minLength": 1 }
+			},
+			"required": ["kind", "participantId"]
+		}
+	}
+}

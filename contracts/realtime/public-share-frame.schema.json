@@ -1,0 +1,65 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/realtime/public-share-frame.schema.json",
+	"title": "PublicShareRealtimeFrame",
+	"description": "Token-authenticated read-only Resource subscription for an active public share link.",
+	"oneOf": [
+		{ "$ref": "#/$defs/AuthenticateShareFrame" },
+		{ "$ref": "#/$defs/ShareAuthenticatedFrame" },
+		{ "$ref": "#/$defs/ShareStateFrame" }
+	],
+	"$defs": {
+		"AuthenticateShareFrame": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"protocolVersion": { "type": "integer", "const": 1 },
+				"type": { "const": "authenticate-share" },
+				"token": { "type": "string", "minLength": 24, "maxLength": 512 }
+			},
+			"required": ["protocolVersion", "type", "token"]
+		},
+		"ShareAuthenticatedFrame": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"protocolVersion": { "type": "integer", "const": 1 },
+				"type": { "const": "share-authenticated" },
+				"payload": {
+					"title": "ShareAuthenticatedPayload",
+					"type": "object",
+					"additionalProperties": false,
+					"properties": { "status": { "const": "ok" } },
+					"required": ["status"]
+				}
+			},
+			"required": ["protocolVersion", "type", "payload"]
+		},
+		"ShareStateFrame": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"protocolVersion": { "type": "integer", "const": 1 },
+				"type": { "const": "share-state" },
+				"resourceId": { "$ref": "../ids/ids.schema.json#/$defs/ResourceId" },
+				"subscriptionId": {
+					"$ref": "../ids/ids.schema.json#/$defs/SubscriptionId"
+				},
+				"payload": {
+					"title": "ShareStatePayload",
+					"type": "object",
+					"additionalProperties": false,
+					"properties": { "stateKind": { "enum": ["yjs", "checkpoint"] } },
+					"required": ["stateKind"]
+				}
+			},
+			"required": [
+				"protocolVersion",
+				"type",
+				"resourceId",
+				"subscriptionId",
+				"payload"
+			]
+		}
+	}
+}

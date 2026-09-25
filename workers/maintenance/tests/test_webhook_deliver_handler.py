@@ -5,9 +5,11 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from types import SimpleNamespace
+from typing import Any
 from uuid import UUID, uuid4
 
 import httpx
+import pytest
 from app_core.integrations.domain import new_keypair, public_from_private, verify
 from app_core.webhook.application import DeliverWebhook
 from task_runtime.domain import RetryableTaskError
@@ -26,6 +28,20 @@ class _Loader:
         self, _workspace_id: UUID, _subscription_id: UUID
     ) -> tuple[str, str] | None:
         return (self._url, self._secret)
+
+
+class _SingleTaskRepository:
+    """Keep this worker proof from claiming unrelated shared-queue tasks."""
+
+    def __init__(self, repository: Any, task_id: UUID) -> None:
+        self._repository = repository
+        self._task_id = task_id
+
+    async def claim_next(self, worker_id: str, lease_seconds: int):
+        return await self._repository.claim(self._task_id, worker_id, lease_seconds)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._repository, name)
 
 
 def test_deliver_handler_signs_and_posts() -> None:
@@ -112,11 +128,11 @@ def test_deliver_handler_retries_on_failure() -> None:
         handler = WebhookDeliverHandler(
             DeliverWebhook(_FailLoader(private_key.hex()), _FailingTransporter())
         )
-        try:
 
-            async def _checkpoint() -> None:
-                return None
+        async def _checkpoint() -> None:
+            return None
 
+        with pytest.raises(RetryableTaskError) as error:
             await handler.execute(
                 SimpleNamespace(
                     checkpoint=_checkpoint,
@@ -132,9 +148,55 @@ def test_deliver_handler_retries_on_failure() -> None:
                     ),
                 )
             )
-            raise AssertionError("expected RetryableTaskError")
-        except RetryableTaskError:
-            pass
+        assert error.value.failure_code == "WEBHOOK_DELIVERY_REJECTED"
+        assert "500" not in error.value.failure_code
+
+    asyncio.run(scenario())
+
+
+def test_deliver_handler_redacts_transport_exception_from_failure_code() -> None:
+    import asyncio
+
+    class _FailingTransporter:
+        async def post(self, url: str, payload: bytes, headers: dict[str, str]) -> int:  # noqa: ARG002
+            raise RuntimeError("secret endpoint detail")
+
+    class _Loader:
+        def __init__(self, secret_hex: str) -> None:
+            self._secret = secret_hex
+
+        async def fetch(
+            self, workspace_id: UUID, subscription_id: UUID
+        ) -> tuple[str, str] | None:  # noqa: ARG002
+            return ("https://hooks.example.test/dom", self._secret)
+
+    async def scenario() -> None:
+        private_key, _ = new_keypair()
+        handler = WebhookDeliverHandler(
+            DeliverWebhook(_Loader(private_key.hex()), _FailingTransporter())
+        )
+
+        async def _checkpoint() -> None:
+            return None
+
+        with pytest.raises(RetryableTaskError) as error:
+            await handler.execute(
+                SimpleNamespace(
+                    checkpoint=_checkpoint,
+                    task=SimpleNamespace(
+                        task_id=uuid4(),
+                        input_ref=json.dumps(
+                            {
+                                "subscriptionId": str(uuid4()),
+                                "workspaceId": str(uuid4()),
+                                "event": "resource.created",
+                            }
+                        ),
+                    ),
+                )
+            )
+        assert error.value.failure_code == "WEBHOOK_DELIVERY_FAILED"
+        assert "secret endpoint detail" not in error.value.failure_code
 
     asyncio.run(scenario())
 
@@ -171,10 +233,6 @@ def test_webhook_retry_backoff_and_exhaustion() -> None:
         )
         engine = create_async_engine(database_url)
         session = AsyncSession(engine)
-        # keep the claim deterministic: this proof owns the whole queue (the
-        # maintenance sweep may enqueue checkpoint/purge work between tests)
-        async with session.begin():
-            await session.execute(_text("DELETE FROM work.tasks"))
         task_id = uuid4()
         task_type = "webhook.deliver"
         input_ref = json.dumps(
@@ -208,7 +266,11 @@ def test_webhook_retry_backoff_and_exhaustion() -> None:
                 )
             )
             repository = PostgresTaskRepository(session)
-            worker = WorkerHost(repository, registry, worker_id="rp-retry")
+            worker = WorkerHost(
+                _SingleTaskRepository(repository, task_id),
+                registry,
+                worker_id="rp-retry",
+            )
             first = await worker.run_once()
             assert first is True
             row = (
@@ -253,6 +315,26 @@ def test_webhook_retry_backoff_and_exhaustion() -> None:
             # the task never retries unboundedly even under persistent failure.
             assert row2["retry_count"] <= 2
         finally:
+            await session.rollback()
+            async with session.begin():
+                await session.execute(
+                    _text(
+                        "DELETE FROM integration.outbox_events WHERE aggregate_id=:tid"
+                    ),
+                    {"tid": task_id},
+                )
+                await session.execute(
+                    _text("DELETE FROM work.task_effects WHERE task_id=:tid"),
+                    {"tid": task_id},
+                )
+                await session.execute(
+                    _text("DELETE FROM work.task_attempts WHERE task_id=:tid"),
+                    {"tid": task_id},
+                )
+                await session.execute(
+                    _text("DELETE FROM work.tasks WHERE task_id=:tid"),
+                    {"tid": task_id},
+                )
             await session.close()
             await engine.dispose()
 

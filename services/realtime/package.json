@@ -15,11 +15,13 @@
 		"@dom/realtime-protocol": "workspace:*",
 		"ioredis": "^5.8.1",
 		"nats": "^2.29.3",
+		"pg": "^8.23.0",
 		"ws": "^8.18.0",
 		"yjs": "^13.6.32"
 	},
 	"devDependencies": {
 		"@types/node": "^24.0.0",
+		"@types/pg": "^8.23.1",
 		"@types/ws": "^8.5.0",
 		"tsx": "^4.19.0",
 		"typescript": "^5.9.3",

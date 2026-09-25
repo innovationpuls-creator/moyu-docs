@@ -1,0 +1,14 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/tasks/get-task.schema.json",
+	"title": "GetTaskResponse",
+	"description": "Returns the current authoritative state of one task.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"task": {
+			"$ref": "./list-tasks.schema.json#/$defs/TaskSummary"
+		}
+	},
+	"required": ["task"]
+}

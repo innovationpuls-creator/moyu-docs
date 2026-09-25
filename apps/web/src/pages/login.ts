@@ -35,6 +35,12 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function renderLoginPage(app: HTMLElement): Promise<void> {
 	const client = new DomClient();
+	const requestedContinue = new URLSearchParams(window.location.search).get(
+		"continue",
+	);
+	const postLoginPath = requestedContinue?.startsWith("/invite/accept?token=")
+		? requestedContinue
+		: "/workspace";
 	// 并行探测会话：有会话直接导向工作台（FR-AUTH-021）；
 	// 界面在未决期间即刻挂载落位，避免网络 RTT 造成白屏停顿或动画延迟（spec §4）。
 	const sessionCheck = client.me().catch(() => null);
@@ -46,7 +52,7 @@ export async function renderLoginPage(app: HTMLElement): Promise<void> {
 
 	void sessionCheck.then((user) => {
 		if (user !== null) {
-			navigate("/workspace");
+			navigate(postLoginPath);
 		}
 	});
 
@@ -200,7 +206,7 @@ export async function renderLoginPage(app: HTMLElement): Promise<void> {
 				});
 				setSuccessButton(submit, "登入成功，正在进入…");
 				await playAuthExit(shell.root);
-				navigate("/workspace");
+				navigate(postLoginPath);
 			} catch (cause) {
 				busy = false;
 				if (cause instanceof DomApiError) {

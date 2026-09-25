@@ -114,7 +114,9 @@ async def test_comment_chain_and_permission() -> None:
             )
         assert reply.thread_id == root.thread_id
         async with session.begin():
-            listed = await ListComments(comments).execute(resource.resource_id)
+            listed = await ListComments(comments, ownership).execute(
+                account_id, resource.resource_id
+            )
         assert [c.comment_id for c in listed] == [root.comment_id, reply.comment_id]
         async with session.begin():
             with pytest.raises(CommentPermissionDeniedError):

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from api.routes.assets import _asset_store
+from api.infra.asset_storage import get_asset_store
 from app_infra.postgres.local_asset_store import LocalDiskAssetStore
 from app_infra.postgres.s3_asset_store import S3AssetStore, S3StoreError
 
@@ -23,13 +23,13 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_no_s3_env_uses_disk_store() -> None:
-    assert isinstance(_asset_store(), LocalDiskAssetStore)
+    assert isinstance(get_asset_store(), LocalDiskAssetStore)
 
 
 def test_partial_s3_env_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("S3_ASSET_ENDPOINT", "http://127.0.0.1:9000")
     with pytest.raises(S3StoreError):
-        _asset_store()
+        get_asset_store()
 
 
 def test_full_s3_env_selects_s3_store(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -42,4 +42,4 @@ def test_full_s3_env_selects_s3_store(monkeypatch: pytest.MonkeyPatch) -> None:
     }
     for key, value in values.items():
         monkeypatch.setenv(key, value)
-    assert isinstance(_asset_store(), S3AssetStore)
+    assert isinstance(get_asset_store(), S3AssetStore)

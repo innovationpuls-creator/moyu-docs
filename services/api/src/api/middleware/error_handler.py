@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from collections.abc import Mapping
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -36,6 +37,8 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from api.middleware.request_context import redact_sensitive_path
 
 logger = logging.getLogger("dom.api.error")
 
@@ -120,10 +123,16 @@ def _build_envelope(
     )
 
 
-def _json_response(status_code: int, envelope: ErrorEnvelope) -> JSONResponse:
+def _json_response(
+    status_code: int,
+    envelope: ErrorEnvelope,
+    headers: Mapping[str, str] | None = None,
+) -> JSONResponse:
     # mode="json" renders enums (category) and UUIDs as JSON-native scalars.
     return JSONResponse(
-        status_code=status_code, content=envelope.model_dump(mode="json")
+        status_code=status_code,
+        content=envelope.model_dump(mode="json"),
+        headers=headers,
     )
 
 
@@ -176,7 +185,7 @@ async def _http_exception_handler(
     envelope = _build_envelope(
         category=category, error_code=error_code, message=exc.detail
     )
-    return _json_response(exc.status_code, envelope)
+    return _json_response(exc.status_code, envelope, headers=exc.headers)
 
 
 async def _unhandled_exception_handler(
@@ -184,7 +193,11 @@ async def _unhandled_exception_handler(
 ) -> JSONResponse:
     # Never leak stack traces / internals (doc 28 §31): log server-side, send a
     # generic Internal envelope to the client.
-    logger.exception("unhandled exception on %s %s", request.method, request.url.path)
+    logger.exception(
+        "unhandled exception on %s %s",
+        request.method,
+        redact_sensitive_path(request.url.path),
+    )
     envelope = _build_envelope(
         category="Internal",
         error_code="INTERNAL_ERROR",

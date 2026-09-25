@@ -1,7 +1,33 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 import { client } from "../../shared/api/client";
 import { formatConsoleDate } from "../../shared/ui/date";
+
+type RestoreTask = Awaited<ReturnType<typeof client.getTask>>["task"];
+
+const activeTaskStates = new Set<RestoreTask["state"]>([
+	"Created",
+	"Queued",
+	"Running",
+	"WaitingForUser",
+	"Retrying",
+]);
+
+function taskStateLabel(state: RestoreTask["state"]): string {
+	const labels: Record<RestoreTask["state"], string> = {
+		Created: "正在创建",
+		Queued: "排队中",
+		Running: "正在恢复",
+		WaitingForUser: "等待你处理",
+		Retrying: "正在重试",
+		Succeeded: "恢复完成",
+		PartialSucceeded: "部分完成",
+		Failed: "恢复失败",
+		Cancelled: "已取消",
+	};
+	return labels[state];
+}
 
 function historyKindLabel(kind: string): string {
 	if (kind === "NamedVersion") return "命名版本";
@@ -16,10 +42,13 @@ export function HistoryPanel({
 }: {
 	resourceId: string;
 	journalSeq: number;
-	onRestored?(newSeq: number): Promise<void>;
+	onRestored?(): Promise<void>;
 }) {
 	const cache = useQueryClient();
+	const navigate = useNavigate();
 	const [label, setLabel] = useState("");
+	const [restoreTaskId, setRestoreTaskId] = useState("");
+	const lastReloadedTaskId = useRef("");
 	const history = useQuery({
 		queryKey: ["history", resourceId],
 		queryFn: () => client.listHistory(resourceId),
@@ -34,12 +63,37 @@ export function HistoryPanel({
 	});
 	const restoreVersion = useMutation({
 		mutationFn: (baseJournalSeq: number) =>
-			client.restoreVersion(resourceId, baseJournalSeq),
-		onSuccess: async (result) => {
-			await cache.invalidateQueries({ queryKey: ["history", resourceId] });
-			await onRestored?.(result.newSeq);
+			client.createVersionRestoreTask(
+				resourceId,
+				baseJournalSeq,
+				crypto.randomUUID(),
+			),
+		onSuccess: (result) => {
+			setRestoreTaskId(result.taskId);
 		},
 	});
+	const restoreTask = useQuery({
+		queryKey: ["task", restoreTaskId],
+		queryFn: () => client.getTask(restoreTaskId),
+		enabled: !!restoreTaskId,
+		refetchInterval: (query) =>
+			query.state.data && activeTaskStates.has(query.state.data.task.state)
+				? 1_500
+				: false,
+	});
+	const task = restoreTask.data?.task;
+	const restoreInProgress = task ? activeTaskStates.has(task.state) : false;
+
+	useEffect(() => {
+		if (
+			task?.state !== "Succeeded" ||
+			lastReloadedTaskId.current === task.taskId
+		)
+			return;
+		lastReloadedTaskId.current = task.taskId;
+		void cache.invalidateQueries({ queryKey: ["history", resourceId] });
+		void onRestored?.();
+	}, [cache, onRestored, resourceId, task]);
 
 	return (
 		<section className="drawer-content" aria-label="文档历史">
@@ -76,7 +130,24 @@ export function HistoryPanel({
 			)}
 			{restoreVersion.isError && (
 				<p className="feature-error" role="alert">
-					版本恢复失败，请重试。
+					版本恢复任务创建失败，请重试。
+				</p>
+			)}
+			{restoreTaskId && (
+				<p className="feature-muted" role="status" aria-live="polite">
+					{restoreTask.isError
+						? "无法获取恢复进度。"
+						: task
+							? `${taskStateLabel(task.state)}${task.stage ? ` · 阶段：${task.stage}` : ""}${typeof task.percentage === "number" ? ` · ${Math.round(task.percentage)}%` : ""}`
+							: "正在读取恢复任务…"}{" "}
+					<button type="button" onClick={() => navigate("/tasks")}>
+						打开任务中心
+					</button>
+					{restoreTask.isError && (
+						<button type="button" onClick={() => void restoreTask.refetch()}>
+							重试查询
+						</button>
+					)}
 				</p>
 			)}
 			{history.data?.items.map((item) => (
@@ -93,10 +164,12 @@ export function HistoryPanel({
 					<button
 						type="button"
 						className="history-restore-button"
-						disabled={restoreVersion.isPending || item.seq < 1}
+						disabled={
+							restoreVersion.isPending || restoreInProgress || item.seq < 1
+						}
 						onClick={() => restoreVersion.mutate(item.seq)}
 					>
-						恢复到此版本
+						{restoreVersion.isPending ? "正在提交…" : "恢复到此版本"}
 					</button>
 				</article>
 			))}

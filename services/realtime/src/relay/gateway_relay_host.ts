@@ -11,6 +11,7 @@
 import { connect, type JetStreamClient } from "nats";
 import type { PresenceStore } from "../backlog/presence_store.js";
 import type { YjsBacklogStore } from "../backlog/yjs_backlog_store.js";
+import type { CurrentResourceStateProvider } from "../persistence/current_resource_state.js";
 import {
 	type OpEnvelope,
 	ResourceSubscriptionManager,
@@ -19,14 +20,20 @@ import {
 import { NatsBroadcastRelay } from "./nats_broadcast_relay.js";
 
 export interface RelayHostOptions {
-	/** API base used for read and write capability checks; default deny on
-	 * network errors. */
+	/** API base used for read-authorization (GET /v1/resources/<id>); default
+	 * deny on network errors. */
 	apiBaseUrl: string;
 	natsUrl: string;
 	/** Yjs backlog store for late-join catch-up (arch 05); default in-memory. */
 	backlogStore?: YjsBacklogStore;
 	/** Presence roster store (arch 05); default in-memory. */
 	presenceStore?: PresenceStore;
+	currentResourceState?: CurrentResourceStateProvider;
+}
+
+export interface PublicShareGrant {
+	resourceId: string;
+	journalSeq: number;
 }
 
 export interface ConnectionRegistry {
@@ -38,8 +45,10 @@ export class GatewayRelayHost {
 	readonly manager: ResourceSubscriptionManager;
 	private readonly connections = new Map<string, (envelope: unknown) => void>();
 	private relay: NatsBroadcastRelay | null = null;
+	private readonly currentResourceState?: CurrentResourceStateProvider;
 
 	constructor(private readonly options: RelayHostOptions) {
+		this.currentResourceState = options.currentResourceState;
 		this.manager = new ResourceSubscriptionManager(
 			{
 				authorizeResource: async (actorId, resourceId) =>
@@ -55,6 +64,46 @@ export class GatewayRelayHost {
 			this.options.backlogStore,
 			this.options.presenceStore,
 		);
+	}
+
+	/** Validate an anonymous link through Permission's current share resolver. */
+	async resolvePublicShare(token: string): Promise<PublicShareGrant | null> {
+		if (token.length < 24 || token.length > 512) return null;
+		try {
+			const response = await fetch(
+				`${this.options.apiBaseUrl}/v1/public/shares/${encodeURIComponent(token)}`,
+				{
+					cache: "no-store",
+					signal: AbortSignal.timeout(3_000),
+				},
+			);
+			if (!response.ok) return null;
+			const grant = (await response.json()) as {
+				resourceId?: unknown;
+				journalSeq?: unknown;
+			};
+			if (
+				typeof grant.resourceId !== "string" ||
+				typeof grant.journalSeq !== "number" ||
+				!Number.isSafeInteger(grant.journalSeq) ||
+				grant.journalSeq < 0
+			) {
+				return null;
+			}
+			return {
+				resourceId: grant.resourceId,
+				journalSeq: grant.journalSeq,
+			};
+		} catch {
+			return null;
+		}
+	}
+
+	async readCurrentPublicState(resourceId: string): Promise<Uint8Array | null> {
+		if (!this.currentResourceState) {
+			throw new Error("Realtime durable Resource state is unavailable");
+		}
+		return this.currentResourceState.readCurrentState(resourceId);
 	}
 
 	private async authorize(
@@ -80,6 +129,9 @@ export class GatewayRelayHost {
 		}
 	}
 
+	/** A subscription proves read access only. Check the Session's current
+	 * canUpdate capability for every body update; positive results are not
+	 * cached, so a permission downgrade blocks the next frame. */
 	private async authorizeUpdate(
 		actorId: string,
 		resourceId: string,
@@ -89,21 +141,22 @@ export class GatewayRelayHost {
 				`${this.options.apiBaseUrl}/v1/resources/${encodeURIComponent(resourceId)}/capabilities`,
 				{
 					headers: { cookie: `dom_session=${actorId}` },
-					signal: AbortSignal.timeout(3000),
+					signal: AbortSignal.timeout(3_000),
 				},
 			);
 			if (response.status !== 200) return false;
-			const capabilities: unknown = await response.json();
+			const capability = await response.json();
 			return (
-				typeof capabilities === "object" &&
-				capabilities !== null &&
-				"resourceId" in capabilities &&
-				capabilities.resourceId === resourceId &&
-				"canUpdate" in capabilities &&
-				capabilities.canUpdate === true
+				typeof capability === "object" &&
+				capability !== null &&
+				"resourceId" in capability &&
+				capability.resourceId === resourceId &&
+				"canUpdate" in capability &&
+				capability.canUpdate === true
 			);
 		} catch {
-			// Capability lookup failures deny this update; no positive result is cached.
+			// A stale Session, malformed response, timeout, or API failure must
+			// never authorize a Resource update.
 			return false;
 		}
 	}

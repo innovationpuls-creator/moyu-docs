@@ -22,6 +22,31 @@ trace_id_ctx: contextvars.ContextVar[str] = contextvars.ContextVar(
 logger = logging.getLogger("dom.api.access")
 
 
+def redact_sensitive_path(path: str) -> str:
+    """Hide anonymous Share tokens from every API path log projection."""
+    share_prefix = "/v1/public/shares/"
+    if path.startswith(share_prefix):
+        return f"{share_prefix}[REDACTED]"
+    return path
+
+
+class PublicShareAccessLogFilter(logging.Filter):
+    """Redact tokens from Uvicorn's independent access logger records."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        args = record.args
+        if isinstance(args, tuple) and len(args) >= 3:
+            path = args[2]
+            if isinstance(path, str):
+                safe_args = list(args)
+                safe_args[2] = redact_sensitive_path(path)
+                record.args = tuple(safe_args)
+        return True
+
+
+logging.getLogger("uvicorn.access").addFilter(PublicShareAccessLogFilter())
+
+
 class RequestContextMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
         request_id = request.headers.get("X-Request-Id") or str(uuid4())
@@ -39,7 +64,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
                 "result": "ok" if response.status_code < 500 else "error",
                 "status": response.status_code,
                 "method": request.method,
-                "path": request.url.path,
+                "path": redact_sensitive_path(request.url.path),
                 "duration_ms": duration_ms,
             },
         )

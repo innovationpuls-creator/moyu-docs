@@ -40,3 +40,10 @@ class ListResourcesResponse(BaseModel):
     )
     projectId: UUID = Field(..., title="WorkspaceId")
     items: list[Item]
+
+
+class ListResourcesQueryParameters(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    folderId: UUID | None = Field(None, title="FolderId")

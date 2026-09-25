@@ -108,9 +108,14 @@ async def _account_count(db_session: AsyncSession, email: str) -> int:
     return int(count or 0)
 
 
-async def _active_session_count(db_session: AsyncSession) -> int:
+async def _active_session_count(db_session: AsyncSession, email: str) -> int:
     count = await db_session.scalar(
-        text("SELECT count(*) FROM auth.sessions WHERE status = 'Active'")
+        text(
+            "SELECT count(*) FROM auth.sessions s "
+            "JOIN auth.accounts a USING (account_id) "
+            "WHERE s.status='Active' AND a.normalized_email=:email"
+        ),
+        {"email": email.casefold()},
     )
     return int(count or 0)
 
@@ -185,7 +190,7 @@ async def test_register_known_email_returns_201_identical_body_without_session_c
     assert "dom_session" in _cookie_names(first_headers)
     assert "dom_session" not in _cookie_names(second_headers)
     assert await _account_count(db_session, "existing@example.com") == 1
-    assert await _active_session_count(db_session) == 1
+    assert await _active_session_count(db_session, "existing@example.com") == 1
 
 
 def _assert_rate_limited_envelope(body: dict[str, Any]) -> None:

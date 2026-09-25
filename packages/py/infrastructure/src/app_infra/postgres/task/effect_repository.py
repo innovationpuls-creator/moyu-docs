@@ -3,9 +3,9 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID, uuid4
 
+from app_core.operations.task.domain import StaleAttemptError
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from task_runtime.domain import StaleAttemptError
 
 
 class PostgresTaskEffectRepository:

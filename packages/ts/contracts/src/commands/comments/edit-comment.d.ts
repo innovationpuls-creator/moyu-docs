@@ -4,14 +4,14 @@
  * Do not edit; run `just contract` instead.
  */
 
-export type UserId = string;
+export type CommentId = string;
 export type IdempotencyKey = string;
 
 /**
  * FR-CMT-003. Author edits their own comment body.
  */
 export interface EditComment {
-	commentId: UserId;
+	commentId: CommentId;
 	body: string;
 	idempotencyKey: IdempotencyKey;
 }

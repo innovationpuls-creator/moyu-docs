@@ -1,0 +1,408 @@
+.members-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 155;
+	display: grid;
+	place-items: center;
+	padding: 20px;
+	background: rgba(24, 43, 49, 0.48);
+	backdrop-filter: blur(8px);
+}
+
+.members-panel {
+	width: min(920px, 100%);
+	max-height: min(88vh, 900px);
+	display: flex;
+	flex-direction: column;
+	border: 1px solid var(--border-card);
+	border-radius: 24px;
+	background: var(--surface-card);
+	box-shadow: var(--shadow-stage);
+	overflow: hidden;
+}
+
+.members-panel-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 20px;
+	padding: 25px 30px 19px;
+	border-bottom: 1px solid var(--border-card);
+}
+
+.members-eyebrow {
+	margin: 0 0 7px;
+	color: var(--ink-muted);
+	font: 700 10px var(--font-display);
+	letter-spacing: 0.16em;
+}
+
+.members-panel-header h2 {
+	margin: 0;
+	color: var(--ink-primary);
+	font: 700 21px var(--font-display);
+}
+
+.members-close {
+	width: 36px;
+	height: 36px;
+	border: 1px solid var(--border-input);
+	border-radius: 50%;
+	background: #fff;
+	color: var(--ink-secondary);
+	font-size: 24px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.members-tabs {
+	display: flex;
+	gap: 8px;
+	padding: 14px 30px 0;
+}
+
+.members-tabs button {
+	min-height: 36px;
+	padding: 0 15px;
+	border: 1px solid transparent;
+	border-radius: 999px;
+	background: transparent;
+	color: var(--ink-secondary);
+	font: 600 12px var(--font-display);
+	cursor: pointer;
+}
+
+.members-tabs button.active {
+	border-color: var(--border-card);
+	background: #fff;
+	color: var(--ink-primary);
+	box-shadow: 0 4px 12px rgba(30, 53, 61, 0.06);
+}
+
+.members-panel-content {
+	min-height: 240px;
+	padding: 22px 30px 30px;
+	overflow: auto;
+}
+
+.members-scope {
+	display: grid;
+	gap: 20px;
+}
+
+.members-intro {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 20px;
+}
+
+.members-intro h3,
+.members-list-section h4 {
+	margin: 0;
+	color: var(--ink-primary);
+	font: 700 15px var(--font-display);
+}
+
+.members-intro p,
+.members-muted,
+.members-note,
+.invite-link-card p {
+	margin: 6px 0 0;
+	color: var(--ink-muted);
+	font-size: 12px;
+	line-height: 1.55;
+}
+
+.members-count {
+	flex: 0 0 auto;
+	padding: 6px 10px;
+	border-radius: 999px;
+	background: #f1f5f4;
+	color: var(--ink-secondary);
+	font-size: 11px;
+}
+
+.invite-form {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 120px auto;
+	align-items: end;
+	gap: 12px;
+	padding: 17px;
+	border: 1px solid var(--border-card);
+	border-radius: 16px;
+	background: rgba(255, 255, 255, 0.72);
+}
+
+.invite-form label,
+.scope-select {
+	display: grid;
+	gap: 7px;
+	color: var(--ink-secondary);
+	font-size: 11px;
+}
+
+.invite-form input,
+.invite-form select,
+.member-search input,
+.scope-select select,
+.scope-select-row select,
+.scoped-roles-list select,
+.invite-link-row input {
+	min-width: 0;
+	min-height: 38px;
+	padding: 8px 10px;
+	border: 1px solid var(--border-input);
+	border-radius: 10px;
+	background: #fff;
+	color: var(--ink-primary);
+	font: 13px var(--font-body);
+}
+
+.members-primary-button,
+.invite-link-row button {
+	min-height: 38px;
+	padding: 0 15px;
+	border: 0;
+	border-radius: 999px;
+	background: var(--ink-primary);
+	color: #fff;
+	font: 600 12px var(--font-display);
+	cursor: pointer;
+}
+
+.members-primary-button:disabled,
+.scoped-roles-list select:disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
+}
+
+.invite-link-card {
+	display: grid;
+	gap: 12px;
+	padding: 16px;
+	border: 1px solid #cfe0d5;
+	border-radius: 14px;
+	background: #f2f8f3;
+}
+
+.invite-link-card strong {
+	color: var(--ink-primary);
+	font: 700 13px var(--font-display);
+}
+
+.invite-link-row {
+	display: flex;
+	gap: 8px;
+}
+
+.invite-link-row input {
+	flex: 1;
+}
+
+.members-list-section {
+	display: grid;
+	gap: 10px;
+}
+
+.members-list {
+	display: grid;
+	margin: 0;
+	padding: 0;
+	border-top: 1px solid var(--border-card);
+	list-style: none;
+}
+
+.members-list > li {
+	min-height: 62px;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto auto;
+	align-items: center;
+	gap: 18px;
+	padding: 10px 2px;
+	border-bottom: 1px solid var(--border-card);
+}
+
+.member-identity {
+	min-width: 0;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.member-identity > span:last-child {
+	min-width: 0;
+	display: grid;
+	gap: 3px;
+}
+
+.member-identity strong {
+	overflow: hidden;
+	color: var(--ink-primary);
+	font-size: 12px;
+	font-weight: 600;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.member-identity small {
+	color: var(--ink-muted);
+	font-size: 10px;
+}
+
+.member-avatar {
+	width: 32px;
+	height: 32px;
+	flex: 0 0 auto;
+	display: grid;
+	place-items: center;
+	border: 1px solid #dfe6e2;
+	border-radius: 50%;
+	background: #f4f6f2;
+	color: #52675f;
+	font: 700 12px var(--font-display);
+}
+
+.invite-avatar {
+	background: #f5f0e6;
+	color: #89734e;
+}
+
+.member-kind,
+.invitation-state {
+	padding: 6px 9px;
+	border-radius: 999px;
+	background: #f2f4f2;
+	color: var(--ink-secondary);
+	font-size: 10px;
+	white-space: nowrap;
+}
+
+.member-kind.owner {
+	background: #f7eee3;
+	color: #815b2b;
+}
+
+.invitation-state.state-pending {
+	background: #fff4df;
+	color: #7e5d22;
+}
+
+.invitation-state.state-accepted {
+	background: #e8f4eb;
+	color: #3e7250;
+}
+
+.invitation-state.state-expired,
+.invitation-state.state-revoked {
+	background: #f3eeee;
+	color: #7b6666;
+}
+
+.members-text-button {
+	padding: 6px 2px;
+	border: 0;
+	background: transparent;
+	color: var(--ink-secondary);
+	font: 600 11px var(--font-display);
+	cursor: pointer;
+}
+
+.members-text-button:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.members-text-button.danger {
+	color: #a34f43;
+}
+
+.members-note {
+	padding: 12px 14px;
+	border-left: 3px solid #cbb88d;
+	border-radius: 0 10px 10px 0;
+	background: #f8f5ec;
+}
+
+.members-error {
+	margin: 0;
+	color: var(--semantic-danger-ink);
+	font-size: 12px;
+}
+
+.invitation-footnote {
+	font-size: 10px;
+}
+
+.scope-select {
+	max-width: 420px;
+}
+
+.scope-select-row {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px;
+}
+
+.scoped-roles-list > li {
+	grid-template-columns: minmax(0, 1fr) minmax(150px, 220px);
+}
+
+.scoped-roles-list select {
+	width: 100%;
+}
+
+@media (max-width: 680px) {
+	.members-backdrop {
+		align-items: end;
+		padding: 0;
+	}
+
+	.members-panel {
+		width: 100%;
+		max-height: 94vh;
+		border-radius: 22px 22px 0 0;
+	}
+
+	.members-panel-header,
+	.members-panel-content {
+		padding-right: 18px;
+		padding-left: 18px;
+	}
+
+	.members-tabs {
+		gap: 2px;
+		padding-right: 12px;
+		padding-left: 12px;
+	}
+
+	.members-tabs button {
+		padding: 0 10px;
+		font-size: 11px;
+	}
+
+	.invite-form {
+		grid-template-columns: 1fr 100px;
+	}
+
+	.invite-form > button {
+		grid-column: 1 / -1;
+	}
+
+	.members-list > li {
+		grid-template-columns: minmax(0, 1fr) auto;
+		gap: 8px 12px;
+	}
+
+	.members-list > li > :first-child {
+		grid-column: 1 / -1;
+	}
+
+	.scope-select-row {
+		grid-template-columns: 1fr;
+	}
+
+	.scoped-roles-list > li {
+		grid-template-columns: minmax(0, 1fr) minmax(115px, 145px);
+	}
+}

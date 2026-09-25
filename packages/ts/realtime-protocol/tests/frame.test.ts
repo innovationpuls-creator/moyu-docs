@@ -17,6 +17,8 @@ describe("realtime binary frame", () => {
 		);
 		const decoded = decodeRealtimeBinaryFrame(frame);
 
+		expect(decoded.header.frameType).toBe("Sync");
+		expect(decoded.header.payloadKind).toBe("binary");
 		expect(decoded.header.messageType).toBe("sync.update");
 		expect(decoded.header.resourceId).toBe("resource-1");
 		expect(decoded.header.subscriptionId).toBe("subscription-1");

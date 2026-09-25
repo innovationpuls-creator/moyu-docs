@@ -49,6 +49,29 @@ describe("y-prosemirror binding", () => {
 		const back = yFragmentToNodes(fragment);
 		expect(back.length).toBeGreaterThanOrEqual(2);
 	});
+
+	it("replicates stable asset references with their node identities", () => {
+		const source = new Y.Doc();
+		const sourceNodes: ContentNode[] = [
+			{
+				kind: "image",
+				nodeId: "n_image-1",
+				assetId: "asset-image-1",
+				label: "diagram.png",
+			},
+			{
+				kind: "attachment",
+				nodeId: "n_attachment-1",
+				assetId: "asset-file-1",
+				label: "notes.txt",
+			},
+		];
+		nodesToYFragment(sourceNodes, yFragmentFor(source));
+
+		const peer = new Y.Doc();
+		Y.applyUpdate(peer, Y.encodeStateAsUpdate(source));
+		expect(yFragmentToNodes(yFragmentFor(peer))).toEqual(sourceNodes);
+	});
 });
 
 import { EditorState } from "prosemirror-state";

@@ -10,12 +10,12 @@ import pytest_asyncio
 from alembic import command
 from alembic.config import Config
 from app_core.operations.task import StaleAttemptError
+from app_core.operations.task.domain import Priority, Task
 from app_infra.postgres.engine import engine
 from app_infra.postgres.task.task_repository import PostgresTaskRepository
 from app_infra.postgres.test_database_guard import require_isolated_database
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-from task_runtime.domain import Task
 from task_runtime.registry import HandlerRegistry
 from task_runtime.runtime import WorkerHost
 
@@ -48,15 +48,11 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 @pytest.mark.asyncio
-async def test_secret_payload_is_not_persisted(db_session: AsyncSession) -> None:
-    secret = "super-secret-token"
+async def test_task_persists_only_opaque_payload_references(
+    db_session: AsyncSession,
+) -> None:
     task_id = uuid4()
-    task = Task.create(
-        "secure",
-        priority=__import__(
-            "task_runtime.domain", fromlist=["Priority"]
-        ).Priority.NORMAL,
-    )
+    task = Task.create("secure", priority=Priority.NORMAL)
     task.task_id = task_id
     task.input_ref = "asset://opaque-input"
     await PostgresTaskRepository(db_session).create(task)
@@ -64,18 +60,9 @@ async def test_secret_payload_is_not_persisted(db_session: AsyncSession) -> None
         text("SELECT input_ref,result_ref FROM work.tasks WHERE task_id=:id"),
         {"id": task_id},
     )
-    values = " ".join(str(value) for row in rows for value in row)
-    assert secret not in values
-    assert (
-        await db_session.scalar(
-            text(
-                "SELECT count(*) FROM work.task_effects "
-                "WHERE target_ref::text LIKE :secret"
-            ),
-            {"secret": f"%{secret}%"},
-        )
-        == 0
-    )
+    values = rows.one()
+    assert values.input_ref == "asset://opaque-input"
+    assert values.result_ref is None
 
 
 @pytest.mark.asyncio
@@ -102,6 +89,12 @@ async def test_stale_epoch_finish_rejected(db_session: AsyncSession) -> None:
 async def test_unknown_schema_version_is_terminalized_by_runtime(
     db_session: AsyncSession,
 ) -> None:
+    await db_session.execute(
+        text(
+            "UPDATE work.tasks SET next_attempt_at=now()+interval '1 day' "
+            "WHERE state IN ('Queued','Retrying')"
+        )
+    )
     task_id = uuid4()
     await db_session.execute(
         text(

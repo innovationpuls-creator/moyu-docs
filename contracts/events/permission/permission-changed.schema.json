@@ -1,0 +1,29 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/events/permission/permission-changed.schema.json",
+	"title": "PermissionChanged",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"scopeType": {
+			"type": "string",
+			"enum": ["workspace", "project", "resource"]
+		},
+		"scopeId": {
+			"anyOf": [
+				{ "$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId" },
+				{ "$ref": "../../ids/ids.schema.json#/$defs/ProjectId" },
+				{ "$ref": "../../ids/ids.schema.json#/$defs/ResourceId" }
+			]
+		},
+		"workspaceId": { "$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId" },
+		"accountId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+		"action": { "type": "string", "minLength": 1 },
+		"role": {
+			"type": ["string", "null"],
+			"enum": ["Owner", "Manage", "Edit", "Comment", "Read", "Member", null]
+		},
+		"occurredAt": { "type": "string", "format": "date-time" }
+	},
+	"required": ["scopeType", "scopeId", "workspaceId", "action", "occurredAt"]
+}

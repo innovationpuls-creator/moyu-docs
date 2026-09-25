@@ -1,15 +1,15 @@
+import type {
+	RealtimeSyncFrameHeader,
+	RealtimeSyncMessageType,
+} from "@dom/contracts/realtime/frame-header";
+
 const MAGIC = new Uint8Array([0x44, 0x4d]);
 const HEADER_SIZE = 6;
 const PROTOCOL_VERSION = 1;
 
-export type SyncMessageType = "sync.update" | "sync.state-vector";
+export type SyncMessageType = RealtimeSyncMessageType;
 
-export interface RealtimeBinaryHeader {
-	protocolVersion: 1;
-	messageType: SyncMessageType;
-	resourceId: string;
-	subscriptionId: string;
-}
+export type RealtimeBinaryHeader = RealtimeSyncFrameHeader;
 
 export interface RealtimeBinaryFrame {
 	header: RealtimeBinaryHeader;
@@ -17,11 +17,16 @@ export interface RealtimeBinaryFrame {
 }
 
 export function encodeRealtimeBinaryFrame(
-	header: Omit<RealtimeBinaryHeader, "protocolVersion">,
+	header: Pick<
+		RealtimeSyncFrameHeader,
+		"messageType" | "resourceId" | "subscriptionId"
+	>,
 	payload: Uint8Array,
 ): Uint8Array {
 	const fullHeader: RealtimeBinaryHeader = {
 		protocolVersion: PROTOCOL_VERSION,
+		frameType: "Sync",
+		payloadKind: "binary",
 		...header,
 	};
 	const headerBytes = new TextEncoder().encode(JSON.stringify(fullHeader));
@@ -75,6 +80,8 @@ export function decodeRealtimeBinaryFrame(
 	if (
 		messageType === null ||
 		raw.protocolVersion !== PROTOCOL_VERSION ||
+		raw.frameType !== "Sync" ||
+		raw.payloadKind !== "binary" ||
 		raw.messageType !== messageType ||
 		typeof raw.resourceId !== "string" ||
 		typeof raw.subscriptionId !== "string"

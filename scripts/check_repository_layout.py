@@ -46,6 +46,7 @@ FROZEN_SUBDIRS: dict[str, set[str]] = {
         "client-sdk",
         "yjs-runtime",
         "realtime-client",
+        "realtime-protocol",
         "editor-core",
         "resource-runtime",
         "resource-adapters",

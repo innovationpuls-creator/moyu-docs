@@ -142,6 +142,15 @@ def test_registry_entry_vocabulary() -> None:
         assert isinstance(entry.get("version"), str) and entry["version"], (
             f"{entry['logicalName']}: empty version"
         )
+        if entry["kind"] == "RealtimeFrame":
+            assert entry.get("domain") == "realtime", (
+                f"{entry['logicalName']}: RealtimeFrame must use the realtime domain"
+            )
+            assert "eventSubject" not in entry, (
+                f"{entry['logicalName']}: frame contracts are not Event subjects"
+            )
+            assert "authRequirement" not in entry
+            assert "permissionCapability" not in entry
 
 
 def test_command_query_request_response_pointers() -> None:
@@ -196,7 +205,7 @@ def test_command_query_request_response_pointers() -> None:
 
 
 AUTH_REQUIREMENT_VALUES = frozenset({"Public", "Authenticated", "RecentAuthentication"})
-NON_AUTH_KINDS = frozenset({"Error", "Identity"})
+NON_AUTH_KINDS = frozenset({"Error", "Identity", "RealtimeFrame"})
 
 
 def test_workspace_lifecycle_contract_inventory_and_permission_boundary() -> None:

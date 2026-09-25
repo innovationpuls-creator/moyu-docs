@@ -3,14 +3,17 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from pathlib import Path
-from uuid import uuid4
+from typing import Any
+from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
 from alembic import command
 from alembic.config import Config
+from app_core.operations.task.domain import Priority, Task
 from app_infra.postgres.engine import engine
 from app_infra.postgres.task.effect_repository import PostgresTaskEffectRepository
 from app_infra.postgres.task.task_repository import (
@@ -19,7 +22,6 @@ from app_infra.postgres.task.task_repository import (
 from app_infra.postgres.test_database_guard import require_isolated_database
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from task_runtime.domain import Priority, Task
 from task_runtime.registry import HandlerRegistry, HandlerSpec
 from task_runtime.runtime import (
     CancellationRequested,
@@ -29,6 +31,9 @@ from task_runtime.runtime import (
 )
 
 DATABASE_URL = "postgresql+psycopg://torch@localhost:5432/dom_workspace_lifecycle_test"
+_TASK_TYPE_PREFIX = f"test.task.runtime.{uuid4().hex}."
+_TASK_TYPE = f"{_TASK_TYPE_PREFIX}demo"
+_TASK_TYPE_PATTERN = f"{_TASK_TYPE_PREFIX}%"
 
 
 @pytest_asyncio.fixture(scope="module", autouse=True)
@@ -89,36 +94,72 @@ class CancelAfterOneHandler:
 
 async def _build(session: AsyncSession, handler) -> HandlerRegistry:
     registry = HandlerRegistry()
-    registry.register(HandlerSpec("demo", handler))
+    registry.register(HandlerSpec(_TASK_TYPE, handler))
     return registry
 
 
+class _SingleTaskRepository:
+    """Restrict WorkerHost integration cases to their own queued task."""
+
+    def __init__(self, repository: PostgresTaskRepository, task_id) -> None:
+        self._repository = repository
+        self._task_id = task_id
+
+    async def claim_next(self, worker_id: str, lease_seconds: int):
+        return await self._repository.claim(self._task_id, worker_id, lease_seconds)
+
+    async def find_expired_leases(self, now: datetime) -> list[UUID]:
+        expired = await self._repository.find_expired_leases(now)
+        return [task_id for task_id in expired if task_id == self._task_id]
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._repository, name)
+
+
 async def _create_queued(session: AsyncSession) -> Task:
-    task = Task.create("demo", priority=Priority.INTERACTIVE)
+    task = Task.create(_TASK_TYPE, priority=Priority.INTERACTIVE)
     await session.execute(
         text(
             "INSERT INTO work.tasks (task_id,task_type,state,stage,priority,"
             "created_at,queued_at,schema_version) "
             "VALUES (:id,:type,'Queued',NULL,:priority,now(),now(),'1.0.0')"
         ),
-        {"id": task.task_id, "type": "demo", "priority": "Interactive"},
+        {"id": task.task_id, "type": _TASK_TYPE, "priority": "Interactive"},
     )
     await session.commit()
     return task
 
 
-@pytest_asyncio.fixture(autouse=True)
-async def clean_work_tables() -> None:
+async def _clear_test_tasks() -> None:
     connection = await engine.connect()
     try:
         session = AsyncSession(connection)
         async with session.begin():
-            await session.execute(text("DELETE FROM work.task_effects"))
-            await session.execute(text("DELETE FROM work.task_attempts"))
-            await session.execute(text("DELETE FROM work.tasks"))
+            task_ids = "SELECT task_id FROM work.tasks WHERE task_type LIKE :prefix"
+            params = {"prefix": _TASK_TYPE_PATTERN}
+            await session.execute(
+                text(f"DELETE FROM work.task_effects WHERE task_id IN ({task_ids})"),
+                params,
+            )
+            await session.execute(
+                text(f"DELETE FROM work.task_attempts WHERE task_id IN ({task_ids})"),
+                params,
+            )
+            await session.execute(
+                text("DELETE FROM work.tasks WHERE task_type LIKE :prefix"), params
+            )
         await session.close()
     finally:
         await connection.close()
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def clean_work_tables() -> AsyncIterator[None]:
+    await _clear_test_tasks()
+    try:
+        yield
+    finally:
+        await _clear_test_tasks()
 
 
 @pytest.mark.asyncio
@@ -126,8 +167,20 @@ async def test_claim_next_orders_by_priority_then_fifo() -> None:
     connection = await engine.connect()
     session = AsyncSession(connection)
     try:
+        pending = await session.scalar(
+            text(
+                "SELECT count(*) FROM work.tasks WHERE state IN ('Queued','Retrying') "
+                "AND (next_attempt_at IS NULL OR next_attempt_at<=now())"
+            )
+        )
+        if pending:
+            pytest.skip(
+                "claim_next reads the shared queue; eligible tasks already exist"
+            )
+        await session.rollback()
+        test_task_ids: set[UUID] = set()
         async with session.begin():
-            for i, (state, prio, label) in enumerate(
+            for i, (state, prio, _label) in enumerate(
                 [
                     ("Queued", "Background", "bg"),
                     ("Queued", "Interactive", "it"),
@@ -136,6 +189,8 @@ async def test_claim_next_orders_by_priority_then_fifo() -> None:
                     ("Retrying", "Normal", "rt"),
                 ]
             ):
+                task_id = uuid4()
+                test_task_ids.add(task_id)
                 await session.execute(
                     text(
                         "INSERT INTO work.tasks (task_id,task_type,state,priority,"
@@ -144,8 +199,8 @@ async def test_claim_next_orders_by_priority_then_fifo() -> None:
                         "(now() - (:i || ' seconds')::interval),now(),'1.0.0')"
                     ),
                     {
-                        "id": uuid4(),
-                        "t": "demo",
+                        "id": task_id,
+                        "t": _TASK_TYPE,
                         "state": state,
                         "prio": prio,
                         "i": i,
@@ -155,6 +210,8 @@ async def test_claim_next_orders_by_priority_then_fifo() -> None:
         first = await repo.claim_next("w", 60)
         second = await repo.claim_next("w", 60)
         assert first is not None and second is not None
+        assert first.task_id in test_task_ids
+        assert second.task_id in test_task_ids
         rows = (
             await session.execute(
                 text("SELECT priority FROM work.tasks WHERE task_id IN (:a,:b)"),
@@ -166,6 +223,7 @@ async def test_claim_next_orders_by_priority_then_fifo() -> None:
         # third claim must be the Normal-queued task (FIFO within interactive done)
         third = await repo.claim_next("w", 60)
         assert third is not None
+        assert third.task_id in test_task_ids
         prio3 = await session.scalar(
             text("SELECT priority FROM work.tasks WHERE task_id=:t"),
             {"t": third.task_id},
@@ -186,7 +244,7 @@ async def test_worker_executes_and_finishes_with_effect_fencing() -> None:
         effects = PostgresTaskEffectRepository(session)
         tracer = RecordingTracer()
         worker = WorkerHost(
-            repo,
+            _SingleTaskRepository(repo, task.task_id),
             await _build(session, DemoSideEffectHandler(effects)),
             worker_id="w",
             heartbeat_seconds=60,
@@ -221,7 +279,7 @@ async def test_cancellation_checkpoint_closes_cancelled() -> None:
         task = await _create_queued(session)
         repo = PostgresTaskRepository(session)
         worker = WorkerHost(
-            repo,
+            _SingleTaskRepository(repo, task.task_id),
             await _build(session, CancelAfterOneHandler()),
             worker_id="w",
             heartbeat_seconds=60,
@@ -246,18 +304,22 @@ async def test_reconciler_requeues_expired_lease_and_reclaims_with_next_epoch() 
     try:
         task = await _create_queued(session)
         repo = PostgresTaskRepository(session)
-        first = await repo.claim_next("w1", 60)
+        first = await repo.claim(task.task_id, "w1", 60)
         assert first is not None
         await session.commit()
         # Simulate worker crash: lease expires without finish
         await session.execute(
-            text("UPDATE work.task_attempts SET lease_until=now()-interval '1 minute'")
+            text(
+                "UPDATE work.task_attempts SET lease_until=now()-interval '1 minute' "
+                "WHERE task_id=:task_id"
+            ),
+            {"task_id": task.task_id},
         )
         await session.commit()
-        reconciler = LeaseReconciler(repo)
+        reconciler = LeaseReconciler(_SingleTaskRepository(repo, task.task_id))
         requeued = await reconciler.reconcile(datetime.now(UTC))
         assert task.task_id in requeued
-        second = await repo.claim_next("w2", 60)
+        second = await repo.claim(task.task_id, "w2", 60)
         assert second is not None
         assert second.task_id == task.task_id
         assert second.execution_epoch == first.execution_epoch + 1
@@ -314,14 +376,16 @@ async def test_crashed_worker_recovery_via_subprocess() -> None:
         await session.execute(
             text(
                 "UPDATE work.task_attempts SET lease_until=now()-interval '1 minute' "
-                "WHERE worker_id='crash-worker'"
-            )
+                "WHERE worker_id='crash-worker' AND task_id=:task_id"
+            ),
+            {"task_id": task.task_id},
         )
         await session.commit()
-        reconciler = LeaseReconciler(PostgresTaskRepository(session))
+        repo = PostgresTaskRepository(session)
+        reconciler = LeaseReconciler(_SingleTaskRepository(repo, task.task_id))
         requeued = await reconciler.reconcile(datetime.now(UTC))
         assert task.task_id in requeued
-        second = await PostgresTaskRepository(session).claim_next("w2", 60)
+        second = await repo.claim(task.task_id, "w2", 60)
         assert second is not None
         assert second.task_id == task.task_id
         assert second.attempt_number == 2

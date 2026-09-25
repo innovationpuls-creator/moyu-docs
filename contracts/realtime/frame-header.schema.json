@@ -1,0 +1,141 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/realtime/frame-header.schema.json",
+	"title": "RealtimeFrameHeader",
+	"description": "Common WebSocket frame routing header. Resource and subscription identity are required for Resource-scoped Sync and Awareness frames.",
+	"oneOf": [
+		{ "$ref": "#/$defs/RealtimeControlFrameHeader" },
+		{ "$ref": "#/$defs/RealtimeSyncFrameHeader" },
+		{ "$ref": "#/$defs/RealtimeAwarenessFrameHeader" },
+		{ "$ref": "#/$defs/RealtimeSystemFrameHeader" }
+	],
+	"$defs": {
+		"RealtimeFrameHeaderBase": {
+			"title": "RealtimeFrameHeaderBase",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"protocolVersion": { "type": "integer", "const": 1 },
+				"frameType": {
+					"type": "string",
+					"enum": ["Control", "Sync", "Awareness", "System"]
+				},
+				"messageType": { "type": "string", "minLength": 1 },
+				"payloadKind": { "type": "string", "enum": ["binary", "json"] },
+				"resourceId": {
+					"$ref": "../ids/ids.schema.json#/$defs/ResourceId"
+				},
+				"subscriptionId": {
+					"$ref": "../ids/ids.schema.json#/$defs/SubscriptionId"
+				},
+				"requestId": {
+					"$ref": "../ids/ids.schema.json#/$defs/RequestId"
+				},
+				"acceptedWatermark": { "type": "integer", "minimum": 0 },
+				"durableWatermark": { "type": "integer", "minimum": 0 }
+			},
+			"required": ["protocolVersion", "frameType", "messageType", "payloadKind"]
+		},
+		"RealtimeControlFrameHeader": {
+			"title": "RealtimeControlFrameHeader",
+			"allOf": [
+				{ "$ref": "#/$defs/RealtimeFrameHeaderBase" },
+				{
+					"type": "object",
+					"properties": {
+						"frameType": { "const": "Control" },
+						"payloadKind": { "const": "json" },
+						"messageType": {
+							"title": "RealtimeControlMessageType",
+							"type": "string",
+							"enum": [
+								"connect",
+								"ready",
+								"subscribe",
+								"subscribed",
+								"unsubscribe",
+								"permission",
+								"schema",
+								"error",
+								"ping",
+								"pong"
+							]
+						}
+					},
+					"required": ["frameType", "messageType", "payloadKind"]
+				}
+			]
+		},
+		"RealtimeSyncFrameHeader": {
+			"title": "RealtimeSyncFrameHeader",
+			"allOf": [
+				{ "$ref": "#/$defs/RealtimeFrameHeaderBase" },
+				{
+					"type": "object",
+					"properties": {
+						"frameType": { "const": "Sync" },
+						"payloadKind": { "const": "binary" },
+						"messageType": {
+							"title": "RealtimeSyncMessageType",
+							"type": "string",
+							"enum": ["sync.update", "sync.state-vector"]
+						},
+						"resourceId": {
+							"$ref": "../ids/ids.schema.json#/$defs/ResourceId"
+						},
+						"subscriptionId": {
+							"$ref": "../ids/ids.schema.json#/$defs/SubscriptionId"
+						}
+					},
+					"required": [
+						"frameType",
+						"messageType",
+						"payloadKind",
+						"resourceId",
+						"subscriptionId"
+					]
+				}
+			]
+		},
+		"RealtimeAwarenessFrameHeader": {
+			"title": "RealtimeAwarenessFrameHeader",
+			"allOf": [
+				{ "$ref": "#/$defs/RealtimeFrameHeaderBase" },
+				{
+					"type": "object",
+					"properties": {
+						"frameType": { "const": "Awareness" },
+						"payloadKind": { "const": "binary" },
+						"resourceId": {
+							"$ref": "../ids/ids.schema.json#/$defs/ResourceId"
+						},
+						"subscriptionId": {
+							"$ref": "../ids/ids.schema.json#/$defs/SubscriptionId"
+						}
+					},
+					"required": [
+						"frameType",
+						"messageType",
+						"payloadKind",
+						"resourceId",
+						"subscriptionId"
+					]
+				}
+			]
+		},
+		"RealtimeSystemFrameHeader": {
+			"title": "RealtimeSystemFrameHeader",
+			"allOf": [
+				{ "$ref": "#/$defs/RealtimeFrameHeaderBase" },
+				{
+					"type": "object",
+					"properties": {
+						"frameType": { "const": "System" },
+						"payloadKind": { "const": "json" }
+					},
+					"required": ["frameType", "messageType", "payloadKind"]
+				}
+			]
+		}
+	}
+}

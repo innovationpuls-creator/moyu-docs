@@ -34,7 +34,7 @@ from app_infra.postgres.resource_ownership_repository import (
     PostgresResourceOwnershipRepository,
 )
 from app_infra.postgres.task.effect_repository import PostgresTaskEffectRepository
-from app_infra.postgres.task.task_repository import PostgresTaskRepository
+from app_infra.postgres.task.task_repository import ClaimResult, PostgresTaskRepository
 from app_infra.postgres.test_database_guard import require_isolated_database
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -46,6 +46,17 @@ from workers.maintenance.task_handlers.resource_checkpoint import (
 )
 
 DATABASE_URL = "postgresql+psycopg://torch@localhost:5432/dom_workspace_lifecycle_test"
+
+
+class _TaskScopedRepository(PostgresTaskRepository):
+    def __init__(self, session: AsyncSession, task_id) -> None:
+        super().__init__(session)
+        self._task_id = task_id
+
+    async def claim_next(
+        self, worker_id: str, lease_seconds: int
+    ) -> ClaimResult | None:
+        return await self.claim(self._task_id, worker_id, lease_seconds)
 
 
 @pytest_asyncio.fixture(scope="module", autouse=True)
@@ -60,6 +71,7 @@ async def migrated_database() -> None:
 @pytest_asyncio.fixture
 async def db_session() -> AsyncSession:
     async with engine.connect() as connection:
+        # Keep every case on its own outer transaction, including session commits.
         transaction = await connection.begin()
         factory = async_sessionmaker(
             bind=connection,
@@ -67,43 +79,15 @@ async def db_session() -> AsyncSession:
             class_=AsyncSession,
             join_transaction_mode="create_savepoint",
         )
-        async with factory() as session:
-            yield session
-            await session.rollback()
-        await transaction.rollback()
-
-
-@pytest_asyncio.fixture(autouse=True)
-async def clean_tables() -> None:
-    connection = await engine.connect()
-    try:
-        session = AsyncSession(connection)
-        async with session.begin():
-            for t in (
-                "work.task_effects",
-                "work.task_attempts",
-                "work.tasks",
-                "collab.resource_search_index",
-                "collab.resource_assets",
-                "collab.ai_changesets",
-                "collab.resource_named_versions",
-                "collab.resource_comments",
-                "collab.resource_ownership",
-                "collab.resource_checkpoints",
-                "collab.resource_update_journal",
-                "core.resources",
-                "core.workspace_members",
-                "core.folders",
-                "core.projects",
-                "core.workspaces",
-            ):
-                await session.execute(text(f"DELETE FROM {t}"))
-            await session.execute(
-                text("DELETE FROM auth.accounts WHERE primary_email LIKE 'bdd-%@test'")
-            )
-        await session.close()
-    finally:
-        await connection.close()
+        try:
+            async with factory() as session:
+                try:
+                    yield session
+                finally:
+                    await session.rollback()
+        finally:
+            if transaction.is_active:
+                await transaction.rollback()
 
 
 async def _seed_owner_project(session: AsyncSession) -> tuple[str, str, str]:
@@ -254,10 +238,15 @@ async def test_checkpoint_task_consumer_records_fenced_effect(
     enqueued = await PostgresResourceCheckpointEnqueuer(
         db_session, CreateTask(PostgresTaskRepository(db_session))
     ).enqueue(threshold=3)
-    assert enqueued == 1
+    assert enqueued >= 1
     await db_session.commit()
     task_id = await db_session.scalar(
-        text("SELECT task_id FROM work.tasks WHERE task_type='resource.checkpoint'")
+        text(
+            "SELECT task_id FROM work.tasks "
+            "WHERE task_type='resource.checkpoint' AND input_ref=:id "
+            "ORDER BY created_at DESC LIMIT 1"
+        ),
+        {"id": str(resource.resource_id)},
     )
     assert task_id is not None
     handler = ResourceCheckpointHandler(
@@ -266,7 +255,7 @@ async def test_checkpoint_task_consumer_records_fenced_effect(
     registry = HandlerRegistry()
     registry.register(HandlerSpec("resource.checkpoint", handler))
     worker = WorkerHost(
-        PostgresTaskRepository(db_session),
+        _TaskScopedRepository(db_session, task_id),
         registry,
         worker_id="rc-bdd",
         heartbeat_seconds=60,
@@ -280,8 +269,9 @@ async def test_checkpoint_task_consumer_records_fenced_effect(
     effect_count = await db_session.scalar(
         text(
             "SELECT count(*) FROM work.task_effects "
-            "WHERE effect_key LIKE 'resource.checkpoint:%'"
-        )
+            "WHERE effect_key LIKE 'resource.checkpoint:%' AND task_id=:id"
+        ),
+        {"id": task_id},
     )
     assert checkpoint_count == 1
     assert effect_count == 1

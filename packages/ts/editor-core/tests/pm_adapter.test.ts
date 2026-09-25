@@ -47,7 +47,7 @@ describe("ProseMirror adapter", () => {
 		expect(() =>
 			fromProseMirror({
 				type: "doc",
-				content: [{ type: "image", src: "x" }],
+				content: [{ type: "diagram", src: "x" }],
 			}),
 		).toThrowError(ContentNodeError);
 	});

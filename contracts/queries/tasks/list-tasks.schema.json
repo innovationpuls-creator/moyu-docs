@@ -1,0 +1,131 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/tasks/list-tasks.schema.json",
+	"title": "ListTasksResponse",
+	"description": "Lists tasks owned by the authenticated account. Progress fields may be null when no value is available.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"tasks": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/TaskSummary"
+			}
+		},
+		"limit": {
+			"type": "integer",
+			"minimum": 1,
+			"maximum": 100
+		},
+		"offset": {
+			"type": "integer",
+			"minimum": 0
+		}
+	},
+	"required": ["tasks", "limit", "offset"],
+	"$defs": {
+		"TaskSummary": {
+			"title": "TaskSummary",
+			"description": "Current authoritative task summary. Progress values are null when unavailable; this shape does not imply that a task type currently emits progress.",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"taskId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/TaskId"
+				},
+				"taskType": {
+					"type": "string",
+					"minLength": 1
+				},
+				"state": {
+					"type": "string",
+					"enum": [
+						"Created",
+						"Queued",
+						"Running",
+						"WaitingForUser",
+						"Retrying",
+						"Succeeded",
+						"PartialSucceeded",
+						"Failed",
+						"Cancelled"
+					]
+				},
+				"stage": {
+					"type": ["string", "null"]
+				},
+				"messageCode": {
+					"type": ["string", "null"]
+				},
+				"current": {
+					"type": ["integer", "null"],
+					"minimum": 0
+				},
+				"total": {
+					"type": ["integer", "null"],
+					"minimum": 0
+				},
+				"percentage": {
+					"type": ["number", "null"],
+					"minimum": 0,
+					"maximum": 100
+				},
+				"updatedAt": {
+					"type": ["string", "null"],
+					"format": "date-time"
+				},
+				"retryCount": {
+					"type": "integer",
+					"minimum": 0
+				},
+				"retryOfTaskId": {
+					"oneOf": [
+						{
+							"$ref": "../../ids/ids.schema.json#/$defs/TaskId"
+						},
+						{
+							"type": "null"
+						}
+					]
+				},
+				"cancelRequestedAt": {
+					"type": ["string", "null"],
+					"format": "date-time"
+				},
+				"queuedAt": {
+					"type": ["string", "null"],
+					"format": "date-time"
+				},
+				"startedAt": {
+					"type": ["string", "null"],
+					"format": "date-time"
+				},
+				"finishedAt": {
+					"type": ["string", "null"],
+					"format": "date-time"
+				},
+				"failureCode": {
+					"type": ["string", "null"]
+				}
+			},
+			"required": [
+				"taskId",
+				"taskType",
+				"state",
+				"stage",
+				"messageCode",
+				"current",
+				"total",
+				"percentage",
+				"updatedAt",
+				"retryCount",
+				"retryOfTaskId",
+				"cancelRequestedAt",
+				"queuedAt",
+				"startedAt",
+				"finishedAt",
+				"failureCode"
+			]
+		}
+	}
+}

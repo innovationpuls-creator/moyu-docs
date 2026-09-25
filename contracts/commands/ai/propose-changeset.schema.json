@@ -15,13 +15,24 @@
 			"type": "object",
 			"additionalProperties": false,
 			"properties": {
-				"changesetId": { "$ref": "../../ids/ids.schema.json#/$defs/ChangeSetId" },
+				"changesetId": {
+					"$ref": "../../ids/ids.schema.json#/$defs/ChangeSetId"
+				},
 				"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/ResourceId" },
 				"instruction": { "type": "string" },
-				"operations": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+				"operations": {
+					"type": "array",
+					"items": { "type": "object", "additionalProperties": true }
+				},
 				"status": { "type": "string", "enum": ["Proposed"] }
 			},
-			"required": ["changesetId", "resourceId", "instruction", "operations", "status"],
+			"required": [
+				"changesetId",
+				"resourceId",
+				"instruction",
+				"operations",
+				"status"
+			],
 			"title": "ProposeChangeSetResponse"
 		}
 	}

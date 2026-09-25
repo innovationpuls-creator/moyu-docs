@@ -120,9 +120,13 @@ def compare(
             breaking.append(f"{name}: eventSubject 由 {before['eventSubject']} 变更")
         if after.get("versionMajor", 0) < before.get("versionMajor", 0):
             breaking.append(f"{name}: version major 降低")
-        breaking.extend(
-            _compare_shape(name, before.get("shape", {}), after.get("shape", {}))
-        )
+        # A contract with a higher major version is a new compatibility
+        # surface. Its changed fields are allowed to differ from old clients;
+        # kind and event subject changes remain independently checked above.
+        if after.get("versionMajor", 0) == before.get("versionMajor", 0):
+            breaking.extend(
+                _compare_shape(name, before.get("shape", {}), after.get("shape", {}))
+            )
         non_breaking.extend(
             _added_nodes(name, before.get("shape", {}), after.get("shape", {}))
         )

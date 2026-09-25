@@ -1,0 +1,19 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/permission/open-public-shared-resource.schema.json",
+	"title": "OpenPublicSharedResourceResponse",
+	"description": "Anonymous, read-only view resolved through an active share link. Share tokens and owner metadata are not exposed.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/ResourceId" },
+		"name": { "type": "string" },
+		"resourceType": {
+			"type": "string",
+			"enum": ["document", "code", "markdown", "text"]
+		},
+		"snapshot": { "type": ["object", "null"] },
+		"journalSeq": { "type": "integer", "minimum": 0 }
+	},
+	"required": ["resourceId", "name", "resourceType", "snapshot", "journalSeq"]
+}

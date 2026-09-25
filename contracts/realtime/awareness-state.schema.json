@@ -1,0 +1,26 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/realtime/awareness-state.schema.json",
+	"title": "AwarenessState",
+	"description": "Ephemeral client Awareness input for one Resource. Identity and presentation fields are server-owned.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"cursor": {
+			"anyOf": [{ "$ref": "#/$defs/CursorSelection" }, { "type": "null" }]
+		}
+	},
+	"required": ["cursor"],
+	"$defs": {
+		"CursorSelection": {
+			"title": "CursorSelection",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"anchor": { "type": "integer", "minimum": 0, "maximum": 10000000 },
+				"head": { "type": "integer", "minimum": 0, "maximum": 10000000 }
+			},
+			"required": ["anchor", "head"]
+		}
+	}
+}

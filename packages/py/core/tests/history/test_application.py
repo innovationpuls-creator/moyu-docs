@@ -136,11 +136,24 @@ async def test_restore_is_a_new_modification_not_a_rewind() -> None:
         checkpoints,
         apply=lambda state, op: {**state, "seq": op.journal_seq},
     )
+    progress: list[tuple[str, int | None, int | None]] = []
+
+    async def report(stage: str, current: int | None, total: int | None) -> None:
+        progress.append((stage, current, total))
+
     node = await restore.execute(
-        resources.row.resource_id, target_seq=8, actor_id=uuid4()
+        resources.row.resource_id,
+        target_seq=8,
+        actor_id=uuid4(),
+        on_progress=report,
     )
     assert node.kind == VersionKind.RESTORE
     assert node.base_journal_seq == 1  # new current (9th seq -> max+1 in real chain)
     assert node.summary and "restored" in node.summary
     # previous current remains accessible: latest checkpoint before restore kept
     assert checkpoints.latest_ck is not None
+    assert progress == [
+        ("materializing", None, None),
+        ("replaying", 0, 0),
+        ("saving", None, None),
+    ]

@@ -14,7 +14,7 @@
  * round-trips (and multi-tab shares it automatically through the cookie jar).
  */
 
-import type { components } from "@dom/contracts/client-api";
+import type { components, operations } from "@dom/contracts/client-api";
 import type { LoginWithPassword } from "@dom/contracts/commands/auth/login-with-password";
 import type { LoginWithPasswordResponse } from "@dom/contracts/commands/auth/login-with-password-response";
 import type { LogoutResponse } from "@dom/contracts/commands/auth/logout";
@@ -39,6 +39,8 @@ type CreateWorkspaceRequest = Omit<
 type CreateWorkspaceResponse = components["schemas"]["CreateWorkspaceResponse"];
 type WorkspaceResponse = components["schemas"]["get-workspace.schema"];
 type OpenResourceResponse = components["schemas"]["open-resource.schema"];
+type GetResourceCapabilitiesResponse =
+	components["schemas"]["get-resource-capabilities.schema"];
 type CreateResourceRequest = Omit<
 	components["schemas"]["create-resource.schema"],
 	"$defs"
@@ -76,10 +78,21 @@ type AddCommentRequest = Omit<
 type AddCommentResponse =
 	components["schemas"]["add-comment.schema"]["$defs"]["AddCommentResponse"];
 type ListCommentsResponse = components["schemas"]["list-comments.schema"];
+export type CommentThreadStatus =
+	ListCommentsResponse["items"][number]["status"];
+export type ResolveCommentThreadResponse =
+	components["schemas"]["resolve-comment-thread.schema"];
+export type ReopenCommentThreadResponse =
+	components["schemas"]["reopen-comment-thread.schema"];
+type ResourceId = components["schemas"]["ResourceId"];
+type ThreadId = components["schemas"]["ThreadId"];
 type SearchWorkspaceResponse = components["schemas"]["search-workspace.schema"];
 type ListWorkspacesResponse = components["schemas"]["list-workspaces.schema"];
 type ListProjectsResponse = components["schemas"]["list-projects.schema"];
 type ListResourcesResponse = components["schemas"]["list-resources.schema"];
+type ListResourcesQuery = NonNullable<
+	operations["ListResources"]["parameters"]["query"]
+>;
 type TransferOwnerRequest =
 	components["schemas"]["transfer-workspace-owner.schema"];
 type TransferOwnerResponse =
@@ -97,17 +110,119 @@ type CreateFolderResponse = components["schemas"]["CreateFolderResponse"];
 type MoveFolderRequest = components["schemas"]["move-folder.schema"];
 type MoveFolderResponse = components["schemas"]["MoveFolderResponse"];
 type ProjectTreeResponse = components["schemas"]["get-project-tree.schema"];
+type WorkspaceId = components["schemas"]["WorkspaceId"];
+type ProjectId = components["schemas"]["ProjectId"];
+type FolderId = components["schemas"]["FolderId"];
+type IdempotencyKey = components["schemas"]["IdempotencyKey"];
+type ListTasksQuery = NonNullable<
+	operations["ListTasks"]["parameters"]["query"]
+>;
+type ListTasksResponse = components["schemas"]["list-tasks.schema"];
+type GetTaskResponse = components["schemas"]["get-task.schema"];
+type CancelTaskResponse = components["schemas"]["cancel-task.schema"];
+type RetryTaskResponse = components["schemas"]["retry-task.schema"];
+type CreateWorkspaceInvitationRequest = Omit<
+	components["schemas"]["create-workspace-invitation.schema"],
+	"$defs"
+>;
+type CreateWorkspaceInvitationResponse =
+	components["schemas"]["CreateWorkspaceInvitationResponse"];
+type AcceptWorkspaceInvitationRequest = Omit<
+	components["schemas"]["accept-workspace-invitation.schema"],
+	"$defs"
+>;
+type AcceptWorkspaceInvitationResponse =
+	components["schemas"]["AcceptWorkspaceInvitationResponse"];
+type ListWorkspaceMembersResponse =
+	components["schemas"]["list-workspace-members.schema"];
+type ListWorkspaceInvitationsResponse =
+	components["schemas"]["list-workspace-invitations.schema"];
+type SuggestMembersResponse =
+	components["schemas"]["member-suggestions.schema"];
+type RevokeWorkspaceInvitationResponse =
+	components["schemas"]["RevokeWorkspaceInvitationResponse"];
+type RemoveWorkspaceMemberResponse =
+	components["schemas"]["RemoveWorkspaceMemberResponse"];
+type ListProjectMembersResponse =
+	components["schemas"]["list-project-members.schema"];
+export type ProjectPermissionRole =
+	components["schemas"]["set-project-member-role.schema"]["role"];
+type SetProjectMemberRoleResponse =
+	components["schemas"]["SetProjectMemberRoleResponse"];
+type RemoveProjectMemberResponse =
+	components["schemas"]["RemoveProjectMemberResponse"];
+type ListResourcePermissionsResponse =
+	components["schemas"]["list-resource-permissions.schema"];
+type ResourcePermissionRole =
+	components["schemas"]["set-resource-permission.schema"]["role"];
+type SetResourcePermissionResponse =
+	components["schemas"]["SetResourcePermissionResponse"];
+type RemoveResourcePermissionResponse =
+	components["schemas"]["RemoveResourcePermissionResponse"];
+type UploadAssetResponse = components["schemas"]["UploadAssetResponse"];
+type ListResourceAssetsResponse =
+	components["schemas"]["list-resource-assets.schema"];
+type CreateResourceShareLinkRequest = Omit<
+	components["schemas"]["create-resource-share-link.schema"],
+	"$defs"
+>;
+type CreateResourceShareLinkResponse =
+	components["schemas"]["CreateResourceShareLinkResponse"];
+type ListResourceShareLinksResponse =
+	components["schemas"]["list-resource-share-links.schema"];
+type SetResourceShareLinkExpiryRequest = Omit<
+	components["schemas"]["set-resource-share-link-expiry.schema"],
+	"$defs"
+>;
+type SetResourceShareLinkExpiryResponse =
+	components["schemas"]["SetResourceShareLinkExpiryResponse"];
+type RevokeResourceShareLinkResponse =
+	components["schemas"]["revoke-resource-share-link.schema"];
+type RegenerateResourceShareLinkRequest = Omit<
+	components["schemas"]["regenerate-resource-share-link.schema"],
+	"$defs"
+>;
+type RegenerateResourceShareLinkResponse =
+	components["schemas"]["RegenerateResourceShareLinkResponse"];
+export type OpenPublicSharedResourceResponse =
+	components["schemas"]["open-public-shared-resource.schema"];
 type ProposeChangeSetRequest = Omit<
 	components["schemas"]["propose-changeset.schema"],
 	"$defs"
 >;
 type ProposeChangeSetResponse =
-	components["schemas"]["ProposeChangeSetResponse"];
-type ApplyChangeSetResponse = components["schemas"]["apply-changeset.schema"];
-type WorkspaceId = components["schemas"]["WorkspaceId"];
-type ProjectId = components["schemas"]["ProjectId"];
-type FolderId = components["schemas"]["FolderId"];
-type IdempotencyKey = components["schemas"]["IdempotencyKey"];
+	operations["ProposeChangeSet"]["responses"][200]["content"]["application/json"];
+type ApplyChangeSetResponse =
+	operations["ApplyChangeSet"]["responses"][200]["content"]["application/json"];
+type ImportResourceRequest = Omit<
+	components["schemas"]["import-resource.schema"],
+	"$defs"
+>;
+type ImportResourceResponse =
+	operations["ImportResource"]["responses"][202]["content"]["application/json"];
+type CreateVersionRestoreTaskResponse =
+	operations["CreateVersionRestoreTask"]["responses"][202]["content"]["application/json"];
+type CreateResourceExportTaskResponse =
+	operations["CreateResourceExportTask"]["responses"][202]["content"]["application/json"];
+type ShareId = components["schemas"]["ShareId"];
+type InvitationId = components["schemas"]["InvitationId"];
+type UserId = components["schemas"]["UserId"];
+
+export function createIdempotencyKey(): IdempotencyKey {
+	const bytes = new Uint8Array(16);
+	let timestamp = Date.now();
+	for (let index = 5; index >= 0; index -= 1) {
+		bytes[index] = timestamp % 256;
+		timestamp = Math.floor(timestamp / 256);
+	}
+	crypto.getRandomValues(bytes.subarray(6));
+	bytes[6] = (bytes[6] & 0x0f) | 0x70;
+	bytes[8] = (bytes[8] & 0x3f) | 0x80;
+	const hex = Array.from(bytes, (byte) =>
+		byte.toString(16).padStart(2, "0"),
+	).join("");
+	return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}` as IdempotencyKey;
+}
 
 /** Stable per-origin device id key (mirrored to the dom_device cookie). */
 export const DEVICE_ID_STORAGE_KEY = "dom:device-id";
@@ -255,13 +370,37 @@ export class DomClient {
 	async listResources(
 		projectId: string,
 		folderId?: string,
+	): Promise<ListResourcesResponse>;
+	async listResources(
+		projectId: string,
+		query?: ListResourcesQuery,
+	): Promise<ListResourcesResponse>;
+	async listResources(
+		projectId: string,
+		folderIdOrQuery?: string | ListResourcesQuery,
 	): Promise<ListResourcesResponse> {
-		const folderQuery = folderId
-			? `?folderId=${encodeURIComponent(folderId)}`
-			: "";
-		return this.request(`/projects/${projectId}/resources${folderQuery}`, {
-			method: "GET",
-		});
+		const search = new URLSearchParams();
+		const folderId =
+			typeof folderIdOrQuery === "string"
+				? folderIdOrQuery
+				: folderIdOrQuery?.folderId;
+		if (folderId) search.set("folderId", folderId);
+		const queryString = search.toString();
+		return this.request(
+			`/projects/${encodeURIComponent(projectId)}/resources${queryString ? `?${queryString}` : ""}`,
+			{
+				method: "GET",
+			},
+		);
+	}
+
+	async getResourceCapabilities(
+		resourceId: ResourceId,
+	): Promise<GetResourceCapabilitiesResponse> {
+		return this.request(
+			`/resources/${encodeURIComponent(resourceId)}/capabilities`,
+			{ method: "GET" },
+		);
 	}
 
 	async listProjects(workspaceId: string): Promise<ListProjectsResponse> {
@@ -272,6 +411,281 @@ export class DomClient {
 
 	async listWorkspaces(): Promise<ListWorkspacesResponse> {
 		return this.request("/workspaces", { method: "GET" });
+	}
+
+	async listWorkspaceMembers(
+		workspaceId: WorkspaceId,
+	): Promise<ListWorkspaceMembersResponse> {
+		return this.request(
+			`/workspaces/${encodeURIComponent(workspaceId)}/members`,
+			{ method: "GET" },
+		);
+	}
+
+	async listWorkspaceInvitations(
+		workspaceId: WorkspaceId,
+	): Promise<ListWorkspaceInvitationsResponse> {
+		return this.request(
+			`/workspaces/${encodeURIComponent(workspaceId)}/invitations`,
+			{ method: "GET" },
+		);
+	}
+
+	async createWorkspaceInvitation(
+		workspaceId: WorkspaceId,
+		body: Omit<CreateWorkspaceInvitationRequest, "workspaceId">,
+	): Promise<CreateWorkspaceInvitationResponse> {
+		return this.request(
+			`/workspaces/${encodeURIComponent(workspaceId)}/invitations`,
+			{
+				method: "POST",
+				body: { ...body, workspaceId },
+				idempotencyKey: crypto.randomUUID(),
+			},
+		);
+	}
+
+	async acceptWorkspaceInvitation(
+		body: AcceptWorkspaceInvitationRequest,
+	): Promise<AcceptWorkspaceInvitationResponse> {
+		return this.request("/invitations/accept", { method: "POST", body });
+	}
+
+	async revokeWorkspaceInvitation(
+		workspaceId: WorkspaceId,
+		invitationId: InvitationId,
+	): Promise<RevokeWorkspaceInvitationResponse> {
+		return this.request(
+			`/workspaces/${encodeURIComponent(workspaceId)}/invitations/${encodeURIComponent(invitationId)}`,
+			{
+				method: "DELETE",
+				body: { workspaceId, invitationId },
+				idempotencyKey: crypto.randomUUID(),
+			},
+		);
+	}
+
+	async removeWorkspaceMember(
+		workspaceId: WorkspaceId,
+		accountId: UserId,
+	): Promise<RemoveWorkspaceMemberResponse> {
+		return this.request(
+			`/workspaces/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(accountId)}`,
+			{
+				method: "DELETE",
+				body: { workspaceId, accountId },
+				idempotencyKey: crypto.randomUUID(),
+			},
+		);
+	}
+
+	async listProjectMembers(
+		projectId: ProjectId,
+	): Promise<ListProjectMembersResponse> {
+		return this.request(`/projects/${encodeURIComponent(projectId)}/members`, {
+			method: "GET",
+		});
+	}
+
+	async setProjectMemberRole(
+		projectId: ProjectId,
+		accountId: UserId,
+		role: ProjectPermissionRole,
+	): Promise<SetProjectMemberRoleResponse> {
+		return this.request(
+			`/projects/${encodeURIComponent(projectId)}/members/${encodeURIComponent(accountId)}`,
+			{
+				method: "PUT",
+				body: { projectId, accountId, role },
+				idempotencyKey: crypto.randomUUID(),
+			},
+		);
+	}
+
+	async removeProjectMember(
+		projectId: ProjectId,
+		accountId: UserId,
+	): Promise<RemoveProjectMemberResponse> {
+		return this.request(
+			`/projects/${encodeURIComponent(projectId)}/members/${encodeURIComponent(accountId)}`,
+			{
+				method: "DELETE",
+				body: { projectId, accountId },
+				idempotencyKey: crypto.randomUUID(),
+			},
+		);
+	}
+
+	async listResourcePermissions(
+		resourceId: ResourceId,
+	): Promise<ListResourcePermissionsResponse> {
+		return this.request(
+			`/resources/${encodeURIComponent(resourceId)}/permissions`,
+			{ method: "GET" },
+		);
+	}
+
+	async setResourcePermission(
+		resourceId: ResourceId,
+		accountId: UserId,
+		role: ResourcePermissionRole,
+	): Promise<SetResourcePermissionResponse> {
+		return this.request(
+			`/resources/${encodeURIComponent(resourceId)}/permissions/${encodeURIComponent(accountId)}`,
+			{
+				method: "PUT",
+				body: { resourceId, accountId, role },
+				idempotencyKey: crypto.randomUUID(),
+			},
+		);
+	}
+
+	async removeResourcePermission(
+		resourceId: ResourceId,
+		accountId: UserId,
+	): Promise<RemoveResourcePermissionResponse> {
+		return this.request(
+			`/resources/${encodeURIComponent(resourceId)}/permissions/${encodeURIComponent(accountId)}`,
+			{
+				method: "DELETE",
+				body: { resourceId, accountId },
+				idempotencyKey: crypto.randomUUID(),
+			},
+		);
+	}
+
+	async uploadAsset(
+		resourceId: ResourceId,
+		file: File,
+		idempotencyKey: IdempotencyKey,
+	): Promise<UploadAssetResponse> {
+		const form = new FormData();
+		form.append("file", file, file.name);
+		if (file.type) form.append("mime", file.type);
+		const response = await window.fetch(
+			`${this.baseUrl}/resources/${encodeURIComponent(resourceId)}/assets`,
+			{
+				method: "POST",
+				body: form,
+				headers: { "Idempotency-Key": idempotencyKey },
+				credentials: "same-origin",
+			},
+		);
+		if (!response.ok) throw await this.toError(response);
+		return (await response.json()) as UploadAssetResponse;
+	}
+
+	async listResourceAssets(
+		resourceId: ResourceId,
+	): Promise<ListResourceAssetsResponse> {
+		return this.request(`/resources/${encodeURIComponent(resourceId)}/assets`, {
+			method: "GET",
+		});
+	}
+
+	assetUrl(assetId: string): string {
+		return `${this.baseUrl}/assets/${encodeURIComponent(assetId)}`;
+	}
+
+	async downloadAsset(assetId: string): Promise<Blob> {
+		const response = await window.fetch(
+			`${this.baseUrl}/assets/${encodeURIComponent(assetId)}`,
+			{ method: "GET", credentials: "same-origin" },
+		);
+		if (!response.ok) throw await this.toError(response);
+		return response.blob();
+	}
+
+	async createResourceShareLink(
+		resourceId: ResourceId,
+		body: CreateResourceShareLinkRequest,
+	): Promise<CreateResourceShareLinkResponse> {
+		return this.request(
+			`/resources/${encodeURIComponent(resourceId)}/share-links`,
+			{
+				method: "POST",
+				body,
+				idempotencyKey: crypto.randomUUID(),
+			},
+		);
+	}
+
+	async listResourceShareLinks(
+		resourceId: ResourceId,
+	): Promise<ListResourceShareLinksResponse> {
+		return this.request(
+			`/resources/${encodeURIComponent(resourceId)}/share-links`,
+			{ method: "GET" },
+		);
+	}
+
+	async setResourceShareLinkExpiry(
+		resourceId: ResourceId,
+		shareId: ShareId,
+		body: SetResourceShareLinkExpiryRequest,
+	): Promise<SetResourceShareLinkExpiryResponse> {
+		return this.request(
+			`/resources/${encodeURIComponent(resourceId)}/share-links/${encodeURIComponent(shareId)}`,
+			{
+				method: "PATCH",
+				body,
+				idempotencyKey: crypto.randomUUID(),
+			},
+		);
+	}
+
+	async revokeResourceShareLink(
+		resourceId: ResourceId,
+		shareId: ShareId,
+	): Promise<RevokeResourceShareLinkResponse> {
+		return this.request(
+			`/resources/${encodeURIComponent(resourceId)}/share-links/${encodeURIComponent(shareId)}`,
+			{ method: "DELETE", idempotencyKey: crypto.randomUUID() },
+		);
+	}
+
+	async regenerateResourceShareLink(
+		resourceId: ResourceId,
+		shareId: ShareId,
+		body: RegenerateResourceShareLinkRequest,
+	): Promise<RegenerateResourceShareLinkResponse> {
+		return this.request(
+			`/resources/${encodeURIComponent(resourceId)}/share-links/${encodeURIComponent(shareId)}/regenerate`,
+			{
+				method: "POST",
+				body,
+				idempotencyKey: crypto.randomUUID(),
+			},
+		);
+	}
+
+	async openPublicSharedResource(
+		token: string,
+	): Promise<OpenPublicSharedResourceResponse> {
+		return this.request(`/public/shares/${encodeURIComponent(token)}`, {
+			method: "GET",
+		});
+	}
+
+	publicSharedAssetUrl(token: string, assetId: string): string {
+		return `${this.baseUrl}/public/shares/${encodeURIComponent(token)}/assets/${encodeURIComponent(assetId)}`;
+	}
+
+	async downloadPublicSharedAsset(
+		token: string,
+		assetId: string,
+	): Promise<Blob> {
+		const response = await window.fetch(
+			this.publicSharedAssetUrl(token, assetId),
+			{
+				method: "GET",
+				credentials: "omit",
+				cache: "no-store",
+				referrerPolicy: "no-referrer",
+			},
+		);
+		if (!response.ok) throw await this.toError(response);
+		return response.blob();
 	}
 
 	async createResource(
@@ -304,6 +718,26 @@ export class DomClient {
 			body: { ...body, resourceId },
 			idempotencyKey: body.idempotencyKey,
 		});
+	}
+
+	async resolveCommentThread(
+		resourceId: ResourceId,
+		threadId: ThreadId,
+	): Promise<ResolveCommentThreadResponse> {
+		return this.request(
+			`/resources/${encodeURIComponent(resourceId)}/comments/threads/${encodeURIComponent(threadId)}/resolve`,
+			{ method: "POST" },
+		);
+	}
+
+	async reopenCommentThread(
+		resourceId: ResourceId,
+		threadId: ThreadId,
+	): Promise<ReopenCommentThreadResponse> {
+		return this.request(
+			`/resources/${encodeURIComponent(resourceId)}/comments/threads/${encodeURIComponent(threadId)}/reopen`,
+			{ method: "POST" },
+		);
 	}
 
 	async listHistory(resourceId: string): Promise<{
@@ -382,7 +816,7 @@ export class DomClient {
 	async suggestMembers(
 		workspaceId: string,
 		query: string,
-	): Promise<{ suggestions: Array<{ accountId: string; email: string }> }> {
+	): Promise<SuggestMembersResponse> {
 		return this.request(
 			`/workspaces/${workspaceId}/members/suggest?q=${encodeURIComponent(query)}`,
 			{ method: "GET" },
@@ -406,6 +840,55 @@ export class DomClient {
 		});
 	}
 
+	async createVersionRestoreTask(
+		resourceId: ResourceId,
+		baseJournalSeq: number,
+		idempotencyKey: IdempotencyKey,
+	): Promise<CreateVersionRestoreTaskResponse> {
+		return this.request(
+			`/resources/${encodeURIComponent(resourceId)}/versions/${baseJournalSeq}/restore-tasks`,
+			{ method: "POST", idempotencyKey },
+		);
+	}
+
+	async importResource(
+		resourceId: ResourceId,
+		document: ImportResourceRequest["document"],
+		idempotencyKey: IdempotencyKey,
+	): Promise<ImportResourceResponse> {
+		return this.request(`/resources/${encodeURIComponent(resourceId)}/import`, {
+			method: "POST",
+			body: {
+				resourceId,
+				document,
+				idempotencyKey,
+			} satisfies ImportResourceRequest,
+			idempotencyKey,
+		});
+	}
+
+	async createResourceExportTask(
+		resourceId: ResourceId,
+		idempotencyKey: IdempotencyKey,
+	): Promise<CreateResourceExportTaskResponse> {
+		return this.request(
+			`/resources/${encodeURIComponent(resourceId)}/export-tasks`,
+			{ method: "POST", idempotencyKey },
+		);
+	}
+
+	async getResourceExportResult(
+		resourceId: ResourceId,
+		exportSessionId: string,
+	): Promise<Blob> {
+		const response = await window.fetch(
+			`${this.baseUrl}/resources/${encodeURIComponent(resourceId)}/exports/${encodeURIComponent(exportSessionId)}/result`,
+			{ method: "GET", credentials: "same-origin" },
+		);
+		if (!response.ok) throw await this.toError(response);
+		return response.blob();
+	}
+
 	async searchHistory(): Promise<{
 		items: Array<{ query: string; lastUsedAt: string | null }>;
 	}> {
@@ -427,6 +910,38 @@ export class DomClient {
 	async listComments(resourceId: string): Promise<ListCommentsResponse> {
 		return this.request(`/resources/${resourceId}/comments`, {
 			method: "GET",
+		});
+	}
+
+	async listTasks(query?: ListTasksQuery): Promise<ListTasksResponse> {
+		const search = new URLSearchParams();
+		if (query?.limit !== undefined) search.set("limit", String(query.limit));
+		if (query?.offset !== undefined) search.set("offset", String(query.offset));
+		const queryString = search.toString();
+		return this.request(`/tasks${queryString ? `?${queryString}` : ""}`, {
+			method: "GET",
+		});
+	}
+
+	async getTask(taskId: string): Promise<GetTaskResponse> {
+		return this.request(`/tasks/${encodeURIComponent(taskId)}`, {
+			method: "GET",
+		});
+	}
+
+	async cancelTask(taskId: string): Promise<CancelTaskResponse> {
+		return this.request(`/tasks/${encodeURIComponent(taskId)}/cancel`, {
+			method: "POST",
+		});
+	}
+
+	async retryTask(
+		taskId: string,
+		idempotencyKey: IdempotencyKey,
+	): Promise<RetryTaskResponse> {
+		return this.request(`/tasks/${encodeURIComponent(taskId)}/retry`, {
+			method: "POST",
+			idempotencyKey,
 		});
 	}
 

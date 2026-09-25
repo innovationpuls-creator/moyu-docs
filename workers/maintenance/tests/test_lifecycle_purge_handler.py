@@ -19,9 +19,15 @@ class Context:
         self.attempt_id = uuid4()
         self.execution_epoch = 4
         self.checkpoints = 0
+        self.progress: list[tuple[str | None, str | None]] = []
 
     async def checkpoint(self) -> None:
         self.checkpoints += 1
+
+    async def report_progress(
+        self, *, stage: str | None = None, message_code: str | None = None
+    ) -> None:
+        self.progress.append((stage, message_code))
 
 
 class Purge:
@@ -43,6 +49,10 @@ async def test_handler_purges_and_records_fenced_effect() -> None:
     effects = Effects()
     await LifecyclePurgeHandler(Purge(), effects).execute(context)  # type: ignore[arg-type]
     assert context.checkpoints == 2
+    assert context.progress == [
+        ("purging", "lifecycle.purge.workspace.running"),
+        ("completed", "lifecycle.purge.workspace.completed"),
+    ]
     assert len(effects.calls) == 1
     assert effects.calls[0][1]["attempt_id"] == context.attempt_id
     assert effects.calls[0][1]["execution_epoch"] == 4

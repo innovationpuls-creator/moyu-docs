@@ -4,9 +4,9 @@
  * Do not edit; run `just contract` instead.
  */
 
-export type UserId = string;
+export type CommentId = string;
 
 export interface EditCommentResponse {
-	commentId: UserId;
+	commentId: CommentId;
 	body: string;
 }

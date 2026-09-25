@@ -19,8 +19,8 @@ class PostgresAssetRepository:
                     text(
                         "INSERT INTO collab.resource_assets "
                         "(asset_id,resource_id,provider,storage_key,size_bytes,"
-                        "mime,sha256,created_by) "
-                        "VALUES (:aid,:rid,:provider,:key,:size,:mime,:sha,:by) "
+                        "mime,sha256,created_by,original_name) "
+                        "VALUES (:aid,:rid,:provider,:key,:size,:mime,:sha,:by,:name) "
                         "RETURNING *"
                     ),
                     {
@@ -32,6 +32,7 @@ class PostgresAssetRepository:
                         "mime": asset.mime,
                         "sha": asset.sha256,
                         "by": asset.created_by,
+                        "name": asset.original_name,
                     },
                 )
             )
@@ -53,6 +54,22 @@ class PostgresAssetRepository:
         )
         return None if row is None else _to_asset(row)
 
+    async def list_by_resource(self, resource_id: UUID) -> list[Asset]:
+        rows = (
+            (
+                await self._session.execute(
+                    text(
+                        "SELECT * FROM collab.resource_assets "
+                        "WHERE resource_id=:id ORDER BY created_at,asset_id"
+                    ),
+                    {"id": resource_id},
+                )
+            )
+            .mappings()
+            .all()
+        )
+        return [_to_asset(row) for row in rows]
+
 
 def _to_asset(row: Any) -> Asset:
     return Asset(
@@ -65,4 +82,5 @@ def _to_asset(row: Any) -> Asset:
         sha256=row["sha256"],
         created_by=row["created_by"],
         created_at=row["created_at"],
+        original_name=row["original_name"],
     )

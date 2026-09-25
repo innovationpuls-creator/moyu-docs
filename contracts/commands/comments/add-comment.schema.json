@@ -6,8 +6,8 @@
 	"type": "object",
 	"additionalProperties": false,
 	"properties": {
-		"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
-		"threadId": { "$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId" },
+		"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/ResourceId" },
+		"threadId": { "$ref": "../../ids/ids.schema.json#/$defs/ThreadId" },
 		"body": { "type": "string", "minLength": 1 },
 		"anchor": { "type": "object" },
 		"idempotencyKey": {
@@ -20,8 +20,8 @@
 			"type": "object",
 			"additionalProperties": false,
 			"properties": {
-				"commentId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
-				"threadId": { "$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId" },
+				"commentId": { "$ref": "../../ids/ids.schema.json#/$defs/CommentId" },
+				"threadId": { "$ref": "../../ids/ids.schema.json#/$defs/ThreadId" },
 				"body": { "type": "string" },
 				"createdAt": { "type": "string", "format": "date-time" }
 			},

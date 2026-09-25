@@ -4,7 +4,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 
 class PostgresWebhookSubscriptionRepository:
@@ -102,3 +102,19 @@ class PostgresWebhookSubscriptionRepository:
         if row is None:
             return None
         return (str(row["url"]), str(row["secret_key_hex"]))
+
+
+class PostgresWebhookSubscriptionLoader:
+    """Read delivery credentials in a short session closed before HTTP I/O."""
+
+    def __init__(self, factory: async_sessionmaker[AsyncSession]) -> None:
+        self._factory = factory
+
+    async def fetch(
+        self, workspace_id: UUID, subscription_id: UUID
+    ) -> tuple[str, str] | None:
+        async with self._factory() as session:
+            async with session.begin():
+                return await PostgresWebhookSubscriptionRepository(session).fetch(
+                    workspace_id, subscription_id
+                )

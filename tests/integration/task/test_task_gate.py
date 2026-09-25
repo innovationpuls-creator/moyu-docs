@@ -93,13 +93,28 @@ async def test_duplicate_effect_key_has_one_durable_row(
 async def test_priority_claim_does_not_starve_background(
     db_session: AsyncSession,
 ) -> None:
+    await db_session.execute(
+        text(
+            "UPDATE work.tasks SET next_attempt_at=now()+interval '1 day' "
+            "WHERE state IN ('Queued','Retrying')"
+        )
+    )
     background = await _create_task(db_session, "Background")
-    for _ in range(3):
-        await _create_task(db_session, "Interactive")
+    await db_session.execute(
+        text(
+            "UPDATE work.tasks SET queued_at=now()-interval '5 minutes' "
+            "WHERE task_id=:id"
+        ),
+        {"id": background},
+    )
     repository = PostgresTaskRepository(db_session)
-    claimed = [await repository.claim_next("fair-worker", 60) for _ in range(4)]
-    assert all(claim is not None for claim in claimed)
-    assert any(claim.task_id == background for claim in claimed if claim is not None)
+    for _ in range(4):
+        await _create_task(db_session, "Interactive")
+        claimed = await repository.claim_next("fair-worker", 60)
+        assert claimed is not None
+        if claimed.task_id == background:
+            return
+    pytest.fail("aged Background task was starved by new Interactive tasks")
 
 
 @pytest.mark.asyncio

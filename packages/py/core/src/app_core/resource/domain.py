@@ -7,6 +7,8 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
+from app_core.common.exceptions import ConflictError
+
 RESOURCE_TYPES = ("document", "code", "markdown", "text")
 
 
@@ -35,6 +37,15 @@ class ResourceTypeImmutableError(ResourceError):
 
 class DuplicateJournalSeqError(ResourceError):
     pass
+
+
+class JournalSequenceConflictError(ConflictError):
+    def __init__(self, next_sequence: int) -> None:
+        super().__init__(
+            "The Resource journal changed before this update was accepted.",
+            "RESOURCE_JOURNAL_SEQUENCE_CONFLICT",
+        )
+        self.next_sequence = next_sequence
 
 
 class ResourcePermissionDeniedError(ResourceError):

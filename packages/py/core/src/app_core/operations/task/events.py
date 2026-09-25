@@ -58,15 +58,30 @@ class TaskEventPublisher(Protocol):
 def event_for_transition(
     event_type: str, task: Any, *, payload: dict[str, Any] | None = None
 ) -> TaskEvent:
+    event_payload = {
+        "taskId": str(task.task_id),
+        "taskType": task.task_type,
+        "state": getattr(task.state, "value", task.state),
+    }
+    if event_type == "TaskProgressUpdated":
+        event_payload.update(
+            {
+                "stage": getattr(task, "stage", None),
+                "messageCode": getattr(task, "progress_message_code", None),
+                "current": getattr(task, "progress_current", None),
+                "total": getattr(task, "progress_total", None),
+                "percentage": (
+                    float(task.progress_percentage)
+                    if getattr(task, "progress_percentage", None) is not None
+                    else None
+                ),
+            }
+        )
+    event_payload.update(payload or {})
     return TaskEvent.create(
         event_type,
         task.task_id,
-        {
-            "taskId": str(task.task_id),
-            "taskType": task.task_type,
-            "state": getattr(task.state, "value", task.state),
-            **(payload or {}),
-        },
+        event_payload,
         occurred_at=getattr(task, "updated_at", None),
     )
 

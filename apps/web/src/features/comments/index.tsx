@@ -1,6 +1,12 @@
+import type {
+	ReopenCommentThreadResponse,
+	ResolveCommentThreadResponse,
+} from "@dom/client-sdk";
+import { DomApiError } from "@dom/client-sdk";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { client } from "../../shared/api/client";
+import { getResourceRealtimeClient } from "../../shared/realtime";
 import { ConsoleIcon } from "../../shared/ui/console-icons";
 import { formatConsoleDate } from "../../shared/ui/date";
 
@@ -8,6 +14,35 @@ function anchorText(anchor: unknown): string | null {
 	if (typeof anchor !== "object" || anchor === null) return null;
 	const text = (anchor as Record<string, unknown>).text;
 	return typeof text === "string" && text.length > 0 ? text : null;
+}
+
+function commentErrorMessage(error: unknown): string {
+	if (!(error instanceof DomApiError))
+		return "评论发送失败，请检查网络后重试。";
+	if (error.errorCode === "RESOURCE_PERMISSION_DENIED") {
+		return "你没有权限在此文档中发表评论。";
+	}
+	if (error.errorCode === "RESOURCE_AUTHORIZATION_UNAVAILABLE") {
+		return "暂时无法确认评论权限，请稍后重试。";
+	}
+	return error.retryable
+		? "评论暂时未发送，请检查网络后重试。"
+		: `评论发送失败（${error.errorCode}）。`;
+}
+
+function threadStatusErrorMessage(error: unknown): string {
+	if (!(error instanceof DomApiError)) {
+		return "讨论状态更新失败，请检查网络后重试。";
+	}
+	if (error.errorCode === "RESOURCE_PERMISSION_DENIED") {
+		return "你没有权限更改这条讨论的状态。";
+	}
+	if (error.errorCode === "COMMENT_THREAD_NOT_FOUND") {
+		return "这条讨论已不存在，请刷新评论列表。";
+	}
+	return error.retryable
+		? "讨论状态暂时无法更新，请检查网络后重试。"
+		: `讨论状态更新失败（${error.errorCode}）。`;
 }
 
 export function CommentsPanel({
@@ -20,12 +55,29 @@ export function CommentsPanel({
 	onJumpToAnchor?(text: string): void;
 }) {
 	const cache = useQueryClient();
+	const account = useQuery({
+		queryKey: ["account"],
+		queryFn: () => client.me(),
+	});
 	const [body, setBody] = useState("");
 	const [threadId, setThreadId] = useState<string | null>(null);
 	const [jumpedCommentId, setJumpedCommentId] = useState<string | null>(null);
+	const [statusError, setStatusError] = useState("");
 	const comments = useQuery({
 		queryKey: ["comments", resourceId],
 		queryFn: () => client.listComments(resourceId),
+		refetchInterval: 4000,
+	});
+	useEffect(
+		() =>
+			getResourceRealtimeClient().onResourceEvent(resourceId, () => {
+				void cache.invalidateQueries({ queryKey: ["comments", resourceId] });
+			}),
+		[cache, resourceId],
+	);
+	const capabilities = useQuery({
+		queryKey: ["resource-capabilities", resourceId],
+		queryFn: () => client.getResourceCapabilities(resourceId),
 	});
 	const mentionQuery = useMemo(() => {
 		const match = body.match(/(?:^|\s)@([^\s@]*)$/);
@@ -47,8 +99,35 @@ export function CommentsPanel({
 		onSuccess: async () => {
 			setBody("");
 			setThreadId(null);
+			setStatusError("");
 			await cache.invalidateQueries({ queryKey: ["comments", resourceId] });
 		},
+		onError: async (error) => {
+			if (
+				error instanceof DomApiError &&
+				error.errorCode === "COMMENT_THREAD_RESOLVED"
+			) {
+				setStatusError("这条讨论已关闭，请先重新打开后再回复。");
+				await cache.invalidateQueries({ queryKey: ["comments", resourceId] });
+				return;
+			}
+			setStatusError("");
+		},
+	});
+	const changeThreadStatus = useMutation<
+		ResolveCommentThreadResponse | ReopenCommentThreadResponse,
+		Error,
+		{ id: string; action: "resolve" | "reopen" }
+	>({
+		mutationFn: ({ id, action }) =>
+			action === "resolve"
+				? client.resolveCommentThread(resourceId, id)
+				: client.reopenCommentThread(resourceId, id),
+		onSuccess: async () => {
+			setStatusError("");
+			await cache.invalidateQueries({ queryKey: ["comments", resourceId] });
+		},
+		onError: (error) => setStatusError(threadStatusErrorMessage(error)),
 	});
 
 	function chooseMember(email: string) {
@@ -56,18 +135,36 @@ export function CommentsPanel({
 		setBody(`${body.slice(0, at)}@${email} `);
 	}
 
+	const commentItems = comments.data?.items ?? [];
+	const selectedThread = commentItems.find(
+		(item) => item.threadId === threadId,
+	);
+	const replyClosed = selectedThread?.status === "Resolved";
+	const canComment = capabilities.data?.canComment === true;
+	const groupedComments = new Map<string, typeof commentItems>();
+	for (const item of commentItems) {
+		const group = groupedComments.get(item.threadId) ?? [];
+		group.push(item);
+		groupedComments.set(item.threadId, group);
+	}
+
 	return (
 		<section className="drawer-content" aria-label="评论列表">
+			{capabilities.data?.canComment === false && (
+				<p className="feature-muted">当前权限仅允许查看评论。</p>
+			)}
 			<form
 				className="comment-composer"
 				onSubmit={(event) => {
 					event.preventDefault();
-					if (body.trim()) addComment.mutate();
+					if (body.trim() && canComment && !replyClosed) addComment.mutate();
 				}}
 			>
 				{threadId && (
 					<div className="reply-context">
-						正在回复一条评论
+						{replyClosed
+							? "这条讨论已关闭，请先重新打开后再回复。"
+							: "正在回复一条评论"}
 						<button type="button" onClick={() => setThreadId(null)}>
 							取消回复
 						</button>
@@ -79,6 +176,9 @@ export function CommentsPanel({
 					placeholder="写下评论…"
 					aria-label="评论内容"
 					data-testid="comment-input"
+					disabled={
+						!canComment || capabilities.isLoading || capabilities.isError
+					}
 				/>
 				{mentionQuery !== null && (
 					<div className="mention-options" role="listbox" aria-label="成员建议">
@@ -98,14 +198,30 @@ export function CommentsPanel({
 				<button
 					type="submit"
 					data-testid="comment-submit"
-					disabled={!body.trim() || addComment.isPending}
+					disabled={
+						!body.trim() ||
+						!canComment ||
+						capabilities.isLoading ||
+						capabilities.isError ||
+						addComment.isPending ||
+						replyClosed
+					}
 				>
 					{addComment.isPending ? "发送中…" : "发送评论"}
 				</button>
 			</form>
-			{addComment.isError && (
+			{addComment.isError &&
+				!(
+					addComment.error instanceof DomApiError &&
+					addComment.error.errorCode === "COMMENT_THREAD_RESOLVED"
+				) && (
+					<p className="feature-error" role="alert">
+						{commentErrorMessage(addComment.error)}
+					</p>
+				)}
+			{statusError && (
 				<p className="feature-error" role="alert">
-					评论发送失败，请重试。
+					{statusError}
 				</p>
 			)}
 			{comments.isLoading && <p className="feature-muted">正在载入评论…</p>}
@@ -114,46 +230,114 @@ export function CommentsPanel({
 					评论暂时不可用。
 				</p>
 			)}
-			{comments.data?.items.map((item) => {
-				const quote = anchorText(item.anchor);
+			{capabilities.isError && (
+				<p className="feature-error" role="alert">
+					无法读取文档权限，评论和状态操作已禁用。
+				</p>
+			)}
+			{Array.from(groupedComments).map(([id, messages]) => {
+				const root = messages[0];
+				const isCreator = root.createdBy === account.data?.accountId;
+				const canChangeStatus =
+					root.status === "Resolved"
+						? isCreator || capabilities.data?.canReopenCommentThread === true
+						: isCreator || capabilities.data?.canResolveCommentThread === true;
 				return (
 					<article
-						className="comment-card"
-						key={item.commentId}
-						data-testid="comment-row"
-						data-jumped={
-							jumpedCommentId === item.commentId ? "true" : undefined
-						}
+						className="comment-thread-card"
+						key={id}
+						data-testid="comment-thread"
+						data-status={root.status}
 					>
-						<div className="comment-card-meta">
+						<header className="comment-thread-heading">
 							<span>
-								<ConsoleIcon name="comments" size={14} /> 评论
+								{root.status === "Resolved"
+									? "已解决"
+									: root.status === "Detached"
+										? "原位置已失效"
+										: "进行中"}
 							</span>
-							<time dateTime={item.createdAt}>
-								{formatConsoleDate(item.createdAt)}
-							</time>
-						</div>
-						<p>{item.body}</p>
-						{quote && (
-							<button
-								type="button"
-								className="comment-anchor"
-								data-testid="comment-anchor"
-								onClick={() => {
-									setJumpedCommentId(item.commentId);
-									onJumpToAnchor?.(quote);
-								}}
-							>
-								引用：{quote}
-							</button>
-						)}
-						<button
-							type="button"
-							className="comment-reply"
-							onClick={() => setThreadId(item.threadId)}
-						>
-							回复
-						</button>
+							{canChangeStatus &&
+								root.status !== "Detached" &&
+								!capabilities.isLoading &&
+								!capabilities.isError && (
+									<button
+										type="button"
+										className="comment-reply"
+										data-testid={
+											root.status === "Resolved"
+												? "comment-thread-reopen"
+												: "comment-thread-resolve"
+										}
+										disabled={changeThreadStatus.isPending}
+										onClick={() => {
+											setStatusError("");
+											changeThreadStatus.mutate({
+												id,
+												action:
+													root.status === "Resolved" ? "reopen" : "resolve",
+											});
+										}}
+									>
+										{root.status === "Resolved" ? "重新打开" : "解决"}
+									</button>
+								)}
+						</header>
+						{messages.map((item) => {
+							const quote = anchorText(item.anchor);
+							return (
+								<div
+									className="comment-card"
+									key={item.commentId}
+									data-testid="comment-row"
+									data-jumped={
+										jumpedCommentId === item.commentId ? "true" : undefined
+									}
+								>
+									<div className="comment-card-meta">
+										<span>
+											<ConsoleIcon name="comments" size={14} /> 评论
+										</span>
+										<time dateTime={item.createdAt}>
+											{formatConsoleDate(item.createdAt)}
+										</time>
+									</div>
+									<p>{item.body}</p>
+									{quote && (
+										<button
+											type="button"
+											className="comment-anchor"
+											data-testid="comment-anchor"
+											onClick={() => {
+												setJumpedCommentId(item.commentId);
+												onJumpToAnchor?.(quote);
+											}}
+										>
+											引用：{quote}
+										</button>
+									)}
+									{item.commentId === root.commentId &&
+										root.status === "Resolved" && (
+											<p
+												className="feature-muted"
+												data-testid="comment-thread-closed-hint"
+											>
+												这条讨论已关闭，请先重新打开后再回复。
+											</p>
+										)}
+									{item.commentId === root.commentId && (
+										<button
+											type="button"
+											className="comment-reply"
+											disabled={root.status === "Resolved"}
+											onClick={() => setThreadId(id)}
+										>
+											{root.status === "Resolved" ? "已关闭" : "回复"}
+										</button>
+									)}
+								</div>
+							);
+						})}
 					</article>
 				);
 			})}
