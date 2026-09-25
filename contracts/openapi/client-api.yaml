@@ -379,6 +379,57 @@ paths:
             format: uuid
         - $ref: "#/components/parameters/IdempotencyKey"
 
+  /v1/ai/propose-changeset:
+    post:
+      operationId: ProposeChangeSet
+      summary: Propose a reviewable AI ChangeSet without applying it
+      tags: [ai]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../commands/ai/propose-changeset.schema.json"
+      responses:
+        "200":
+          description: Proposed ChangeSet
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/ai/propose-changeset.schema.json#/$defs/ProposeChangeSetResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
+  /v1/changesets/{changesetId}/apply:
+    post:
+      operationId: ApplyChangeSet
+      summary: Apply a ChangeSet after explicit user approval
+      tags: [ai]
+      parameters:
+        - name: changesetId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Applied ChangeSet
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/ai/apply-changeset.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
   /v1/resources/{resourceId}:
     get:
       operationId: OpenResource
@@ -834,6 +885,13 @@ paths:
         - name: projectId
           in: path
           required: true
+          schema:
+            type: string
+            format: uuid
+        - name: folderId
+          in: query
+          required: false
+          description: Restrict results to this folder. Omit to list resources at the project root.
           schema:
             type: string
             format: uuid

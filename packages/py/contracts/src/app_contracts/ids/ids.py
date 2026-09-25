@@ -51,6 +51,7 @@ class IdentityIds(BaseModel):
     projectId: UUID | None = Field(None, title="ProjectId")
     folderId: UUID | None = Field(None, title="FolderId")
     resourceId: UUID | None = Field(None, title="ResourceId")
+    changesetId: UUID | None = Field(None, title="ChangeSetId")
     nodeId: UUID | None = Field(None, title="NodeId")
     taskId: UUID | None = Field(None, title="TaskId")
     attemptId: UUID | None = Field(None, title="AttemptId")

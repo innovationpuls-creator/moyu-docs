@@ -1,0 +1,20 @@
+{
+	"name": "@dom/resource-runtime",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"description": "Resource lifecycle coordination and account-scoped offline state.",
+	"types": "./src/index.ts",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@dom/contracts": "workspace:*"
+	},
+	"devDependencies": {
+		"typescript": "^5.9.3"
+	}
+}

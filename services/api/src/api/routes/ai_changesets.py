@@ -3,6 +3,11 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
+from app_contracts.commands.ai.apply_changeset import ApplyChangeSetResponse
+from app_contracts.commands.ai.propose_changeset import (
+    ProposeChangeSet as ProposeChangeSetRequest,
+)
+from app_contracts.commands.ai.propose_changeset import ProposeChangeSetResponse
 from app_core.ai.application import ApplyChangeSet, ProposeChangeSet
 from app_core.ai.domain import ChangesetError
 from app_core.session.domain.session import Session
@@ -17,7 +22,6 @@ from app_infra.postgres.resource_ownership_repository import (
     PostgresResourceOwnershipRepository,
 )
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.dependencies.auth import get_current_session, get_db_session
@@ -25,22 +29,12 @@ from api.dependencies.auth import get_current_session, get_db_session
 router = APIRouter()
 
 
-class ProposeRequest(BaseModel):
-    resourceId: UUID
-    instruction: str
-
-
-class ProposeResponse(BaseModel):
-    changesetId: UUID
-    status: str
-
-
-@router.post("/ai/propose-changeset", response_model=ProposeResponse)
+@router.post("/ai/propose-changeset", response_model=ProposeChangeSetResponse)
 async def propose_changeset(
-    body: ProposeRequest,
+    body: ProposeChangeSetRequest,
     current: Annotated[Session, Depends(get_current_session)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
-) -> ProposeResponse:
+) -> ProposeChangeSetResponse:
     use_case = ProposeChangeSet(
         PostgresChangeSetRepository(session),
         PostgresResourceRepository(session),
@@ -55,23 +49,21 @@ async def propose_changeset(
         raise HTTPException(status_code=403, detail="RESOURCE_PERMISSION_DENIED")
     except LookupError:
         raise HTTPException(status_code=404, detail="RESOURCE_NOT_FOUND")
-    return ProposeResponse(
-        changesetId=changeset.changeset_id, status=changeset.status.value
+    return ProposeChangeSetResponse(
+        changesetId=changeset.changeset_id,
+        resourceId=changeset.resource_id,
+        instruction=changeset.instruction,
+        operations=changeset.ops,
+        status="Proposed",
     )
 
 
-class ApplyResponse(BaseModel):
-    changesetId: UUID
-    journalSeq: int
-    status: str
-
-
-@router.post("/changesets/{changeset_id}/apply", response_model=ApplyResponse)
+@router.post("/changesets/{changeset_id}/apply", response_model=ApplyChangeSetResponse)
 async def apply_changeset(
     changeset_id: UUID,
     current: Annotated[Session, Depends(get_current_session)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
-) -> ApplyResponse:
+) -> ApplyChangeSetResponse:
     use_case = ApplyChangeSet(
         PostgresChangeSetRepository(session),
         PostgresResourceRepository(session),
@@ -85,4 +77,6 @@ async def apply_changeset(
         raise HTTPException(status_code=403, detail="RESOURCE_PERMISSION_DENIED")
     except LookupError:
         raise HTTPException(status_code=404, detail="CHANGESET_NOT_FOUND")
-    return ApplyResponse(changesetId=changeset_id, journalSeq=seq, status="Applied")
+    return ApplyChangeSetResponse(
+        changesetId=changeset_id, journalSeq=seq, status="Applied"
+    )

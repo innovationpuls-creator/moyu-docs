@@ -54,6 +54,7 @@ from app_core.resource.application import TrashResource as TrashResourceUseCase
 from app_core.resource.domain import (
     InvalidResourceNameError,
     ResourceNameConflictError,
+    ResourceNotFoundError,
     ResourcePermissionDeniedError,
 )
 from app_core.session.domain.session import Session
@@ -92,6 +93,7 @@ async def create_resource(
         saved = await use_case.execute(
             current.account_id,
             project_id=body.projectId,
+            folder_id=body.folderId,
             resource_type=body.resourceType.value,
             name=body.name,
         )
@@ -99,6 +101,8 @@ async def create_resource(
         raise HTTPException(status_code=409, detail="RESOURCE_NAME_CONFLICT")
     except ResourcePermissionDeniedError:
         raise HTTPException(status_code=403, detail="RESOURCE_PERMISSION_DENIED")
+    except ResourceNotFoundError:
+        raise HTTPException(status_code=404, detail="RESOURCE_NOT_FOUND")
     except InvalidResourceNameError:
         raise HTTPException(status_code=400, detail="RESOURCE_NAME_INVALID")
     # The creator (workspace-Owner) becomes the resource's owner row (Permission-
@@ -118,6 +122,7 @@ async def create_resource(
     return CreateResourceResponse(
         resourceId=saved.resource_id,
         projectId=saved.project_id,
+        folderId=saved.folder_id,
         resourceType=ResourceType(saved.resource_type),
         name=saved.name,
         lifecycle=ResourceLifecycle(saved.lifecycle),

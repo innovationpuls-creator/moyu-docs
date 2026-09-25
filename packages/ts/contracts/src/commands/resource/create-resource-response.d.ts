@@ -6,10 +6,12 @@
 
 export type UserId = string;
 export type WorkspaceId = string;
+export type FolderId = string;
 
 export interface CreateResourceResponse {
 	resourceId: UserId;
 	projectId: WorkspaceId;
+	folderId?: FolderId | null;
 	resourceType: "document" | "code" | "markdown" | "text";
 	name: string;
 	lifecycle: "Active" | "Trashed" | "Purging" | "Purged";

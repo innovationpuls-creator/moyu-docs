@@ -11,21 +11,51 @@ import { fromProseMirror, toProseMirror } from "./pm.js";
 
 export const schema = new Schema({
 	nodes: {
-		doc: { content: "block+" },
-		paragraph: { content: "inline*", group: "block" },
+		doc: { content: "block+", toDOM: () => ["div", 0] },
+		paragraph: {
+			content: "inline*",
+			group: "block",
+			parseDOM: [{ tag: "p" }],
+			toDOM: () => ["p", 0],
+		},
 		heading: {
 			content: "inline*",
 			group: "block",
 			attrs: { level: { default: 1 } },
+			parseDOM: [
+				{ tag: "h1", attrs: { level: 1 } },
+				{ tag: "h2", attrs: { level: 2 } },
+				{ tag: "h3", attrs: { level: 3 } },
+			],
+			toDOM: (node) => [`h${node.attrs.level}`, 0],
 		},
-		bulletList: { content: "listItem+", group: "block" },
-		listItem: { content: "paragraph block*" },
+		bulletList: {
+			content: "listItem+",
+			group: "block",
+			parseDOM: [{ tag: "ul" }],
+			toDOM: () => ["ul", 0],
+		},
+		listItem: {
+			content: "paragraph block*",
+			parseDOM: [{ tag: "li" }],
+			toDOM: () => ["li", 0],
+		},
 		text: { group: "inline" },
 	},
 	marks: {
-		strong: {},
-		em: {},
-		code: {},
+		strong: {
+			parseDOM: [{ tag: "strong" }, { tag: "b" }],
+			toDOM: () => ["strong", 0],
+		},
+		em: {
+			parseDOM: [{ tag: "em" }, { tag: "i" }],
+			toDOM: () => ["em", 0],
+		},
+		code: {
+			code: true,
+			parseDOM: [{ tag: "code" }],
+			toDOM: () => ["code", 0],
+		},
 	},
 });
 

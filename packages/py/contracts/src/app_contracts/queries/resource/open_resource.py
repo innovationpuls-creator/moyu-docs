@@ -30,6 +30,7 @@ class OpenResourceResponse(BaseModel):
     )
     resourceId: UUID = Field(..., title="UserId")
     projectId: UUID = Field(..., title="WorkspaceId")
+    folderId: UUID | None
     resourceType: ResourceType
     name: str
     lifecycle: Lifecycle

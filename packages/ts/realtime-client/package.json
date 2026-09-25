@@ -12,7 +12,8 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@dom/contracts": "workspace:*"
+		"@dom/contracts": "workspace:*",
+		"@dom/realtime-protocol": "workspace:*"
 	},
 	"devDependencies": {
 		"typescript": "^5.9.3"

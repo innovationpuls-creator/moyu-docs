@@ -66,32 +66,37 @@ class PostgresSearchRepository:
             (
                 await self._session.execute(
                     text(
-                        "SELECT s.resource_id, s.name, s.resource_type, "
+                        "SELECT r.resource_id, r.project_id, r.folder_id, "
+                        "r.name, r.resource_type, "
                         "s.searchable_text, "
                         "GREATEST("
-                        "  ts_rank(s.body_tsv, plainto_tsquery('simple', :q)),"
-                        "  CASE WHEN s.name ILIKE :pat OR s.searchable_text ILIKE :pat "
+                        "  COALESCE(ts_rank(s.body_tsv, "
+                        "plainto_tsquery('simple', :q)), 0),"
+                        "  CASE WHEN r.name ILIKE :pat "
+                        "         OR COALESCE(s.searchable_text, '') ILIKE :pat "
                         "       THEN 0.05 ELSE 0 END"
                         ") AS score, "
-                        "s.updated_at "
-                        "FROM collab.resource_search_index s "
-                        "WHERE s.workspace_id=:wid AND s.lifecycle='Active' "
+                        "GREATEST(r.updated_at, COALESCE(s.updated_at,r.updated_at)) "
+                        "AS updated_at "
+                        "FROM core.resources r "
+                        "JOIN core.projects p ON p.project_id=r.project_id "
+                        "LEFT JOIN collab.resource_search_index s "
+                        "ON s.resource_id=r.resource_id "
+                        "WHERE p.workspace_id=:wid AND p.lifecycle='Active' "
+                        "AND r.lifecycle='Active' "
                         "AND (s.body_tsv @@ plainto_tsquery('simple', :q) "
-                        "     OR s.name ILIKE :pat OR s.searchable_text ILIKE :pat) "
-                        "AND (CAST(:rtype AS text) IS NULL OR s.resource_type=:rtype) "
+                        "     OR r.name ILIKE :pat "
+                        "     OR COALESCE(s.searchable_text, '') ILIKE :pat) "
+                        "AND (CAST(:rtype AS text) IS NULL OR r.resource_type=:rtype) "
                         "AND (CAST(:since AS timestamptz) IS NULL "
-                        "OR s.updated_at >= :since) "
+                        "OR GREATEST(r.updated_at, "
+                        "COALESCE(s.updated_at,r.updated_at)) >= :since) "
                         "AND (CAST(:until AS timestamptz) IS NULL "
-                        "OR s.updated_at <= :until) "
-                        "AND (CAST(:pid AS uuid) IS NULL OR s.project_id=:pid) "
-                        "AND (CAST(:fid AS uuid) IS NULL OR s.resource_id IN ("
-                        "    SELECT res.resource_id FROM core.resources res "
-                        "    WHERE res.folder_id=:fid"
-                        ")) "
-                        "AND (CAST(:author AS uuid) IS NULL OR s.resource_id IN ("
-                        "    SELECT r.resource_id FROM core.resources r "
-                        "    WHERE r.created_by=:author"
-                        ")) "
+                        "OR GREATEST(r.updated_at, "
+                        "COALESCE(s.updated_at,r.updated_at)) <= :until) "
+                        "AND (CAST(:pid AS uuid) IS NULL OR r.project_id=:pid) "
+                        "AND (CAST(:fid AS uuid) IS NULL OR r.folder_id=:fid) "
+                        "AND (CAST(:author AS uuid) IS NULL OR r.created_by=:author) "
                         "ORDER BY score DESC LIMIT :lim"
                     ),
                     {
@@ -151,4 +156,6 @@ def _to_hit(row: Any, query: str) -> SearchHit:
         score=float(row["score"] or 0.0),
         snippet=snippet,
         updated_at=row["updated_at"],
+        project_id=row["project_id"],
+        folder_id=row["folder_id"],
     )

@@ -28,6 +28,7 @@ class Item(BaseModel):
         extra="forbid",
     )
     resourceId: UUID = Field(..., title="UserId")
+    folderId: UUID | None = None
     name: str
     resourceType: ResourceType
     lifecycle: Lifecycle

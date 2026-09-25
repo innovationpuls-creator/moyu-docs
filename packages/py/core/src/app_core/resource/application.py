@@ -10,6 +10,7 @@ from app_core.resource.domain import (
     Resource,
     ResourceLifecycle,
     ResourceNameConflictError,
+    ResourceNotFoundError,
     ResourcePermissionDeniedError,
     normalize_resource_name,
 )
@@ -45,6 +46,12 @@ class CreateResource:
     ) -> Resource:
         if not await self._ownership.authorize(actor_id, project_id, "resource.create"):
             raise ResourcePermissionDeniedError("no resource.create permission")
+        if folder_id is not None:
+            folder_matches = await self._resources.folder_belongs_to_project(
+                folder_id, project_id
+            )
+            if not folder_matches:
+                raise ResourceNotFoundError("folder is not in the project")
         normalized = normalize_resource_name(name)
         if await self._resources.sibling_exists(project_id, normalized):
             raise ResourceNameConflictError(name)

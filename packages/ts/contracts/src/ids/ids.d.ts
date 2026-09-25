@@ -9,6 +9,7 @@ export type WorkspaceId = string;
 export type ProjectId = string;
 export type FolderId = string;
 export type ResourceId = string;
+export type ChangeSetId = string;
 export type NodeId = string;
 export type TaskId = string;
 export type AttemptId = string;
@@ -51,6 +52,7 @@ export interface IdentityIds {
 	projectId?: ProjectId;
 	folderId?: FolderId;
 	resourceId?: ResourceId;
+	changesetId?: ChangeSetId;
 	nodeId?: NodeId;
 	taskId?: TaskId;
 	attemptId?: AttemptId;

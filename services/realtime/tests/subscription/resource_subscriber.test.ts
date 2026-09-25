@@ -6,12 +6,22 @@ import { ResourceSubscriptionManager } from "../../src/subscription/resource_sub
 
 class FakeAuthorizer {
 	allowed = new Set<string>();
+	editable = new Set<string>();
+	updateChecks: string[] = [];
 
 	async authorizeResource(
 		actorId: string,
 		resourceId: string,
 	): Promise<boolean> {
 		return this.allowed.has(`${actorId}:${resourceId}`);
+	}
+
+	async authorizeResourceUpdate(
+		actorId: string,
+		resourceId: string,
+	): Promise<boolean> {
+		this.updateChecks.push(`${actorId}:${resourceId}`);
+		return this.editable.has(`${actorId}:${resourceId}`);
 	}
 }
 
@@ -54,7 +64,7 @@ describe("ResourceSubscriptionManager", () => {
 	});
 
 	it("stops delivery after unsubscribe and cleans up on drop", async () => {
-		const { authorizer, manager, sent } = setup();
+		const { authorizer, manager } = setup();
 		authorizer.allowed.add("actor-a:res-1");
 		await manager.subscribe("c1", "actor-a", "res-1");
 		manager.unsubscribe("c1", "res-1");
@@ -209,4 +219,62 @@ it("persists roster membership across joins and drops", async () => {
 	]);
 	manager.dropConnection("c1");
 	expect(await presence.peers("res-1")).toEqual(["actor-b"]);
+});
+
+it("checks write access per Yjs update while read subscriptions stay live", async () => {
+	const authorizer = new FakeAuthorizer();
+	const sent: Array<{ to: string; envelope: unknown }> = [];
+	const backlog = new MemoryYjsBacklogStore();
+	const manager = new ResourceSubscriptionManager(
+		authorizer,
+		{ send: (to, envelope) => sent.push({ to, envelope }) },
+		backlog,
+	);
+	authorizer.allowed.add("session-reader:res-1");
+	authorizer.allowed.add("session-editor:res-1");
+	await manager.subscribe(
+		"reader-connection",
+		"session-reader",
+		"res-1",
+		"sub-r",
+	);
+	await manager.subscribe(
+		"editor-connection",
+		"session-editor",
+		"res-1",
+		"sub-e",
+	);
+	sent.length = 0;
+
+	const deniedUpdate = await manager.publishYjsUpdate(
+		"reader-connection",
+		"res-1",
+		"sub-r",
+		"cmVhZGVyLXVwZGF0ZQ==",
+	);
+	expect(deniedUpdate).toBe(false);
+	expect(await backlog.recent("res-1")).toEqual([]);
+	expect(sent).toEqual([]);
+	expect(manager.isSubscribed("reader-connection", "res-1", "sub-r")).toBe(
+		true,
+	);
+
+	authorizer.editable.add("session-reader:res-1");
+	const allowedUpdate = await manager.publishYjsUpdate(
+		"reader-connection",
+		"res-1",
+		"sub-r",
+		"cmVhZGVyLW5leHQ=",
+	);
+	expect(allowedUpdate).toBe(true);
+	expect(authorizer.updateChecks).toEqual([
+		"session-reader:res-1",
+		"session-reader:res-1",
+	]);
+	expect(await backlog.recent("res-1")).toEqual(["cmVhZGVyLW5leHQ="]);
+	expect(sent).toHaveLength(1);
+	expect(sent[0].to).toBe("editor-connection");
+	expect(
+		(sent[0].envelope as { payload?: { update?: string } }).payload?.update,
+	).toBe("cmVhZGVyLW5leHQ=");
 });

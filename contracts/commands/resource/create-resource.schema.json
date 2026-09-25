@@ -7,6 +7,12 @@
 	"additionalProperties": false,
 	"properties": {
 		"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId" },
+		"folderId": {
+			"oneOf": [
+				{ "$ref": "../../ids/ids.schema.json#/$defs/FolderId" },
+				{ "type": "null" }
+			]
+		},
 		"resourceType": {
 			"type": "string",
 			"enum": ["document", "code", "markdown", "text"]
@@ -24,6 +30,12 @@
 			"properties": {
 				"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
 				"projectId": { "$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId" },
+				"folderId": {
+					"oneOf": [
+						{ "$ref": "../../ids/ids.schema.json#/$defs/FolderId" },
+						{ "type": "null" }
+					]
+				},
 				"resourceType": {
 					"type": "string",
 					"enum": ["document", "code", "markdown", "text"]

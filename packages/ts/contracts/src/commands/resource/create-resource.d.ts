@@ -5,6 +5,7 @@
  */
 
 export type WorkspaceId = string;
+export type FolderId = string;
 export type IdempotencyKey = string;
 
 /**
@@ -12,6 +13,7 @@ export type IdempotencyKey = string;
  */
 export interface CreateResource {
 	projectId: WorkspaceId;
+	folderId?: FolderId | null;
 	resourceType: "document" | "code" | "markdown" | "text";
 	name: string;
 	idempotencyKey: IdempotencyKey;

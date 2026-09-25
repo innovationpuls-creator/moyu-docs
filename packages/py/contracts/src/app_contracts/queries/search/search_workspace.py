@@ -21,6 +21,8 @@ class Item(BaseModel):
         extra="forbid",
     )
     resourceId: UUID = Field(..., title="UserId")
+    projectId: UUID | None = Field(None, title="ProjectId")
+    folderId: UUID | None = None
     name: str
     resourceType: ResourceType
     score: float

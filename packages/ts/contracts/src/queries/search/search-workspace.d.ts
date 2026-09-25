@@ -6,6 +6,8 @@
 
 export type WorkspaceId = string;
 export type UserId = string;
+export type ProjectId = string;
+export type FolderId = string;
 
 /**
  * FR-SRC-001. Workspace-scoped Resource name/body search (member authority).
@@ -15,6 +17,8 @@ export interface SearchWorkspaceResponse {
 	query: string;
 	items: {
 		resourceId: UserId;
+		projectId?: ProjectId;
+		folderId?: FolderId | null;
 		name: string;
 		resourceType: "document" | "code" | "markdown" | "text";
 		score: number;

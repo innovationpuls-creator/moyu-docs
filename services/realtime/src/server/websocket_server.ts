@@ -19,9 +19,12 @@
  */
 
 import { createServer, type Server as HttpServer } from "node:http";
-
+import {
+	decodeRealtimeBinaryFrame,
+	encodeRealtimeBinaryFrame,
+} from "@dom/realtime-protocol";
 import { Redis } from "ioredis";
-import { type WebSocket, WebSocketServer } from "ws";
+import { type RawData, type WebSocket, WebSocketServer } from "ws";
 
 import {
 	type SessionCachedData,
@@ -48,6 +51,13 @@ const UNAUTHORIZED_RESPONSE =
 	"HTTP/1.1 401 Unauthorized\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\nUnauthorized";
 
 const DEFAULT_VALKEY_URL = "redis://localhost:6379/14";
+
+function toUint8Array(data: RawData): Uint8Array {
+	if (Buffer.isBuffer(data))
+		return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+	if (data instanceof ArrayBuffer) return new Uint8Array(data);
+	return new Uint8Array(Buffer.concat(data));
+}
 
 export interface RealtimeServerHandle {
 	server: HttpServer;
@@ -160,7 +170,34 @@ export function startRealtimeServer({
 		const connectionId = `${session.session_id}:${connectionSeq++}`;
 		relayHost.registerConnection(connectionId, (envelope) => {
 			if (ws.readyState === ws.OPEN) {
-				ws.send(JSON.stringify(envelope));
+				const message = envelope as {
+					kind?: string;
+					resourceId?: string;
+					subscriptionId?: string;
+					payload?: unknown;
+				};
+				const payload = message.payload as
+					| { kind?: string; update?: string }
+					| undefined;
+				if (
+					message.kind === "op" &&
+					message.resourceId &&
+					payload?.kind === "yjs" &&
+					typeof payload.update === "string"
+				) {
+					ws.send(
+						encodeRealtimeBinaryFrame(
+							{
+								messageType: "sync.update",
+								resourceId: message.resourceId,
+								subscriptionId: message.subscriptionId ?? "",
+							},
+							new Uint8Array(Buffer.from(payload.update, "base64")),
+						),
+					);
+					return;
+				}
+				ws.send(JSON.stringify({ protocolVersion: 1, ...message }));
 			}
 		});
 		const unregister = invalidator.register(session.session_id, ws);
@@ -172,30 +209,93 @@ export function startRealtimeServer({
 			// Socket-level errors close the socket; the 'close' handler above
 			// unregisters. No business action to take.
 		});
-		ws.on("message", (data) => {
+		ws.on("message", (data, isBinary) => {
+			if (isBinary) {
+				let frame: ReturnType<typeof decodeRealtimeBinaryFrame>;
+				try {
+					frame = decodeRealtimeBinaryFrame(toUint8Array(data));
+				} catch {
+					ws.close(4400, "malformed binary frame");
+					return;
+				}
+				const { header, payload } = frame;
+				if (
+					!relayHost.manager.isSubscribed(
+						connectionId,
+						header.resourceId,
+						header.subscriptionId,
+					)
+				) {
+					ws.close(4403, "resource subscription required");
+					return;
+				}
+				if (header.messageType === "sync.state-vector") {
+					void relayHost.manager
+						.incrementalSync(
+							connectionId,
+							header.resourceId,
+							Buffer.from(payload).toString("base64"),
+						)
+						.catch((error: unknown) => {
+							console.error("[dom/realtime] state-vector sync failed", error);
+						});
+					return;
+				}
+				const update = Buffer.from(payload).toString("base64");
+				void relayHost.manager
+					.publishYjsUpdate(
+						connectionId,
+						header.resourceId,
+						header.subscriptionId,
+						update,
+					)
+					.catch((error: unknown) => {
+						console.error("[dom/realtime] Yjs update publish failed", error);
+					});
+				return;
+			}
 			let message: {
 				type?: string;
 				resourceId?: string;
+				subscriptionId?: string;
+				protocolVersion?: number;
 				payload?: unknown;
 			};
 			try {
 				message = JSON.parse(data.toString()) as {
 					type?: string;
 					resourceId?: string;
+					subscriptionId?: string;
+					protocolVersion?: number;
 					payload?: unknown;
 				};
 			} catch {
 				ws.close(4400, "malformed message");
 				return;
 			}
+			if (
+				message.protocolVersion !== undefined &&
+				message.protocolVersion !== 1
+			) {
+				ws.close(4400, "unsupported protocol version");
+				return;
+			}
 			if (message.type === "unsubscribe" && message.resourceId) {
-				relayHost.manager.unsubscribe(connectionId, message.resourceId);
+				relayHost.manager.unsubscribe(
+					connectionId,
+					message.resourceId,
+					message.subscriptionId,
+				);
 				return;
 			}
 			if (
 				message.type === "op" &&
 				message.resourceId &&
-				relayHost.manager.isSubscribed(connectionId, message.resourceId)
+				relayHost.manager.isSubscribed(
+					connectionId,
+					message.resourceId,
+					message.subscriptionId,
+				)
 			) {
 				// Peer op relay (arch 05 §171): client-originated Yjs updates go
 				// to the OTHER subscribers of the same resource; the origin
@@ -220,13 +320,29 @@ export function startRealtimeServer({
 				if (
 					typeof message.payload === "object" &&
 					message.payload !== null &&
-					(message.payload as { kind?: string }).kind === "yjs" &&
-					typeof (message.payload as { update?: string }).update === "string"
+					(message.payload as { kind?: string }).kind === "yjs"
 				) {
-					relayHost.manager.recordYjsUpdate(
-						message.resourceId,
-						(message.payload as { update: string }).update,
-					);
+					const update = (message.payload as { update?: unknown }).update;
+					if (typeof update === "string") {
+						const activeSubscriptionId = relayHost.manager.getSubscriptionId(
+							connectionId,
+							message.resourceId,
+						);
+						void relayHost.manager
+							.publishYjsUpdate(
+								connectionId,
+								message.resourceId,
+								activeSubscriptionId,
+								update,
+							)
+							.catch((error: unknown) => {
+								console.error(
+									"[dom/realtime] Yjs update publish failed",
+									error,
+								);
+							});
+					}
+					return;
 				}
 				void relayHost.manager.dispatch(
 					message.resourceId,
@@ -239,14 +355,20 @@ export function startRealtimeServer({
 				return;
 			}
 			if (message.type === "subscribe" && message.resourceId) {
-				console.error("[dom/realtime] subscribe requested", message.resourceId);
 				void relayHost.manager
-					.subscribe(connectionId, session.session_id, message.resourceId)
+					.subscribe(
+						connectionId,
+						session.session_id,
+						message.resourceId,
+						message.subscriptionId,
+					)
 					.then((result) => {
 						if (result === "denied" && ws.readyState === ws.OPEN) {
 							ws.send(
 								JSON.stringify({
+									protocolVersion: 1,
 									resourceId: message.resourceId,
+									subscriptionId: message.subscriptionId,
 									kind: "subscribe",
 									payload: { status: "denied" },
 								}),
@@ -270,6 +392,8 @@ export function startRealtimeServer({
 	const relayHost = new GatewayRelayHost({
 		apiBaseUrl: process.env.REALTIME_API_BASE_URL ?? "http://127.0.0.1:8000",
 		natsUrl: process.env.NATS_URL ?? "nats://localhost:4222",
+		backlogStore,
+		presenceStore,
 	});
 	relayHost.startRelay().catch((error: unknown) => {
 		console.error("[dom/realtime] relay start failed:", error);

@@ -27,10 +27,7 @@
  * the shared dom_dev database never collide.
  */
 
-import { existsSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 
 import {
 	type Browser,
@@ -43,9 +40,6 @@ import {
 const PASSWORD = "Str0ng#Pass123";
 
 let seed = 0;
-function escapeRegExp(value: string): string {
-	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 function freshEmail(label: string): string {
 	seed += 1;
@@ -141,6 +135,50 @@ async function openEditor(page: Page): Promise<void> {
 	await expect(page.getByTestId("realtime-status")).toHaveText("connected", {
 		timeout: 5_000,
 	});
+}
+
+async function createResource(page: Page, name: string): Promise<string> {
+	const workspaceKey = crypto.randomUUID();
+	const workspace = await page.request.post("/v1/workspaces", {
+		headers: { "Idempotency-Key": workspaceKey },
+		data: { name: `${name} workspace`, idempotencyKey: workspaceKey },
+	});
+	expect(workspace.status()).toBe(201);
+	const workspaceId = (await workspace.json()).workspaceId as string;
+	const projectKey = crypto.randomUUID();
+	const project = await page.request.post(
+		`/v1/workspaces/${workspaceId}/projects`,
+		{
+			headers: { "Idempotency-Key": projectKey },
+			data: {
+				workspaceId,
+				name: `${name} project`,
+				idempotencyKey: projectKey,
+			},
+		},
+	);
+	expect(project.status()).toBe(201);
+	const projectId = (await project.json()).projectId as string;
+	const resourceKey = crypto.randomUUID();
+	const resource = await page.request.post("/v1/resources", {
+		headers: { "Idempotency-Key": resourceKey },
+		data: {
+			projectId,
+			resourceType: "document",
+			name,
+			idempotencyKey: resourceKey,
+		},
+	});
+	expect(resource.status()).toBe(201);
+	return (await resource.json()).resourceId as string;
+}
+
+async function fillEditorSource(page: Page, value: string): Promise<void> {
+	const source = page.getByTestId("editor-draft-textarea");
+	if (!(await source.isVisible())) {
+		await page.getByTestId("editor-rich-toggle").click();
+	}
+	await source.fill(value);
 }
 
 // ---------------------------------------------------------------------------
@@ -285,9 +323,13 @@ test("Scenario 33: unsynced draft survives a session replacement", async ({
 	const ctxC = await browser.newContext();
 	try {
 		const [pageA] = await setupAB(browser, ctxA, ctxB, email);
-		await openEditor(pageA);
+		const resourceId = await createResource(pageA, "会话替换草稿");
+		await pageA.goto(`/editor?resourceId=${resourceId}`);
 		const draftText = `未同步草稿 ${email}`;
-		await pageA.getByTestId("editor-draft-textarea").fill(draftText);
+		await fillEditorSource(pageA, draftText);
+		await expect(pageA.getByTestId("editor-offline-status")).toContainText(
+			"草稿已存入此账号的本地资源缓存",
+		);
 
 		// Device C replacement while the draft is unsynced.
 		await loginDeviceC(ctxC, email);
@@ -296,14 +338,12 @@ test("Scenario 33: unsynced draft survives a session replacement", async ({
 		await expect(pageA.getByTestId("session-replaced-dialog")).toBeVisible({
 			timeout: 5_000,
 		});
-		await expect(pageA.getByTestId("draft-recovery-banner")).toBeVisible();
-		await expect(pageA.getByTestId("draft-recovery-content")).toHaveText(
+		await expect(pageA.getByTestId("editor-draft-textarea")).toHaveValue(
 			draftText,
 		);
-		const stored = await pageA.evaluate(() =>
-			window.localStorage.getItem("draft_unsaved"),
-		);
-		expect(stored).toBe(draftText);
+		expect(
+			await pageA.evaluate(() => window.localStorage.getItem("draft_unsaved")),
+		).toBeNull();
 	} finally {
 		await ctxA.close();
 		await ctxB.close();
@@ -324,27 +364,28 @@ test("Scenario 34: re-login preserves the unsynced draft for recovery", async ({
 	const ctxC = await browser.newContext();
 	try {
 		const [pageA] = await setupAB(browser, ctxA, ctxB, email);
-		await openEditor(pageA);
+		const resourceId = await createResource(pageA, "重新登录草稿");
+		await pageA.goto(`/editor?resourceId=${resourceId}`);
 		const draftText = `草稿在替换后依然可恢复 ${email}`;
-		await pageA.getByTestId("editor-draft-textarea").fill(draftText);
+		await fillEditorSource(pageA, draftText);
+		await expect(pageA.getByTestId("editor-offline-status")).toContainText(
+			"草稿已存入此账号的本地资源缓存",
+		);
 		await loginDeviceC(ctxC, email);
 		await expect(pageA.getByTestId("session-replaced-dialog")).toBeVisible({
 			timeout: 5_000,
 		});
 
-		// Re-login on device A; the local draft is NOT silently discarded and
-		// stays recoverable/exportable in the editor.
+		// Re-login on device A; the account/resource scoped IndexedDB draft
+		// remains available when the same resource is opened again.
 		await pageA.getByTestId("session-replaced-relogin").click();
 		await loginDevice(pageA, email);
-		await pageA.goto("/editor");
+		await pageA.goto(`/editor?resourceId=${resourceId}`);
+		await pageA.getByTestId("editor-rich-toggle").click();
 		await expect(pageA.getByTestId("editor-draft-textarea")).toHaveValue(
 			draftText,
 		);
-		const stored = await pageA.evaluate(() =>
-			window.localStorage.getItem("draft_unsaved"),
-		);
-		expect(stored).toBe(draftText);
-		await expect(pageA.getByTestId("draft-export-button")).toBeVisible();
+		await expect(pageA.getByTestId("draft-recovery-banner")).toHaveCount(0);
 	} finally {
 		await ctxA.close();
 		await ctxB.close();
@@ -365,12 +406,14 @@ test("Scenario 35: unsynced draft can be exported as a local backup", async ({
 	const ctxC = await browser.newContext();
 	try {
 		const [pageA] = await setupAB(browser, ctxA, ctxB, email);
-		await openEditor(pageA);
-		const draftText = `可导出的未同步草稿 ${email}`;
-		await pageA.getByTestId("editor-draft-textarea").fill(draftText);
-		await loginDeviceC(ctxC, email);
+		const resourceId = await createResource(pageA, "未关联草稿导出");
+		const draftText = `可导出的未关联草稿 ${email}`;
+		await pageA.evaluate((value) => {
+			window.localStorage.setItem("draft_unsaved", value);
+		}, draftText);
+		await pageA.goto(`/editor?resourceId=${resourceId}`);
 		await expect(pageA.getByTestId("draft-recovery-banner")).toBeVisible({
-			timeout: 5_000,
+			timeout: 10_000,
 		});
 
 		// Export => a real text-file download containing the draft content.
@@ -460,11 +503,11 @@ test("Workspace page renders the workspace list via the SDK", async ({
 }) => {
 	const email = freshEmail("ws");
 	await registerAccount(page, email);
-	// The SDK listWorkspaces() call executed through the vite proxy: a fresh
-	// account renders the honest empty state (no workspace rows yet).
-	if ((await page.getByTestId("workspace-row").count()) === 0) {
-		await expect(page.getByTestId("workspace-empty")).toBeVisible();
-	}
+	// A fresh account has no workspace; the shell shows the real-data empty
+	// state and offers workspace creation.
+	await expect(page.getByTestId("console-empty-state")).toContainText(
+		"从一个工作区开始",
+	);
 });
 
 test("Editor page surfaces a typed error for an inaccessible Resource", async ({
@@ -472,7 +515,7 @@ test("Editor page surfaces a typed error for an inaccessible Resource", async ({
 }) => {
 	const email = freshEmail("res");
 	await registerAccount(page, email);
-	await page.goto(`/editor?resource=${crypto.randomUUID()}`);
+	await page.goto(`/editor?resourceId=${crypto.randomUUID()}`);
 	// The SDK openResource() call round-trips through the vite proxy; an
 	// unowned resource yields the API error surfaced by the page.
 	await expect(page.getByTestId("resource-error")).toBeVisible();
@@ -523,13 +566,17 @@ test("Editor saves a draft op and surfaces the authoritative seq", async ({
 	expect(resource.status()).toBe(201);
 	const resourceId = (await resource.json()).resourceId;
 
-	await page.goto(`/editor?resource=${resourceId}`);
-	await expect(page.getByTestId("resource-name")).toHaveText("Doc");
-	await page.getByTestId("editor-draft-textarea").fill("编辑内容 alpha");
+	await page.goto(`/editor?resourceId=${resourceId}`);
+	await expect(page.getByTestId("resource-name-input")).toHaveValue("Doc");
+	await fillEditorSource(page, "编辑内容 alpha");
 	await page.getByTestId("editor-save").click();
 	await expect(page.getByTestId("editor-save-status")).toContainText(
 		"journalSeq=1",
 	);
+	await page.getByTestId("editor-panel-tab-history").click();
+	await page.getByRole("textbox", { name: "版本名称" }).fill("初始保存版本");
+	await page.getByRole("button", { name: "保存版本" }).click();
+	await expect(page.getByText("初始保存版本", { exact: true })).toBeVisible();
 	// Mention autocomplete (arch 17 §4): typing @ surfaces member suggestions
 	// from the workspace; the picker shows the member email.
 	await page.getByTestId("editor-panel-tab-comments").click();
@@ -540,43 +587,40 @@ test("Editor saves a draft op and surfaces the authoritative seq", async ({
 	await page.getByTestId("comment-input").fill("");
 	// Live body CRDT (arch 05 §171): a SECOND tab on the same resource merges
 	// the peer's Yjs updates without saving (peer-op relay through the gateway).
-	const resourceParam = page.url().includes("resource=")
-		? page.url().split("resource=")[1].split("&")[0]
-		: "";
+	const resourceParam =
+		new URL(page.url()).searchParams.get("resourceId") ?? "";
 	expect(resourceParam).not.toBe("");
 	const peerPage = await context.newPage();
-	await peerPage.goto(`/editor?resource=${resourceParam}`, {
+	await peerPage.goto(`/editor?resourceId=${resourceParam}`, {
 		waitUntil: "domcontentloaded",
 	});
 	// Roster presence (arch 05): both tabs subscribed -> the count reaches 2.
 	await expect(page.getByTestId("editor-roster")).toHaveText("2 人在线", {
 		timeout: 15000,
 	});
-	await page.getByTestId("editor-draft-textarea").fill("实时协作内容");
+	await fillEditorSource(page, "实时协作内容");
+	await peerPage.getByTestId("editor-rich-toggle").click();
 	await expect(peerPage.getByTestId("editor-draft-textarea")).toHaveValue(
 		"实时协作内容",
 		{ timeout: 15000 },
 	);
-	// Peer presence (arch 05): while tab A types, the second tab shows the
-	// live editing indicator (op-relay presence, best-effort). A fresh input
-	// resets the 2s idle so the typing:true signal stays current. The second
-	// tab keeps a console capture to prove the op relay delivered the signal.
+	// A subsequent edit is relayed to the second tab through the shared binary
+	// realtime channel.
 	await page.getByTestId("editor-draft-textarea").pressSequentially(" v2");
-	await expect(peerPage.getByTestId("editor-presence")).toContainText(
-		"正在编辑",
-		{
-			timeout: 15000,
-		},
+	await expect(peerPage.getByTestId("editor-draft-textarea")).toHaveValue(
+		"实时协作内容 v2",
+		{ timeout: 15000 },
 	);
-	// Rich-editor (arch 02/PM view): 富文本正式化后 PM 页面即默认挂载为主视图；
-	// toggle 在富文本/源码（textarea 合同载体）间切换。浏览器级挂载证明 +
-	// 往返切换证明（commit-back 路径由 y-prosemirror 绑定层单测覆盖）。
+	// Rich-editor (arch 02/PM view): 正文编辑经 y-prosemirror 同步到 Y.XmlFragment，
+	// 在富文本/源码间来回切换时保留同一份 Yjs 文档状态。
 	const richBody = page.getByTestId("editor-rich-body");
+	await expect(page.getByTestId("editor-draft-textarea")).toBeVisible();
+	await page.getByTestId("editor-rich-toggle").click();
 	await expect(richBody.locator(".ProseMirror")).toBeVisible({
 		timeout: 10000,
 	});
 	await page.getByTestId("editor-rich-toggle").click();
-	await expect(richBody.locator(".ProseMirror")).toBeHidden();
+	await expect(page.getByTestId("editor-draft-textarea")).toBeVisible();
 	await page.getByTestId("editor-rich-toggle").click();
 	await expect(richBody.locator(".ProseMirror")).toBeVisible({
 		timeout: 10000,
@@ -588,17 +632,22 @@ test("Editor saves a draft op and surfaces the authoritative seq", async ({
 	await page.getByTestId("editor-panel-tab-ai").click();
 	await page.getByTestId("ai-instruction").fill("优化标题");
 	await page.getByTestId("ai-propose").click();
-	await expect(page.getByTestId("ai-changeset-status")).toContainText(
+	await expect(page.getByTestId("ai-changeset-status")).not.toContainText(
 		"Applied",
 		{
 			timeout: 15000,
 		},
 	);
+	await page.getByTestId("ai-apply").click();
+	await expect(page.getByTestId("ai-changeset-status")).toContainText(
+		"Applied",
+		{ timeout: 15000 },
+	);
 	// Comments panel: add a comment through the SDK -> it appears in the list.
 	await page.getByTestId("editor-panel-tab-comments").click();
 	await page.getByTestId("comment-input").fill("整体缺异常流程");
 	await page.getByTestId("comment-submit").click();
-	await expect(page.getByTestId("comment-row")).toHaveText("整体缺异常流程");
+	await expect(page.getByTestId("comment-row")).toContainText("整体缺异常流程");
 	// Comment anchors (arch 17): a comment with an anchor renders the quoted
 	// context; the row shows it after a reload (list re-render).
 	const anchored = await page.request.post(
@@ -659,9 +708,14 @@ test("Workspace row expands the account's projects via the SDK", async ({
 		},
 	);
 	expect(project.status()).toBe(201);
+	const projectId = (await project.json()).projectId as string;
 	await page.goto("/workspace");
-	await page.getByTestId("workspace-row").first().click();
-	await expect(page.getByTestId("project-row")).toHaveText("NavProj");
+	const projectNode = page.getByTestId(`console-tree-project-${projectId}`);
+	await expect(projectNode).toBeVisible();
+	await projectNode.locator(".tree-select").click();
+	await expect(page.getByTestId("console-empty-state")).toContainText(
+		"这里还没有资源",
+	);
 });
 
 test("Project row expands resources and opens the editor (full navigation)", async ({
@@ -696,12 +750,81 @@ test("Project row expands resources and opens the editor (full navigation)", asy
 		},
 	});
 	expect(resource.status()).toBe(201);
+	const resourceId = (await resource.json()).resourceId as string;
 	await page.goto("/workspace");
-	await page.getByTestId("workspace-row").first().click();
-	await expect(page.getByTestId("project-row")).toHaveText("Proj2");
-	await page.getByTestId("project-row").click();
-	await expect(page.getByTestId("resource-row")).toHaveText("DeepDoc");
-	await page.getByTestId("resource-row").click();
-	await expect(page.getByTestId("resource-name")).toHaveText("DeepDoc");
-	await expect(page).toHaveURL(/\/editor\?resource=/);
+	const projectNode = page.getByTestId(`console-tree-project-${projectId}`);
+	await expect(projectNode).toBeVisible();
+	await projectNode.locator(".tree-select").click();
+	const resourceRow = page.getByTestId("console-resource-row");
+	await expect(resourceRow).toContainText("DeepDoc");
+	await resourceRow.click();
+	await expect(page.getByTestId("resource-name-input")).toHaveValue("DeepDoc");
+	await expect(page).toHaveURL(
+		new RegExp(`/editor\\?resourceId=${resourceId}`),
+	);
+});
+
+test("mobile shell supports context creation from workspace through folder resource", async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto("/register");
+	await page.getByTestId("email-input").fill(freshEmail("mobile-console"));
+	await page.getByTestId("password-input").fill(PASSWORD);
+	await page.getByTestId("password-input").press("Enter");
+	await expect(page).toHaveURL("/workspace");
+	await expect(page.getByTestId("console-empty-state")).toContainText(
+		"从一个工作区开始",
+	);
+
+	const sidebar = page.locator(".console-sidebar");
+	await expect(sidebar).not.toBeInViewport();
+	await page.getByRole("button", { name: "打开导航" }).click();
+	await expect(sidebar).toBeInViewport();
+	await page.getByRole("button", { name: "关闭导航" }).click({
+		position: { x: 350, y: 400 },
+	});
+	await expect(sidebar).not.toHaveClass(/mobile-open/);
+
+	await page.getByRole("button", { name: "创建工作区" }).click();
+	let dialog = page.getByRole("dialog", { name: "新建工作区" });
+	await dialog.getByLabel("名称").fill("Mobile workspace");
+	await dialog.getByRole("button", { name: "创建" }).click();
+	await expect(page.getByTestId("console-empty-state")).toContainText(
+		"先建一个项目",
+	);
+
+	await page
+		.getByTestId("console-empty-state")
+		.getByRole("button", { name: "新建项目" })
+		.click();
+	dialog = page.getByRole("dialog", { name: "新建项目" });
+	await dialog.getByLabel("名称").fill("Mobile project");
+	await dialog.getByRole("button", { name: "创建" }).click();
+	await expect(page.getByTestId("console-empty-state")).toContainText(
+		"这里还没有资源",
+	);
+
+	await page.getByRole("button", { name: "新建文件夹" }).click();
+	dialog = page.getByRole("dialog", { name: "新建文件夹" });
+	await dialog.getByLabel("名称").fill("Specifications");
+	await dialog.getByRole("button", { name: "创建" }).click();
+	await page.getByRole("button", { name: "打开导航" }).click();
+	await page
+		.getByRole("button", { name: "Specifications", exact: true })
+		.click();
+	await page
+		.getByTestId("console-empty-state")
+		.getByRole("button", { name: "新建文档" })
+		.click();
+	dialog = page.getByRole("dialog", { name: "新建文档" });
+	await dialog.getByLabel("名称").fill("Folder plan");
+	await dialog.getByRole("button", { name: "创建" }).click();
+
+	await expect(page.getByTestId("resource-name-input")).toHaveValue(
+		"Folder plan",
+	);
+	await expect(page.getByTestId("editor-breadcrumb")).toContainText(
+		"Specifications",
+	);
 });

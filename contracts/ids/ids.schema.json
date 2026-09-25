@@ -21,6 +21,9 @@
 		"resourceId": {
 			"$ref": "#/$defs/ResourceId"
 		},
+		"changesetId": {
+			"$ref": "#/$defs/ChangeSetId"
+		},
 		"nodeId": {
 			"$ref": "#/$defs/NodeId"
 		},
@@ -103,6 +106,12 @@
 			"format": "uuid",
 			"x-uuid-version": 7,
 			"title": "ResourceId"
+		},
+		"ChangeSetId": {
+			"type": "string",
+			"format": "uuid",
+			"x-uuid-version": 7,
+			"title": "ChangeSetId"
 		},
 		"NodeId": {
 			"type": "string",

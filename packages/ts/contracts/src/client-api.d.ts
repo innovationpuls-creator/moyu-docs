@@ -262,6 +262,40 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/v1/ai/propose-changeset": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Propose a reviewable AI ChangeSet without applying it */
+		post: operations["ProposeChangeSet"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/v1/changesets/{changesetId}/apply": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Apply a ChangeSet after explicit user approval */
+		post: operations["ApplyChangeSet"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/v1/resources/{resourceId}": {
 		parameters: {
 			query?: never;
@@ -1380,6 +1414,11 @@ export interface components {
 		 */
 		WorkspaceId: string;
 		/**
+		 * FolderId
+		 * Format: uuid
+		 */
+		FolderId: string;
+		/**
 		 * IdempotencyKey
 		 * Format: uuid
 		 */
@@ -1390,6 +1429,7 @@ export interface components {
 		 */
 		"create-resource.schema": {
 			projectId: components["schemas"]["WorkspaceId"];
+			folderId?: components["schemas"]["FolderId"] | null;
 			/** @enum {string} */
 			resourceType: "document" | "code" | "markdown" | "text";
 			name: string;
@@ -1399,6 +1439,7 @@ export interface components {
 				CreateResourceResponse: {
 					resourceId: components["schemas"]["UserId"];
 					projectId: components["schemas"]["WorkspaceId"];
+					folderId?: components["schemas"]["FolderId"] | null;
 					/** @enum {string} */
 					resourceType: "document" | "code" | "markdown" | "text";
 					name: string;
@@ -1413,6 +1454,7 @@ export interface components {
 		CreateResourceResponse: {
 			resourceId: components["schemas"]["UserId"];
 			projectId: components["schemas"]["WorkspaceId"];
+			folderId?: components["schemas"]["FolderId"] | null;
 			/** @enum {string} */
 			resourceType: "document" | "code" | "markdown" | "text";
 			name: string;
@@ -1446,12 +1488,65 @@ export interface components {
 			updateSha256: string;
 		};
 		/**
+		 * ChangeSetId
+		 * Format: uuid
+		 */
+		ChangeSetId: string;
+		/**
+		 * ResourceId
+		 * Format: uuid
+		 */
+		ResourceId: string;
+		/**
+		 * ProposeChangeSet
+		 * @description Create a reviewable AI proposal for one resource. Proposing never applies the change.
+		 */
+		"propose-changeset.schema": {
+			resourceId: components["schemas"]["ResourceId"];
+			instruction: string;
+			$defs: {
+				/** ProposeChangeSetResponse */
+				ProposeChangeSetResponse: {
+					changesetId: components["schemas"]["ChangeSetId"];
+					resourceId: components["schemas"]["ResourceId"];
+					instruction: string;
+					operations: {
+						[key: string]: unknown;
+					}[];
+					/** @enum {string} */
+					status: "Proposed";
+				};
+			};
+		};
+		/** ProposeChangeSetResponse */
+		ProposeChangeSetResponse: {
+			changesetId: components["schemas"]["ChangeSetId"];
+			resourceId: components["schemas"]["ResourceId"];
+			instruction: string;
+			operations: {
+				[key: string]: unknown;
+			}[];
+			/** @enum {string} */
+			status: "Proposed";
+		};
+		/**
+		 * ApplyChangeSetResponse
+		 * @description Apply a previously proposed ChangeSet after explicit user approval.
+		 */
+		"apply-changeset.schema": {
+			changesetId: components["schemas"]["ChangeSetId"];
+			journalSeq: number;
+			/** @enum {string} */
+			status: "Applied";
+		};
+		/**
 		 * OpenResourceResponse
 		 * @description FR-RC-001/006. Read one authorized Resource's metadata and latest materialized snapshot (checkpoint). Authority: resource ownership (Permission). 404 when the Resource is trashed/purged or not authorized.
 		 */
 		"open-resource.schema": {
 			resourceId: components["schemas"]["UserId"];
 			projectId: components["schemas"]["WorkspaceId"];
+			folderId: components["schemas"]["FolderId"] | null;
 			/** @enum {string} */
 			resourceType: "document" | "code" | "markdown" | "text";
 			name: string;
@@ -1674,6 +1769,7 @@ export interface components {
 			projectId: components["schemas"]["WorkspaceId"];
 			items: {
 				resourceId: components["schemas"]["UserId"];
+				folderId?: components["schemas"]["FolderId"] | null;
 				name: string;
 				/** @enum {string} */
 				resourceType: "document" | "code" | "markdown" | "text";
@@ -1889,6 +1985,11 @@ export interface components {
 			removed: boolean;
 		};
 		/**
+		 * ProjectId
+		 * Format: uuid
+		 */
+		ProjectId: string;
+		/**
 		 * SearchWorkspaceResponse
 		 * @description FR-SRC-001. Workspace-scoped Resource name/body search (member authority).
 		 */
@@ -1897,6 +1998,8 @@ export interface components {
 			query: string;
 			items: {
 				resourceId: components["schemas"]["UserId"];
+				projectId?: components["schemas"]["ProjectId"];
+				folderId?: components["schemas"]["FolderId"] | null;
 				name: string;
 				/** @enum {string} */
 				resourceType: "document" | "code" | "markdown" | "text";
@@ -1986,11 +2089,6 @@ export interface components {
 			/** Format: date-time */
 			updatedAt: string;
 		};
-		/**
-		 * ProjectId
-		 * Format: uuid
-		 */
-		ProjectId: string;
 		/** ProjectSummary */
 		ProjectSummary: {
 			projectId: components["schemas"]["ProjectId"];
@@ -2054,11 +2152,6 @@ export interface components {
 		 * @enum {string}
 		 */
 		ProjectLifecycle: "Active" | "Archived" | "Trashed" | "Purging" | "Purged";
-		/**
-		 * FolderId
-		 * Format: uuid
-		 */
-		FolderId: string;
 		/**
 		 * FolderLifecycle
 		 * @enum {string}
@@ -2896,6 +2989,58 @@ export interface operations {
 			503: components["responses"]["ErrorEnvelopeResponse"];
 		};
 	};
+	ProposeChangeSet: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["propose-changeset.schema"];
+			};
+		};
+		responses: {
+			/** @description Proposed ChangeSet */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ProposeChangeSetResponse"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	ApplyChangeSet: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				changesetId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Applied ChangeSet */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["apply-changeset.schema"];
+				};
+			};
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
 	OpenResource: {
 		parameters: {
 			query?: never;
@@ -3312,7 +3457,10 @@ export interface operations {
 	};
 	ListResources: {
 		parameters: {
-			query?: never;
+			query?: {
+				/** @description Restrict results to this folder. Omit to list resources at the project root. */
+				folderId?: string;
+			};
 			header?: never;
 			path: {
 				projectId: string;

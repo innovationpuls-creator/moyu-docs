@@ -6,6 +6,7 @@
 
 export type UserId = string;
 export type WorkspaceId = string;
+export type FolderId = string;
 
 /**
  * FR-RC-001/006. Read one authorized Resource's metadata and latest materialized snapshot (checkpoint). Authority: resource ownership (Permission). 404 when the Resource is trashed/purged or not authorized.
@@ -13,6 +14,7 @@ export type WorkspaceId = string;
 export interface OpenResourceResponse {
 	resourceId: UserId;
 	projectId: WorkspaceId;
+	folderId: FolderId | null;
 	resourceType: "document" | "code" | "markdown" | "text";
 	name: string;
 	lifecycle: "Active" | "Trashed" | "Purging" | "Purged";

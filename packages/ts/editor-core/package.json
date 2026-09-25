@@ -23,6 +23,7 @@
 		"vitest": "^3.2.4"
 	},
 	"dependencies": {
+		"prosemirror-commands": "^1.7.2",
 		"prosemirror-model": "^1.25.12",
 		"prosemirror-state": "^1.4.4",
 		"prosemirror-view": "^1.42.5",

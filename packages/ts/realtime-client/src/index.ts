@@ -22,6 +22,11 @@
  */
 
 import type { SessionReplacementReason } from "@dom/contracts/events/auth/session-replaced";
+import {
+	decodeRealtimeBinaryFrame,
+	encodeRealtimeBinaryFrame,
+	type SyncMessageType,
+} from "@dom/realtime-protocol";
 
 /** Close code the gateway uses for auth-forced replacement (services/realtime
  * src/connection/session_invalidator.ts SESSION_REPLACED_CLOSE_CODE). */
@@ -47,16 +52,6 @@ export interface SessionReplacedDetail {
 	message: string;
 }
 
-export interface RealtimeClient {
-	readonly socket: WebSocket;
-	/** Subscribe to the session-replaced transition; returns unsubscribe. */
-	onSessionReplaced(
-		listener: (detail: SessionReplacedDetail) => void,
-	): () => void;
-	/** Close the socket (plain 1000/1001 close — no replacement dispatch). */
-	close(): void;
-}
-
 function toReplacementReason(reason: string): SessionReplacementReason {
 	const reasons: readonly SessionReplacementReason[] = [
 		"NewDeviceLogin",
@@ -71,210 +66,326 @@ function toReplacementReason(reason: string): SessionReplacementReason {
 		: "SecurityRevoke";
 }
 
-function parseFrame(raw: string): SessionReplacedFrame | null {
-	try {
-		const value = JSON.parse(raw) as unknown;
-		if (
-			typeof value === "object" &&
-			value !== null &&
-			(value as { type?: unknown }).type === "SessionReplaced"
-		) {
-			return value as SessionReplacedFrame;
-		}
-	} catch {
-		// Not JSON or not a control frame — ignore.
-	}
-	return null;
+export type RealtimeConnectionState =
+	| "connecting"
+	| "connected"
+	| "disconnected"
+	| "replaced";
+
+export interface ResourceRealtimeHandlers {
+	getStateVector(): Uint8Array;
+	getLocalState(): Uint8Array;
+	onUpdate(update: Uint8Array): void;
+	onPeers(count: number): void;
+	onStatus(state: RealtimeConnectionState | "denied"): void;
 }
 
-/** Connect to the realtime gateway. The browser sends the session cookie on
- * the handshake automatically (same host); ``onSessionReplaced`` replaces the
- * need for any feature-level socket inspection. The socket is opened
- * immediately; callers that fail fast (e.g. 401 unexpected-response) should
- * listen for ``error``/``close`` on the returned socket. */
-export function connectRealtime(url: string): RealtimeClient {
-	const socket = new WebSocket(url);
-	const listeners = new Set<(detail: SessionReplacedDetail) => void>();
-	let lastFrame: SessionReplacedFrame | null = null;
-
-	socket.addEventListener("message", (event: MessageEvent<string>) => {
-		const frame = parseFrame(event.data);
-		if (frame !== null) {
-			lastFrame = frame;
-		}
-	});
-	socket.addEventListener("close", (event: CloseEvent) => {
-		if (event.code !== SESSION_REPLACED_CLOSE_CODE) {
-			return;
-		}
-		const frame = lastFrame ?? {
-			type: "SessionReplaced" as const,
-			reason: "SecurityRevoke",
-			message: "当前账号已在另一台设备登录，本设备已下线",
-		};
-		const detail: SessionReplacedDetail = {
-			closeCode: event.code,
-			frame,
-			reason: toReplacementReason(frame.reason),
-			message: frame.message,
-		};
-		for (const listener of listeners) {
-			listener(detail);
-		}
-		window.dispatchEvent(
-			new CustomEvent<SessionReplacedDetail>(SESSION_REPLACED_EVENT, {
-				detail,
-			}),
-		);
-	});
-
-	return {
-		socket,
-		onSessionReplaced(listener) {
-			listeners.add(listener);
-			return () => {
-				listeners.delete(listener);
-			};
-		},
-		close() {
-			socket.close();
-		},
-	};
-}
-
-/**
- * RT-SDK — resource channels over the gateway socket (arch 05 §11/§14).
- *
- * The client is transport-only: it speaks the gateway's wire envelope
- * (subscribe / op / presence / unsubscribe). Consensus/Yjs is out of scope
- * here. A WebSocket-like object is injected so the client stays testable in
- * Node without a real socket.
- */
-
-export interface ResourceChannelMessage {
-	type:
-		| "subscribe"
-		| "op"
-		| "presence"
-		| "unsubscribe"
-		| "comment.added"
-		| "comment.edited"
-		| "comment.deleted";
-	resourceId: string;
-	payload: unknown;
-	sequence?: number;
-	occurredAt?: string;
-}
-
-export interface SocketLike {
-	send(data: string): void;
+export interface ResourceRealtimeClient {
+	subscribeResource(
+		resourceId: string,
+		handlers: ResourceRealtimeHandlers,
+	): () => void;
+	publishUpdate(resourceId: string, update: Uint8Array): void;
+	requestStateVector(resourceId: string, vector: Uint8Array): void;
+	onConnectionState(
+		listener: (state: RealtimeConnectionState) => void,
+	): () => void;
+	onSessionReplaced(
+		listener: (detail: SessionReplacedDetail) => void,
+	): () => void;
 	close(): void;
 }
 
-export class ResourceChannelClient {
-	/** Stable per-connection id (arch 05): presence ops carry it. */
-	private readonly clientId =
-		`c-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`;
-	private handlers = new Map<
-		string,
-		(message: ResourceChannelMessage) => void
+interface ResourceSubscription {
+	subscriptionId: string;
+	handlers: ResourceRealtimeHandlers;
+}
+
+interface RealtimeSocket {
+	readyState: number;
+	addEventListener(type: string, listener: (event: never) => void): void;
+	send(data: string | Uint8Array): void;
+	close(code?: number, reason?: string): void;
+}
+
+type RealtimeSocketFactory = (url: string) => RealtimeSocket;
+
+const SOCKET_OPEN = 1;
+const SOCKET_CONNECTING = 0;
+
+/** Shared resource transport. Feature code receives typed events and binary Yjs updates only. */
+export class ManagedResourceRealtimeClient implements ResourceRealtimeClient {
+	private socket: RealtimeSocket | null = null;
+	private readonly subscriptions = new Map<string, ResourceSubscription>();
+	private readonly stateListeners = new Set<
+		(state: RealtimeConnectionState) => void
 	>();
-	private rawHandler: ((message: ResourceChannelMessage) => void) | null = null;
+	private readonly replacementListeners = new Set<
+		(detail: SessionReplacedDetail) => void
+	>();
+	private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+	private retryDelay = 500;
+	private manuallyClosed = false;
+	private connectionState: RealtimeConnectionState = "disconnected";
+	private lastReplacement: SessionReplacedFrame | null = null;
 
-	constructor(private readonly socket: SocketLike) {}
-
-	attach(): void {
-		// The injected socket surface exposes onMessage; we keep the wiring
-		// here so feature code never touches the socket directly.
-		const anySocket = this.socket as SocketLike & {
-			onmessage: ((event: { data: string | ArrayBuffer }) => void) | null;
-		};
-		anySocket.onmessage = (event) => {
-			const data =
-				typeof event.data === "string"
-					? event.data
-					: new TextDecoder().decode(event.data);
-			const raw = JSON.parse(data) as ResourceChannelMessage & {
-				kind?: string;
-			};
-			// The gateway wire discriminates with ``kind``; map to ``type``.
-			const message: ResourceChannelMessage = {
-				type: raw.type ?? (raw.kind as ResourceChannelMessage["type"]),
-				resourceId: raw.resourceId,
-				payload: raw.payload,
-				sequence: raw.sequence,
-				occurredAt: raw.occurredAt,
-			};
-			this.route(message);
-		};
+	constructor(
+		private readonly url: string,
+		private readonly socketFactory: RealtimeSocketFactory = (target) =>
+			new WebSocket(target) as unknown as RealtimeSocket,
+	) {
+		this.open();
 	}
 
-	/** Stable per-connection id (arch 05): presence ops carry it so peers can
-	 * attribute remote cursors/typing to a source. */
-	getClientId(): string {
-		return this.clientId;
-	}
-
-	subscribe(resourceId: string): void {
-		this.send({ type: "subscribe", resourceId, payload: {} });
-	}
-
-	unsubscribe(resourceId: string): void {
-		this.send({ type: "unsubscribe", resourceId, payload: {} });
-	}
-
-	/** Client-originated op (arch 05 §171): Yjs updates relay to peer
-	 * subscribers of the same resource by the gateway. */
-	publishOp(resourceId: string, payload: unknown): void {
-		this.send({ type: "op", resourceId, payload });
-	}
-
-	/** Incremental sync request (arch 05 §172): the gateway merges the
-	 * resource backlog and replays exactly the missing tail for our
-	 * state-vector. */
-	publishSync(resourceId: string, stateVectorBase64: string): void {
-		this.send({
-			type: "op",
-			resourceId,
-			payload: { kind: "sync", stateVector: stateVectorBase64 },
-		});
-	}
-
-	/** Awareness relay (arch 05 §cursor/awareness): binary Yjs awareness
-	 * updates ride the SAME op relay as yjs updates; the gateway forwards
-	 * them peer-wise unchanged. */
-	publishAwareness(resourceId: string, updateBase64: string): void {
-		this.send({
-			type: "op",
-			resourceId,
-			payload: { kind: "awareness", update: updateBase64 },
-		});
-	}
-
-	onResource(
+	subscribeResource(
 		resourceId: string,
-		handler: (message: ResourceChannelMessage) => void,
+		handlers: ResourceRealtimeHandlers,
 	): () => void {
-		this.handlers.set(resourceId, handler);
+		const previous = this.subscriptions.get(resourceId);
+		if (previous) {
+			this.sendControl("unsubscribe", resourceId, previous.subscriptionId);
+		}
+		const subscription = { subscriptionId: crypto.randomUUID(), handlers };
+		this.subscriptions.set(resourceId, subscription);
+		handlers.onStatus(this.connectionState);
+		if (this.connectionState === "connected") {
+			this.sendControl("subscribe", resourceId, subscription.subscriptionId);
+		}
 		return () => {
-			this.handlers.delete(resourceId);
+			if (this.subscriptions.get(resourceId) !== subscription) return;
+			this.sendControl("unsubscribe", resourceId, subscription.subscriptionId);
+			this.subscriptions.delete(resourceId);
 		};
 	}
 
-	onAny(handler: (message: ResourceChannelMessage) => void): void {
-		this.rawHandler = handler;
+	publishUpdate(resourceId: string, update: Uint8Array): void {
+		this.sendBinary(resourceId, "sync.update", update);
+	}
+
+	requestStateVector(resourceId: string, vector: Uint8Array): void {
+		this.sendBinary(resourceId, "sync.state-vector", vector);
+	}
+
+	onConnectionState(
+		listener: (state: RealtimeConnectionState) => void,
+	): () => void {
+		this.stateListeners.add(listener);
+		listener(this.connectionState);
+		return () => this.stateListeners.delete(listener);
+	}
+
+	onSessionReplaced(
+		listener: (detail: SessionReplacedDetail) => void,
+	): () => void {
+		this.replacementListeners.add(listener);
+		return () => this.replacementListeners.delete(listener);
 	}
 
 	close(): void {
-		this.socket.close();
+		this.manuallyClosed = true;
+		if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+		this.reconnectTimer = null;
+		this.socket?.close(1000, "client closed");
+		this.socket = null;
+		this.setConnectionState("disconnected");
 	}
 
-	private route(message: ResourceChannelMessage): void {
-		this.handlers.get(message.resourceId)?.(message);
-		this.rawHandler?.(message);
+	private open(): void {
+		if (this.manuallyClosed) return;
+		this.setConnectionState("connecting");
+		let socket: RealtimeSocket;
+		try {
+			socket = this.socketFactory(this.url);
+		} catch {
+			this.setConnectionState("disconnected");
+			this.scheduleReconnect();
+			return;
+		}
+		this.socket = socket;
+		socket.addEventListener("open", (() => {
+			if (this.socket !== socket) return;
+			this.retryDelay = 500;
+			this.setConnectionState("connected");
+			for (const [resourceId, subscription] of this.subscriptions) {
+				this.sendControl("subscribe", resourceId, subscription.subscriptionId);
+			}
+		}) as never);
+		socket.addEventListener("message", ((event: MessageEvent) => {
+			if (this.socket === socket) void this.receive(event.data);
+		}) as never);
+		socket.addEventListener("close", ((event: CloseEvent) => {
+			if (this.socket !== socket) return;
+			this.socket = null;
+			if (event.code === SESSION_REPLACED_CLOSE_CODE) {
+				this.setConnectionState("replaced");
+				const frame = this.lastReplacement ?? {
+					type: "SessionReplaced" as const,
+					reason: "SecurityRevoke",
+					message: "当前账号已在另一台设备登录，本设备已下线",
+				};
+				const detail: SessionReplacedDetail = {
+					closeCode: event.code,
+					frame,
+					reason: toReplacementReason(frame.reason),
+					message: frame.message,
+				};
+				for (const listener of this.replacementListeners) listener(detail);
+				if (typeof window !== "undefined") {
+					window.dispatchEvent(
+						new CustomEvent<SessionReplacedDetail>(SESSION_REPLACED_EVENT, {
+							detail,
+						}),
+					);
+				}
+				return;
+			}
+			this.setConnectionState("disconnected");
+			this.scheduleReconnect();
+		}) as never);
+		socket.addEventListener("error", (() => {
+			if (this.socket === socket && socket.readyState === SOCKET_CONNECTING) {
+				this.setConnectionState("disconnected");
+			}
+		}) as never);
 	}
 
-	private send(message: ResourceChannelMessage): void {
-		this.socket.send(JSON.stringify(message));
+	private async receive(data: unknown): Promise<void> {
+		if (typeof data === "string") {
+			this.receiveControl(data);
+			return;
+		}
+		const bytes =
+			data instanceof ArrayBuffer
+				? new Uint8Array(data)
+				: data instanceof Uint8Array
+					? data
+					: data instanceof Blob
+						? new Uint8Array(await data.arrayBuffer())
+						: null;
+		if (!bytes) return;
+		try {
+			const frame = decodeRealtimeBinaryFrame(bytes);
+			const subscription = this.subscriptions.get(frame.header.resourceId);
+			if (
+				subscription &&
+				frame.header.subscriptionId === subscription.subscriptionId
+			) {
+				if (frame.header.messageType === "sync.update") {
+					subscription.handlers.onUpdate(frame.payload);
+				}
+			}
+		} catch {
+			this.socket?.close(4400, "invalid binary frame");
+		}
 	}
+
+	private receiveControl(data: string): void {
+		let message: {
+			type?: string;
+			kind?: string;
+			resourceId?: string;
+			protocolVersion?: number;
+			payload?: unknown;
+		};
+		try {
+			message = JSON.parse(data) as typeof message;
+		} catch {
+			this.socket?.close(4400, "malformed control frame");
+			return;
+		}
+		if (
+			message.protocolVersion !== undefined &&
+			message.protocolVersion !== 1
+		) {
+			this.socket?.close(4400, "unsupported protocol version");
+			return;
+		}
+		if (message.type === "SessionReplaced") {
+			this.lastReplacement = message as unknown as SessionReplacedFrame;
+			return;
+		}
+		if (!message.resourceId) return;
+		const subscription = this.subscriptions.get(message.resourceId);
+		if (!subscription) return;
+		const payload =
+			typeof message.payload === "object" && message.payload !== null
+				? (message.payload as Record<string, unknown>)
+				: {};
+		if (message.kind === "subscribe" && payload.status === "ok") {
+			subscription.handlers.onStatus("connected");
+			this.requestStateVector(
+				message.resourceId,
+				subscription.handlers.getStateVector(),
+			);
+			this.publishUpdate(
+				message.resourceId,
+				subscription.handlers.getLocalState(),
+			);
+		} else if (message.kind === "subscribe" && payload.status === "denied") {
+			subscription.handlers.onStatus("denied");
+		} else if (message.kind === "op" && payload.kind === "roster") {
+			subscription.handlers.onPeers(Number(payload.peers ?? 0));
+		}
+	}
+
+	private sendControl(
+		type: "subscribe" | "unsubscribe",
+		resourceId: string,
+		subscriptionId: string,
+	): void {
+		if (this.socket?.readyState !== SOCKET_OPEN) return;
+		this.socket.send(
+			JSON.stringify({
+				protocolVersion: 1,
+				type,
+				resourceId,
+				subscriptionId,
+				payload: {},
+			}),
+		);
+	}
+
+	private sendBinary(
+		resourceId: string,
+		messageType: SyncMessageType,
+		payload: Uint8Array,
+	): void {
+		const subscription = this.subscriptions.get(resourceId);
+		if (!subscription || this.socket?.readyState !== SOCKET_OPEN) return;
+		this.socket.send(
+			encodeRealtimeBinaryFrame(
+				{
+					messageType,
+					resourceId,
+					subscriptionId: subscription.subscriptionId,
+				},
+				payload,
+			),
+		);
+	}
+
+	private scheduleReconnect(): void {
+		if (this.manuallyClosed || this.reconnectTimer) return;
+		const delay = Math.min(this.retryDelay, 20_000);
+		this.retryDelay = Math.min(this.retryDelay * 2, 20_000);
+		this.reconnectTimer = setTimeout(() => {
+			this.reconnectTimer = null;
+			this.open();
+		}, delay);
+	}
+
+	private setConnectionState(state: RealtimeConnectionState): void {
+		this.connectionState = state;
+		for (const listener of this.stateListeners) listener(state);
+		for (const subscription of this.subscriptions.values()) {
+			subscription.handlers.onStatus(state);
+		}
+	}
+}
+
+export function createResourceRealtimeClient(
+	url: string,
+	socketFactory?: RealtimeSocketFactory,
+): ResourceRealtimeClient {
+	return new ManagedResourceRealtimeClient(url, socketFactory);
 }

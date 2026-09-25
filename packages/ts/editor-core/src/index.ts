@@ -1,3 +1,15 @@
+import { toggleMark } from "prosemirror-commands";
+import type { Node as PMNode } from "prosemirror-model";
+import { EditorState, TextSelection } from "prosemirror-state";
+import { EditorView } from "prosemirror-view";
+import {
+	prosemirrorToYXmlFragment,
+	ySyncPlugin,
+	yXmlFragmentToProseMirrorRootNode,
+} from "y-prosemirror";
+import * as Y from "yjs";
+import { schema } from "./pm_schema.js";
+
 /**
  * Content-node model (arch 02): the canonical document tree shared by the
  * editor, Yjs and serialization. Kinds are frozen; unknown kinds are rejected,
@@ -126,4 +138,123 @@ export function toText(nodes: ContentNode[]): string {
 		}
 	}
 	return parts.join("\n");
+}
+
+/** Public editor model. The Y.Doc stays private to Editor Core. */
+export interface TextDocument {
+	getText(): string;
+	setText(value: string): void;
+	onTextChange(listener: (value: string) => void): () => void;
+	applyRemoteUpdate(update: Uint8Array): void;
+	flushLocalUpdates(): Uint8Array[];
+	exportState(): Uint8Array;
+	stateVector(): Uint8Array;
+	mountEditor(host: HTMLElement): TextEditorSurface;
+	destroy(): void;
+}
+
+export interface TextEditorSurface {
+	toggleMark(mark: "strong" | "em" | "code"): void;
+	selectText(text: string): boolean;
+	focus(): void;
+	destroy(): void;
+}
+
+function documentFromText(value: string): PMNode {
+	return schema.nodeFromJSON({
+		type: "doc",
+		content: value.split("\n").map((line) => ({
+			type: "paragraph",
+			content: line ? [{ type: "text", text: line }] : [],
+		})),
+	});
+}
+
+function replaceFragmentFromText(
+	doc: Y.Doc,
+	fragment: Y.XmlFragment,
+	value: string,
+): void {
+	doc.transact(() => {
+		if (fragment.length > 0) fragment.delete(0, fragment.length);
+		prosemirrorToYXmlFragment(documentFromText(value), fragment);
+	}, "editor-api");
+}
+
+/** Plain-text projection of the canonical Y.XmlFragment content. */
+function textFromFragment(fragment: Y.XmlFragment): string {
+	const root = yXmlFragmentToProseMirrorRootNode(fragment, schema);
+	return root.textBetween(0, root.content.size, "\n");
+}
+
+/** Create a local-first Yjs-backed document without exposing its Y.Doc. */
+export function createTextDocument(seed?: Uint8Array): TextDocument {
+	const doc = new Y.Doc();
+	if (seed && seed.byteLength > 0) Y.applyUpdate(doc, seed, "remote");
+	const fragment = doc.getXmlFragment("prosemirror");
+	// Migrate the previous runtime's Y.Text-only cache into Editor Core's
+	// canonical ProseMirror/Y.XmlFragment representation.
+	if (fragment.length === 0) {
+		replaceFragmentFromText(doc, fragment, doc.getText("content").toString());
+	}
+	const updates: Uint8Array[] = [];
+	const textListeners = new Set<(value: string) => void>();
+	doc.on("update", (update: Uint8Array, origin: unknown) => {
+		if (origin !== "remote") updates.push(update.slice());
+		const value = textFromFragment(fragment);
+		for (const listener of textListeners) listener(value);
+	});
+	return {
+		getText: () => textFromFragment(fragment),
+		setText(value) {
+			if (textFromFragment(fragment) === value) return;
+			replaceFragmentFromText(doc, fragment, value);
+		},
+		onTextChange(listener) {
+			textListeners.add(listener);
+			return () => textListeners.delete(listener);
+		},
+		applyRemoteUpdate(update) {
+			Y.applyUpdate(doc, update, "remote");
+		},
+		flushLocalUpdates: () => updates.splice(0, updates.length),
+		exportState: () => Y.encodeStateAsUpdate(doc),
+		stateVector: () => Y.encodeStateVector(doc),
+		mountEditor(host) {
+			const state = EditorState.create({
+				schema,
+				plugins: [ySyncPlugin(fragment)],
+			});
+			const view = new EditorView(host, { state });
+			return {
+				toggleMark(mark) {
+					const command = toggleMark(schema.marks[mark]);
+					command(view.state, view.dispatch);
+					view.focus();
+				},
+				selectText(value) {
+					if (!value) return false;
+					let from: number | null = null;
+					view.state.doc.descendants((node, position) => {
+						if (from !== null || !node.isText || !node.text) return;
+						const offset = node.text.indexOf(value);
+						if (offset >= 0) from = position + offset;
+					});
+					if (from === null) return false;
+					view.dispatch(
+						view.state.tr.setSelection(
+							TextSelection.create(view.state.doc, from, from + value.length),
+						),
+					);
+					view.focus();
+					return true;
+				},
+				focus: () => view.focus(),
+				destroy() {
+					view.destroy();
+				},
+			};
+		},
+		destroy: () => doc.destroy(),
+	};
 }

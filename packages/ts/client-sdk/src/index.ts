@@ -84,13 +84,26 @@ type TransferOwnerRequest =
 	components["schemas"]["transfer-workspace-owner.schema"];
 type TransferOwnerResponse =
 	components["schemas"]["TransferWorkspaceOwnerResponse"];
-type CreateProjectRequest = components["schemas"]["create-project.schema"];
+type CreateProjectRequest = Omit<
+	components["schemas"]["create-project.schema"],
+	"$defs"
+>;
 type CreateProjectResponse = components["schemas"]["CreateProjectResponse"];
-type CreateFolderRequest = components["schemas"]["create-folder.schema"];
+type CreateFolderRequest = Omit<
+	components["schemas"]["create-folder.schema"],
+	"$defs"
+>;
 type CreateFolderResponse = components["schemas"]["CreateFolderResponse"];
 type MoveFolderRequest = components["schemas"]["move-folder.schema"];
 type MoveFolderResponse = components["schemas"]["MoveFolderResponse"];
 type ProjectTreeResponse = components["schemas"]["get-project-tree.schema"];
+type ProposeChangeSetRequest = Omit<
+	components["schemas"]["propose-changeset.schema"],
+	"$defs"
+>;
+type ProposeChangeSetResponse =
+	components["schemas"]["ProposeChangeSetResponse"];
+type ApplyChangeSetResponse = components["schemas"]["apply-changeset.schema"];
 type WorkspaceId = components["schemas"]["WorkspaceId"];
 type ProjectId = components["schemas"]["ProjectId"];
 type FolderId = components["schemas"]["FolderId"];
@@ -239,8 +252,14 @@ export class DomClient {
 		});
 	}
 
-	async listResources(projectId: string): Promise<ListResourcesResponse> {
-		return this.request(`/projects/${projectId}/resources`, {
+	async listResources(
+		projectId: string,
+		folderId?: string,
+	): Promise<ListResourcesResponse> {
+		const folderQuery = folderId
+			? `?folderId=${encodeURIComponent(folderId)}`
+			: "";
+		return this.request(`/projects/${projectId}/resources${folderQuery}`, {
 			method: "GET",
 		});
 	}
@@ -373,18 +392,17 @@ export class DomClient {
 	async proposeChangeSet(
 		resourceId: string,
 		instruction: string,
-	): Promise<{ changesetId: string; status: string }> {
+	): Promise<ProposeChangeSetResponse> {
+		const body: ProposeChangeSetRequest = { resourceId, instruction };
 		return this.request(`/ai/propose-changeset`, {
 			method: "POST",
-			body: { resourceId, instruction },
+			body,
 		});
 	}
 
-	async applyChangeSet(changesetId: string): Promise<{ status: string }> {
+	async applyChangeSet(changesetId: string): Promise<ApplyChangeSetResponse> {
 		return this.request(`/changesets/${changesetId}/apply`, {
 			method: "POST",
-			body: {},
-			idempotencyKey: crypto.randomUUID(),
 		});
 	}
 

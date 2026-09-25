@@ -48,6 +48,7 @@ async def open_resource(
     return OpenResourceResponse(
         resourceId=resource.resource_id,
         projectId=resource.project_id,
+        folderId=resource.folder_id,
         resourceType=ResourceType(resource.resource_type),
         name=resource.name,
         lifecycle=ResourceLifecycle(resource.lifecycle),

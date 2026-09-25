@@ -28,6 +28,7 @@ class CreateResource(BaseModel):
         extra="forbid",
     )
     projectId: UUID = Field(..., title="WorkspaceId")
+    folderId: UUID | None = None
     resourceType: ResourceType
     name: constr(min_length=1, max_length=200)
     idempotencyKey: UUID = Field(..., title="IdempotencyKey")
@@ -39,6 +40,7 @@ class CreateResourceResponse(BaseModel):
     )
     resourceId: UUID = Field(..., title="UserId")
     projectId: UUID = Field(..., title="WorkspaceId")
+    folderId: UUID | None = None
     resourceType: ResourceType
     name: str
     lifecycle: Lifecycle

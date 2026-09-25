@@ -17,3 +17,5 @@ class SearchHit:
     score: float
     snippet: str | None = None
     updated_at: datetime | None = None
+    project_id: UUID | None = None
+    folder_id: UUID | None = None

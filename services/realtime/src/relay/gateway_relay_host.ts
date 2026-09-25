@@ -19,8 +19,8 @@ import {
 import { NatsBroadcastRelay } from "./nats_broadcast_relay.js";
 
 export interface RelayHostOptions {
-	/** API base used for read-authorization (GET /v1/resources/<id>); default
-	 * deny on network errors. */
+	/** API base used for read and write capability checks; default deny on
+	 * network errors. */
 	apiBaseUrl: string;
 	natsUrl: string;
 	/** Yjs backlog store for late-join catch-up (arch 05); default in-memory. */
@@ -44,6 +44,8 @@ export class GatewayRelayHost {
 			{
 				authorizeResource: async (actorId, resourceId) =>
 					this.authorize(actorId, resourceId),
+				authorizeResourceUpdate: async (actorId, resourceId) =>
+					this.authorizeUpdate(actorId, resourceId),
 			},
 			{
 				send: (connectionId, envelope) => {
@@ -74,6 +76,34 @@ export class GatewayRelayHost {
 			return response.status === 200;
 		} catch {
 			// Default deny: authorization must never fail open.
+			return false;
+		}
+	}
+
+	private async authorizeUpdate(
+		actorId: string,
+		resourceId: string,
+	): Promise<boolean> {
+		try {
+			const response = await fetch(
+				`${this.options.apiBaseUrl}/v1/resources/${encodeURIComponent(resourceId)}/capabilities`,
+				{
+					headers: { cookie: `dom_session=${actorId}` },
+					signal: AbortSignal.timeout(3000),
+				},
+			);
+			if (response.status !== 200) return false;
+			const capabilities: unknown = await response.json();
+			return (
+				typeof capabilities === "object" &&
+				capabilities !== null &&
+				"resourceId" in capabilities &&
+				capabilities.resourceId === resourceId &&
+				"canUpdate" in capabilities &&
+				capabilities.canUpdate === true
+			);
+		} catch {
+			// Capability lookup failures deny this update; no positive result is cached.
 			return false;
 		}
 	}

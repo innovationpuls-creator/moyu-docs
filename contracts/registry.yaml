@@ -267,6 +267,38 @@ contracts:
     ownerModule: packages/py/core/resource
     status: active
 
+  - logicalName: ProposeChangeSet
+    kind: Command
+    domain: ai
+    version: "1.0.0"
+    schemaPath: contracts/commands/ai/propose-changeset.schema.json
+    requestRef: contracts/commands/ai/propose-changeset.schema.json
+    responseRef: contracts/commands/ai/propose-changeset.schema.json#/$defs/ProposeChangeSetResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_PERMISSION_DENIED]
+    ownerDocument: docs/architecture/12-AI-Task-ChangeSet-Design.md
+    ownerModule: packages/py/core/ai
+    status: active
+
+  - logicalName: ApplyChangeSet
+    kind: Command
+    domain: ai
+    version: "1.0.0"
+    schemaPath: contracts/commands/ai/apply-changeset.schema.json
+    requestRef: none
+    responseRef: contracts/commands/ai/apply-changeset.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_PERMISSION_DENIED, CHANGESET_NOT_FOUND]
+    ownerDocument: docs/architecture/12-AI-Task-ChangeSet-Design.md
+    ownerModule: packages/py/core/ai
+    status: active
+
   - logicalName: RenameResource
     kind: Command
     domain: resource
