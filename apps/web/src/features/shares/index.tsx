@@ -1,6 +1,7 @@
 import type { OpenPublicSharedResourceResponse } from "@dom/client-sdk";
 import {
 	type AssetReference,
+	type ContentNode,
 	createTextDocument,
 	type TextDocument,
 	type TextEditorSurface,
@@ -9,18 +10,25 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router";
 import { client } from "../../shared/api/client";
+import { createPublicShareClient } from "../../shared/realtime";
 
 interface SharePanelProps {
 	resourceId: string;
 }
 
-function snapshotText(snapshot: unknown): string | null {
-	if (typeof snapshot !== "object" || snapshot === null) return null;
-	const text = (snapshot as { text?: unknown }).text;
-	return typeof text === "string" ? text : null;
+function restoreCheckpoint(model: TextDocument, snapshot: unknown): boolean {
+	if (typeof snapshot !== "object" || snapshot === null) return false;
+	const checkpoint = snapshot as { nodes?: unknown; text?: unknown };
+	if (Array.isArray(checkpoint.nodes)) {
+		model.setNodes(checkpoint.nodes as ContentNode[]);
+		return true;
+	}
+	if (typeof checkpoint.text === "string") {
+		model.setText(checkpoint.text);
+		return true;
+	}
+	return false;
 }
-
-
 
 function renderSharedAsset(token: string) {
 	return (container: HTMLElement, reference: AssetReference) => {
@@ -32,33 +40,35 @@ function renderSharedAsset(token: string) {
 			return () => image.removeAttribute("src");
 		}
 
-		const link = document.createElement("a");
+		let disposed = false;
+		const link = window.document.createElement("a");
 		link.href = url;
-		link.rel = "noopener noreferrer";
+		link.target = "_blank";
+		link.rel = "noreferrer";
 		link.referrerPolicy = "no-referrer";
 		link.textContent = reference.label || "附件";
-		container.replaceChildren(link);
-		let disposed = false;
 		void client
 			.downloadPublicSharedAsset(token, reference.assetId)
 			.then(async (blob) => {
-				if (
-					disposed ||
-					blob.type.toLowerCase().split(";")[0] !== "text/plain" ||
-					blob.size > 128 * 1024
-				)
+				const mime = blob.type.split(";", 1)[0].trim().toLowerCase();
+				if (mime !== "text/plain" || blob.size > 64 * 1024) {
+					if (!disposed) container.replaceChildren(link);
 					return;
-				const preview = document.createElement("pre");
-				preview.textContent = await blob.text();
-				if (!disposed) container.replaceChildren(preview);
+				}
+				const text = await blob.text();
+				if (disposed) return;
+				container.style.whiteSpace = "pre-wrap";
+				container.replaceChildren(
+					window.document.createTextNode(text),
+					window.document.createElement("br"),
+					link,
+				);
 			})
 			.catch(() => {
-				if (!disposed)
-					link.textContent = `${reference.label || "附件"}（读取失败，可重试）`;
+				if (!disposed) container.replaceChildren(link);
 			});
 		return () => {
 			disposed = true;
-			container.replaceChildren();
 		};
 	};
 }
@@ -80,37 +90,201 @@ function PublicShareDocument({
 		let disposed = false;
 		let model: TextDocument | null = null;
 		let surface: TextEditorSurface | null = null;
+		type ShareConnection = {
+			client: ReturnType<typeof createPublicShareClient>;
+			unsubscribe: () => void;
+			stateKind: "yjs" | "checkpoint" | null;
+			closed: boolean;
+		};
+		let primary: ShareConnection | null = null;
+		let candidate: ShareConnection | null = null;
+		let refreshRequested = false;
+		let refreshInProgress = false;
+		let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 		setError("");
 		setLoading(true);
-		model = createTextDocument();
-		const text = snapshotText(resource.snapshot);
-		if (text === null) {
-			setError("当前文档尚无可公开的内容快照。");
-			setLoading(false);
-		} else {
-			model.setText(text);
-			model.flushLocalUpdates();
-			surface = model.mountEditor(element, {
+		const installModel = (next: TextDocument) => {
+			surface?.destroy();
+			model?.destroy();
+			element.replaceChildren();
+			model = next;
+			surface = next.mountEditor(element, {
 				readOnly: true,
 				renderAsset: renderSharedAsset(token),
 			});
+		};
+		const installCheckpoint = (snapshot: unknown) => {
+			const next = createTextDocument();
+			if (!restoreCheckpoint(next, snapshot)) {
+				next.destroy();
+				throw new Error("公开快照中没有可显示的文档内容。");
+			}
+			// Checkpoint edits are local initialization only; never publish them.
+			next.flushLocalUpdates();
+			installModel(next);
+		};
+		const closeConnection = (connection: ShareConnection | null) => {
+			if (!connection || connection.closed) return;
+			connection.closed = true;
+			connection.unsubscribe();
+			connection.client.close();
+		};
+		const finishRefresh = () => {
+			refreshInProgress = false;
+			if (refreshRequested) scheduleRefresh();
+		};
+		const promote = (connection: ShareConnection, update: Uint8Array) => {
+			// A yjs share-state is followed by a full current-state sync.update.
+			// Rebuilding avoids merging it with a checkpoint or legacy Y.Text model.
+			const next = createTextDocument(update);
+			installModel(next);
+			setError("");
 			setLoading(false);
-		}
+			if (connection === candidate) {
+				const previous = primary;
+				primary = connection;
+				candidate = null;
+				refreshRequested = false;
+				finishRefresh();
+				closeConnection(previous);
+			} else {
+				primary = connection;
+			}
+		};
+		const scheduleRefresh = () => {
+			refreshRequested = true;
+			if (refreshInProgress || refreshTimer !== null || disposed) return;
+			refreshTimer = setTimeout(() => {
+				refreshTimer = null;
+				if (!refreshRequested || disposed) return;
+				refreshRequested = false;
+				refreshInProgress = true;
+				startConnection("candidate");
+			}, 100);
+		};
+		const startConnection = (role: "primary" | "candidate") => {
+			const realtime = createPublicShareClient(token);
+			const connection: ShareConnection = {
+				client: realtime,
+				unsubscribe: () => {},
+				stateKind: null,
+				closed: false,
+			};
+			if (role === "candidate") candidate = connection;
+			else primary = connection;
+			connection.unsubscribe = realtime.subscribeResource(resource.resourceId, {
+				getStateVector: () => new Uint8Array(),
+				getLocalState: () => new Uint8Array(),
+				onUpdate(update) {
+					if (disposed || connection.closed) return;
+					if (connection.stateKind === "checkpoint") {
+						// A checkpoint is not a Yjs base state. Treat deltas only as
+						// invalidation signals and obtain a fresh public checkpoint.
+						scheduleRefresh();
+						return;
+					}
+					if (connection.stateKind !== "yjs") return;
+					try {
+						if (role === "candidate" || model === null) {
+							promote(connection, update);
+						} else {
+							model.applyRemoteUpdate(update);
+							setLoading(false);
+						}
+					} catch (updateError) {
+						setError(
+							updateError instanceof Error
+								? updateError.message
+								: "读取实时文档状态失败。",
+						);
+						setLoading(false);
+						if (connection === candidate) {
+							candidate = null;
+							closeConnection(connection);
+							finishRefresh();
+						}
+					}
+				},
+				onPeers: () => {},
+				onShareState(kind) {
+					if (disposed || connection.closed) return;
+					connection.stateKind = kind;
+					setError("");
+					if (kind === "yjs") {
+						if (role === "primary" && model === null) setLoading(true);
+						return;
+					}
+					if (role === "primary") {
+						try {
+							installCheckpoint(resource.snapshot);
+							setLoading(false);
+						} catch (restoreError) {
+							setError(
+								restoreError instanceof Error
+									? restoreError.message
+									: "读取公开快照失败。",
+							);
+							setLoading(false);
+						}
+						return;
+					}
+					void client
+						.openPublicSharedResource(token)
+						.then((latest) => {
+							if (disposed || connection.closed) return;
+							if (latest.resourceId !== resource.resourceId) {
+								throw new Error("分享文档已发生变化，请重新打开链接。");
+							}
+							installCheckpoint(latest.snapshot);
+							setError("");
+						})
+						.catch((restoreError: unknown) => {
+							if (disposed || connection.closed) return;
+							setError(
+								restoreError instanceof Error
+									? restoreError.message
+									: "刷新公开快照失败。",
+							);
+						})
+						.finally(() => {
+							if (connection === candidate) {
+								candidate = null;
+								closeConnection(connection);
+								finishRefresh();
+							}
+						});
+				},
+				onStatus(status) {
+					if (disposed || connection.closed || status !== "denied") return;
+					if (connection === candidate) {
+						candidate = null;
+						closeConnection(connection);
+						finishRefresh();
+					}
+					setError("分享链接已失效或无权读取实时内容。");
+					setLoading(false);
+				},
+			});
+		};
+		startConnection("primary");
 		return () => {
 			disposed = true;
+			if (refreshTimer !== null) clearTimeout(refreshTimer);
+			closeConnection(candidate);
+			closeConnection(primary);
 			surface?.destroy();
 			model?.destroy();
 		};
 	}, [resource, token]);
 
-	if (error) return <p role="alert">{error}</p>;
 	return (
 		<section
 			className="public-share-content"
 			aria-label="文档内容"
 			aria-busy={loading}
 		>
-			{loading && <p role="status">正在读取文档内容…</p>}
+			{error && <p role="alert">{error}</p>}
+			{loading && !error && <p role="status">正在读取文档内容…</p>}
 			<div
 				className="public-share-editor"
 				ref={host}

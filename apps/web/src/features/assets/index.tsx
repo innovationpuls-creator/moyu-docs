@@ -1,7 +1,7 @@
 import { createIdempotencyKey } from "@dom/client-sdk";
 import type { NewAssetReference } from "@dom/editor-core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { client } from "../../shared/api/client";
 
 interface AssetsPanelProps {
@@ -17,35 +17,6 @@ function formatSize(sizeBytes: number): string {
 
 function isPreviewableImage(mime: string | null): boolean {
 	return mime !== null && /^image\/(avif|gif|jpeg|png|webp)$/i.test(mime);
-}
-
-function AssetPreview({
-	resourceId,
-	assetId,
-	name,
-}: {
-	resourceId: string;
-	assetId: string;
-	name: string;
-}) {
-	const [previewUrl, setPreviewUrl] = useState("");
-	const preview = useQuery({
-		queryKey: ["resource-asset-preview", resourceId, assetId],
-		queryFn: () => client.downloadAsset(assetId),
-		retry: false,
-	});
-
-	useEffect(() => {
-		if (!preview.data) return;
-		const url = URL.createObjectURL(preview.data);
-		setPreviewUrl(url);
-		return () => URL.revokeObjectURL(url);
-	}, [preview.data]);
-
-	if (preview.isLoading)
-		return <span className="asset-preview-pending">加载预览…</span>;
-	if (preview.isError || !previewUrl) return null;
-	return <img className="asset-preview-image" src={previewUrl} alt={name} />;
 }
 
 function referenceFromAsset(asset: {
@@ -151,20 +122,6 @@ export function AssetsPanel({ resourceId, onInsertAssets }: AssetsPanelProps) {
 		},
 	});
 
-	async function download(asset: { assetId: string; originalName: string }) {
-		try {
-			const blob = await client.downloadAsset(asset.assetId);
-			const url = URL.createObjectURL(blob);
-			const anchor = window.document.createElement("a");
-			anchor.href = url;
-			anchor.download = asset.originalName;
-			anchor.click();
-			window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
-		} catch (error) {
-			setMessage(error instanceof Error ? error.message : "附件下载失败。");
-		}
-	}
-
 	function insert(asset: {
 		assetId: string;
 		originalName: string;
@@ -183,7 +140,7 @@ export function AssetsPanel({ resourceId, onInsertAssets }: AssetsPanelProps) {
 			<div className="assets-panel-heading">
 				<div>
 					<h2>附件</h2>
-					<p>图片可预览，其他文件可下载。</p>
+					<p>图片和纯文本会直接显示在正文中。</p>
 				</div>
 				<input
 					ref={fileInput}
@@ -238,46 +195,31 @@ export function AssetsPanel({ resourceId, onInsertAssets }: AssetsPanelProps) {
 				</div>
 			) : assets.data?.assets.length ? (
 				<ul className="asset-list" data-testid="asset-list">
-					{assets.data.assets.map((asset) => {
-						const isPreviewable = isPreviewableImage(asset.mime);
-						return (
-							<li className="asset-list-item" key={asset.assetId}>
-								{isPreviewable && (
-									<AssetPreview
-										resourceId={resourceId}
-										assetId={asset.assetId}
-										name={asset.originalName}
-									/>
-								)}
-								<div className="asset-list-details">
-									<strong title={asset.originalName}>
-										{asset.originalName}
-									</strong>
-									<span>
-										{asset.mime ?? "未知类型"} · {formatSize(asset.sizeBytes)}
-									</span>
-								</div>
-								<div className="asset-actions">
-									<button
-										type="button"
-										className="asset-insert-button"
-										data-testid={`asset-insert-${asset.assetId}`}
-										onClick={() => insert(asset)}
-									>
-										插入正文
-									</button>
-									<button
-										type="button"
-										className="asset-download-button"
-										data-testid={`asset-download-${asset.assetId}`}
-										onClick={() => void download(asset)}
-									>
-										下载
-									</button>
-								</div>
-							</li>
-						);
-					})}
+					{assets.data.assets.map((asset) => (
+						<li className="asset-list-item" key={asset.assetId}>
+							<div className="asset-list-details">
+								<a
+									href={client.assetUrl(asset.assetId)}
+									target="_blank"
+									rel="noreferrer"
+									title={asset.originalName}
+								>
+									{asset.originalName}
+								</a>
+								<span>
+									{asset.mime ?? "未知类型"} · {formatSize(asset.sizeBytes)}
+								</span>
+							</div>
+							<button
+								type="button"
+								className="asset-insert-button"
+								data-testid={`asset-insert-${asset.assetId}`}
+								onClick={() => insert(asset)}
+							>
+								插入正文
+							</button>
+						</li>
+					))}
 				</ul>
 			) : (
 				<p className="assets-panel-empty" data-testid="asset-empty-state">

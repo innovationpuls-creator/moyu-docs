@@ -76,6 +76,7 @@ export class ResourceSubscriptionManager {
 	private readonly subscriptions = new Map<string, Set<string>>(); // conn -> subjects
 	private readonly bySubject = new Map<string, Set<string>>(); // subject -> conns
 	private readonly actors = new Map<string, string>(); // conn -> actor
+	private readonly publicShareConnections = new Set<string>();
 	private readonly subscriptionIds = new Map<string, string>(); // conn + resource -> subscription
 	private readonly participants = new Map<string, PresenceRecord>(); // conn + resource -> ephemeral presence
 	private readonly participantsByResource = new Map<
@@ -145,6 +146,59 @@ export class ResourceSubscriptionManager {
 		return SUBSCRIPTION_OK;
 	}
 
+	/** Public share subscriptions receive body updates only and never enter Presence. */
+	subscribePublicShare(
+		connectionId: string,
+		resourceId: string,
+		subscriptionId: string,
+	): void {
+		if (this.isSubscribed(connectionId, resourceId)) {
+			this.unsubscribe(connectionId, resourceId);
+		}
+		const subject = subjectFor(resourceId);
+		const connSubjects =
+			this.subscriptions.get(connectionId) ?? new Set<string>();
+		connSubjects.add(subject);
+		this.subscriptions.set(connectionId, connSubjects);
+		const conns = this.bySubject.get(subject) ?? new Set<string>();
+		conns.add(connectionId);
+		this.bySubject.set(subject, conns);
+		this.subscriptionIds.set(
+			subscriptionKey(connectionId, resourceId),
+			subscriptionId,
+		);
+		this.publicShareConnections.add(connectionId);
+		this.sender.send(connectionId, {
+			subject,
+			resourceId,
+			subscriptionId,
+			kind: "subscribe",
+			payload: { status: "ok" },
+		});
+		this.broadcastRoster(subject, resourceId);
+	}
+
+	sendPublicShareState(
+		connectionId: string,
+		resourceId: string,
+		subscriptionId: string,
+		updateBase64: string,
+	): void {
+		if (!this.isSubscribed(connectionId, resourceId, subscriptionId)) return;
+		this.sender.send(connectionId, {
+			subject: subjectFor(resourceId),
+			resourceId,
+			subscriptionId,
+			kind: "op",
+			payload: { kind: "yjs", update: updateBase64 },
+			occurredAt: new Date().toISOString(),
+		});
+	}
+
+	isPublicShareConnection(connectionId: string): boolean {
+		return this.publicShareConnections.has(connectionId);
+	}
+
 	private addParticipant(
 		connectionId: string,
 		resourceId: string,
@@ -188,6 +242,7 @@ export class ResourceSubscriptionManager {
 		resourceId: string,
 		event: AwarenessEvent,
 	): void {
+		if (this.publicShareConnections.has(connectionId)) return;
 		this.sender.send(connectionId, {
 			subject: subjectFor(resourceId),
 			resourceId,
@@ -266,7 +321,8 @@ export class ResourceSubscriptionManager {
 			participantId: record.participant.participantId,
 		};
 		for (const peer of this.bySubject.get(subjectFor(resourceId)) ?? []) {
-			if (peer === connectionId) continue;
+			if (peer === connectionId || this.publicShareConnections.has(peer))
+				continue;
 			this.sendAwarenessEvent(peer, resourceId, event);
 		}
 	}
@@ -274,8 +330,11 @@ export class ResourceSubscriptionManager {
 	/** Roster presence (arch 05): every subscribe/leave pushes the peer count. */
 	private broadcastRoster(subject: string, resourceId: string): void {
 		const conns = this.bySubject.get(subject);
-		const peers = conns?.size ?? 0;
+		const peers = [...(conns ?? [])].filter(
+			(connectionId) => !this.publicShareConnections.has(connectionId),
+		).length;
 		for (const connectionId of conns ?? []) {
+			if (this.publicShareConnections.has(connectionId)) continue;
 			this.sender.send(connectionId, {
 				subject,
 				resourceId,
@@ -325,6 +384,7 @@ export class ResourceSubscriptionManager {
 		const actorId = this.actors.get(connectionId);
 		if (
 			!actorId ||
+			this.publicShareConnections.has(connectionId) ||
 			!this.isSubscribed(connectionId, resourceId, subscriptionId)
 		) {
 			return false;
@@ -430,6 +490,9 @@ export class ResourceSubscriptionManager {
 		const actorId = this.actors.get(connectionId);
 		if (actorId) void this.presence?.leave(resourceId, actorId);
 		if ((this.subscriptions.get(connectionId)?.size ?? 0) === 0) {
+			this.publicShareConnections.delete(connectionId);
+		}
+		if ((this.subscriptions.get(connectionId)?.size ?? 0) === 0) {
 			this.actors.delete(connectionId);
 		}
 		this.broadcastRoster(subject, resourceId);
@@ -450,6 +513,7 @@ export class ResourceSubscriptionManager {
 		}
 		this.subscriptions.delete(connectionId);
 		this.actors.delete(connectionId);
+		this.publicShareConnections.delete(connectionId);
 	}
 
 	dispatch(
@@ -469,6 +533,10 @@ export class ResourceSubscriptionManager {
 		let sent = 0;
 		for (const connectionId of conns) {
 			if (connectionId === exceptConnectionId) continue;
+			if (this.publicShareConnections.has(connectionId)) {
+				const payload = message.payload as { kind?: unknown } | undefined;
+				if (message.kind !== "op" || payload?.kind !== "yjs") continue;
+			}
 			this.sender.send(connectionId, {
 				...message,
 				subscriptionId: this.getSubscriptionId(connectionId, resourceId),

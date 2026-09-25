@@ -15,6 +15,46 @@ describe("Editor Core text document", () => {
 		reopened.destroy();
 	});
 
+	it("sets canonical nodes and shares rich checkpoint content through Yjs", () => {
+		const author = createTextDocument();
+		const replica = createTextDocument(author.exportState());
+		const checkpoint = [
+			{
+				kind: "heading" as const,
+				level: 2 as const,
+				children: [{ kind: "text" as const, text: "Review" }],
+			},
+			{
+				kind: "image" as const,
+				nodeId: "node-image-1",
+				assetId: "asset-image-1",
+				label: "diagram.png",
+			},
+			{
+				kind: "attachment" as const,
+				nodeId: "node-file-1",
+				assetId: "asset-file-1",
+				label: "notes.txt",
+			},
+		];
+
+		author.setNodes(checkpoint);
+		replica.applyRemoteUpdates(author.flushLocalUpdates());
+		const reopened = createTextDocument(replica.exportState());
+		const reopenedDoc = new Y.Doc();
+		Y.applyUpdate(reopenedDoc, reopened.exportState());
+
+		expect(yFragmentToNodes(yFragmentFor(reopenedDoc))).toEqual(checkpoint);
+		expect(reopened.getText()).toBe(
+			"Review\n![diagram.png](asset://asset-image-1)\n[notes.txt](asset://asset-file-1)",
+		);
+
+		author.destroy();
+		replica.destroy();
+		reopened.destroy();
+		reopenedDoc.destroy();
+	});
+
 	it("migrates an existing Y.Text-only offline update", () => {
 		const legacyDocument = new Y.Doc();
 		legacyDocument.getText("content").insert(0, "待恢复的旧草稿");

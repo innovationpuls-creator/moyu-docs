@@ -667,8 +667,9 @@ export class DomClient {
 			this.publicSharedAssetUrl(token, assetId),
 			{
 				method: "GET",
-				credentials: "same-origin",
+				credentials: "omit",
 				cache: "no-store",
+				referrerPolicy: "no-referrer",
 			},
 		);
 		if (!response.ok) throw await this.toError(response);

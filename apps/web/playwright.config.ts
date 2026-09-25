@@ -73,7 +73,11 @@ export default defineConfig({
 			command: "pnpm --filter @dom/realtime dev",
 			url: "http://127.0.0.1:8765/healthz",
 			cwd: repoRoot,
-			env: { VALKEY_URL: "redis://localhost:6379/14", REALTIME_PORT: "8765" },
+			env: {
+				VALKEY_URL: "redis://localhost:6379/14",
+				REALTIME_PORT: "8765",
+				REALTIME_DATABASE_URL: "postgresql://torch@localhost:5432/dom_dev",
+			},
 			reuseExistingServer: true,
 			timeout: 60_000,
 		},

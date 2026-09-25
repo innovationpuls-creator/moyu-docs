@@ -42,6 +42,58 @@ describe("ResourceSubscriptionManager", () => {
 		expect(sent).toHaveLength(0);
 	});
 
+	it("keeps public share subscriptions read only and outside Presence", async () => {
+		const { authorizer, manager, sent } = setup();
+		authorizer.allowed.add("actor-a:res-1");
+		await manager.subscribe("member", "actor-a", "res-1", "member-sub", {
+			accountId: "actor-a",
+		});
+		sent.length = 0;
+
+		manager.subscribePublicShare("guest", "res-1", "guest-sub");
+		expect(manager.isPublicShareConnection("guest")).toBe(true);
+		expect(
+			sent.some(
+				({ to, envelope }) =>
+					to === "guest" &&
+					(envelope as { payload?: { kind?: string } }).payload?.kind ===
+						"roster",
+			),
+		).toBe(false);
+
+		sent.length = 0;
+		manager.dispatch("res-1", {
+			kind: "comment.added",
+			payload: { kind: "comment.added" },
+		});
+		manager.dispatch("res-1", {
+			kind: "op",
+			payload: { kind: "yjs", update: "eQ==" },
+		});
+		expect(
+			sent.some(
+				({ to, envelope }) =>
+					to === "guest" &&
+					(envelope as { payload?: { kind?: string } }).payload?.kind === "yjs",
+			),
+		).toBe(true);
+		expect(
+			sent.some(
+				({ to, envelope }) =>
+					to === "guest" &&
+					(envelope as { kind?: string }).kind === "comment.added",
+			),
+		).toBe(false);
+		expect(
+			await manager.publishYjsUpdate("guest", "res-1", "guest-sub", "eQ=="),
+		).toBe(false);
+		expect(
+			manager.publishAwareness("guest", "res-1", "guest-sub", {
+				cursor: null,
+			}),
+		).toBe(false);
+	});
+
 	it("accepts an owned subscription and routes dispatch to that subject only", async () => {
 		const { authorizer, manager, sent } = setup();
 		authorizer.allowed.add("actor-a:res-1");

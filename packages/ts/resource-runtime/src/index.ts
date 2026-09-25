@@ -57,6 +57,11 @@ export interface LocalResourceUpdateEvent {
 	update: Uint8Array;
 }
 
+export interface UnsyncedResource {
+	resource: ResourceMetadata;
+	snapshots: LocalResourceSnapshot[];
+}
+
 interface StoredResourceState {
 	accountId: string;
 	resourceId: string;
@@ -426,6 +431,67 @@ export class ResourceRuntime {
 	getCachedAccountId(): string | null {
 		this.assertActive();
 		return this.localStorageLike?.getItem(LAST_ACCOUNT_ID_STORAGE_KEY) ?? null;
+	}
+
+	clearCachedAccountId(): void {
+		this.assertActive();
+		this.localStorageLike?.setItem(LAST_ACCOUNT_ID_STORAGE_KEY, "");
+	}
+
+	async listUnsyncedResources(accountId: string): Promise<UnsyncedResource[]> {
+		this.assertActive();
+		if (!accountId.trim()) throw new TypeError("accountId must be non-empty");
+		const database = await this.openDatabase();
+		try {
+			const transaction = database.transaction(
+				[RESOURCE_STORE, SNAPSHOT_STORE],
+				"readonly",
+			);
+			const done = transactionDone(transaction);
+			const accountRange = IDBKeyRange.bound(
+				[accountId, ""],
+				[accountId, "\uffff"],
+			);
+			const resourcesRequest = transaction
+				.objectStore(RESOURCE_STORE)
+				.getAll(accountRange);
+			const snapshotsRequest = transaction
+				.objectStore(SNAPSHOT_STORE)
+				.index(SNAPSHOT_INDEX)
+				.getAll(accountRange);
+			const [resources, rows] = await Promise.all([
+				requestResult(resourcesRequest) as Promise<StoredResourceState[]>,
+				requestResult(snapshotsRequest) as Promise<StoredResourceSnapshot[]>,
+			]);
+			await done;
+
+			const snapshotsByResource = new Map<string, LocalResourceSnapshot[]>();
+			const unsyncedResourceIds = new Set<string>();
+			for (const row of rows) {
+				const snapshots = snapshotsByResource.get(row.resourceId) ?? [];
+				snapshots.push({
+					replicaId: row.replicaId,
+					revision: row.revision,
+					acceptedRevision: row.acceptedRevision ?? 0,
+					durableRevision: row.durableRevision ?? 0,
+					update: new Uint8Array(row.update),
+					updatedAt: row.updatedAt,
+				});
+				snapshotsByResource.set(row.resourceId, snapshots);
+				if (row.revision > (row.durableRevision ?? 0)) {
+					unsyncedResourceIds.add(row.resourceId);
+				}
+			}
+
+			return resources
+				.filter((state) => unsyncedResourceIds.has(state.resourceId))
+				.map((state) => ({
+					resource: state.metadata,
+					snapshots: snapshotsByResource.get(state.resourceId) ?? [],
+				}));
+		} finally {
+			database.close();
+		}
 	}
 
 	readUnboundRecoveryDraft(): string {

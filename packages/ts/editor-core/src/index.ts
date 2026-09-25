@@ -17,7 +17,7 @@ import {
 	remoteCursorKey,
 	remoteCursorsPlugin,
 } from "./pm_cursor.js";
-import { schema } from "./pm_schema.js";
+import { docFromNodes, schema } from "./pm_schema.js";
 
 /**
  * Content-node model (arch 02): the canonical document tree shared by the
@@ -210,6 +210,7 @@ export function toText(nodes: ContentNode[]): string {
 export interface TextDocument {
 	getText(): string;
 	setText(value: string): void;
+	setNodes(nodes: ContentNode[]): void;
 	onTextChange(listener: (value: string) => void): () => void;
 	applyRemoteUpdate(update: Uint8Array): void;
 	applyRemoteUpdates(updates: readonly Uint8Array[]): void;
@@ -305,6 +306,14 @@ function replaceFragmentFromText(
 	value: string,
 ): void {
 	const nextDocument = documentFromText(value, preservedAssetNodeIds(fragment));
+	replaceFragmentFromDocument(doc, fragment, nextDocument);
+}
+
+function replaceFragmentFromDocument(
+	doc: Y.Doc,
+	fragment: Y.XmlFragment,
+	nextDocument: PMNode,
+): void {
 	doc.transact(() => {
 		if (fragment.length > 0) fragment.delete(0, fragment.length);
 		prosemirrorToYXmlFragment(nextDocument, fragment);
@@ -377,6 +386,16 @@ export function createTextDocument(seed?: Uint8Array): TextDocument {
 		setText(value) {
 			if (textFromFragment(fragment) === value) return;
 			replaceFragmentFromText(doc, fragment, value);
+		},
+		setNodes(nodes) {
+			const nextDocument =
+				nodes.length > 0
+					? docFromNodes(nodes)
+					: schema.nodeFromJSON({
+							type: "doc",
+							content: [{ type: "paragraph" }],
+						});
+			replaceFragmentFromDocument(doc, fragment, nextDocument);
 		},
 		onTextChange(listener) {
 			textListeners.add(listener);

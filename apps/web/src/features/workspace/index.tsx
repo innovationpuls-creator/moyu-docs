@@ -1,3 +1,4 @@
+import { createTextDocument } from "@dom/editor-core";
 import {
 	useMutation,
 	useQueries,
@@ -7,6 +8,7 @@ import {
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { client } from "../../shared/api/client";
+import { resourceRuntime } from "../../shared/api/resource-runtime";
 import { useShellUiStore } from "../../shared/ui-store";
 import { NotificationCenter } from "../notifications";
 import { SearchPalette } from "../search";
@@ -25,6 +27,32 @@ type Folder = Awaited<
 	ReturnType<typeof client.getProjectTree>
 >["folders"][number];
 type CreateKind = "workspace" | "project" | "folder" | ResourceType;
+type UnsyncedDraft = Awaited<
+	ReturnType<typeof resourceRuntime.listUnsyncedResources>
+>[number];
+
+function downloadUnsyncedDrafts(drafts: UnsyncedDraft[]): void {
+	const content = drafts
+		.map((draft) => {
+			const [first, ...rest] = draft.snapshots;
+			const document = createTextDocument(first?.update);
+			for (const snapshot of rest) document.applyRemoteUpdate(snapshot.update);
+			document.flushLocalUpdates();
+			const title = draft.resource.name.replace(/[\r\n]+/g, " ").trim();
+			const body = document.getText();
+			document.destroy();
+			return `# ${title || "未命名文档"}\n\n${body}`;
+		})
+		.join("\n\n---\n\n");
+	const url = URL.createObjectURL(
+		new Blob([content], { type: "text/markdown;charset=utf-8" }),
+	);
+	const link = window.document.createElement("a");
+	link.href = url;
+	link.download = `dom-offline-drafts-${new Date().toISOString().slice(0, 10)}.md`;
+	link.click();
+	window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 function Icon({ name }: { name: string }) {
 	const d: Record<string, string> = {
@@ -376,6 +404,12 @@ export function WorkspacePage() {
 		projectId: string | null;
 		folderId: string | null;
 	} | null>(null);
+	const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+	const [logoutDrafts, setLogoutDrafts] = useState<UnsyncedDraft[] | null>(
+		null,
+	);
+	const [logoutError, setLogoutError] = useState("");
+	const [logoutBusy, setLogoutBusy] = useState(false);
 	const workspaceQuery = useQuery({
 		queryKey: ["workspaces"],
 		queryFn: () => client.listWorkspaces(),
@@ -475,11 +509,94 @@ export function WorkspacePage() {
 		setParams(next);
 		setSidebarOpen(false);
 	}
-	async function logout() {
+	async function completeLogout() {
 		try {
 			await client.logout();
-		} finally {
+			resourceRuntime.clearCachedAccountId();
+			setLogoutDialogOpen(false);
+			setLogoutDrafts(null);
 			navigate("/login");
+		} catch (error) {
+			setLogoutError(error instanceof Error ? error.message : "退出登录失败。");
+		}
+	}
+
+	async function logout() {
+		setAccountMenu(false);
+		setLogoutError("");
+		setLogoutDialogOpen(true);
+		const accountId = accountQuery.data?.accountId;
+		if (!accountId) {
+			await completeLogout();
+			return;
+		}
+		setLogoutBusy(true);
+		try {
+			const drafts = await resourceRuntime.listUnsyncedResources(accountId);
+			if (drafts.length === 0) {
+				await completeLogout();
+				return;
+			}
+			setLogoutDrafts(drafts);
+		} catch (error) {
+			setLogoutDrafts([]);
+			setLogoutError(
+				error instanceof Error
+					? `无法检查本地未同步内容：${error.message}`
+					: "无法检查本地未同步内容。请重试或取消退出。",
+			);
+		} finally {
+			setLogoutBusy(false);
+		}
+	}
+
+	async function exportDraftsAndLogout() {
+		if (!logoutDrafts?.length) return;
+		setLogoutBusy(true);
+		setLogoutError("");
+		try {
+			downloadUnsyncedDrafts(logoutDrafts);
+			await completeLogout();
+		} catch (error) {
+			setLogoutError(
+				error instanceof Error ? error.message : "本地副本导出失败。",
+			);
+		} finally {
+			setLogoutBusy(false);
+		}
+	}
+
+	async function discardDraftsAndLogout() {
+		const accountId = accountQuery.data?.accountId;
+		if (!accountId || !logoutDrafts?.length) return;
+		if (
+			!window.confirm(
+				"将删除此浏览器中列出的资源副本和未同步修改。服务器上已保存的内容不受影响。确定丢弃并退出吗？",
+			)
+		) {
+			return;
+		}
+		setLogoutBusy(true);
+		setLogoutError("");
+		try {
+			const currentDrafts =
+				await resourceRuntime.listUnsyncedResources(accountId);
+			for (const draft of currentDrafts) {
+				await resourceRuntime.clearLocalResource(
+					accountId,
+					draft.resource.resourceId,
+					{ confirmDiscardUnsyncedChanges: true },
+				);
+			}
+			await completeLogout();
+		} catch (error) {
+			setLogoutError(
+				error instanceof Error
+					? `无法清除本地修改：${error.message}`
+					: "无法清除本地修改；仍保留在此页面。",
+			);
+		} finally {
+			setLogoutBusy(false);
 		}
 	}
 
@@ -920,6 +1037,85 @@ export function WorkspacePage() {
 					currentAccountId={accountQuery.data?.accountId}
 					onClose={() => setMembersPanelOpen(false)}
 				/>
+			)}
+			{logoutDialogOpen && (
+				<div className="console-modal-backdrop">
+					<section
+						className="console-modal"
+						role="dialog"
+						aria-modal="true"
+						aria-labelledby="logout-recovery-title"
+						data-testid="logout-recovery-dialog"
+					>
+						<h2 id="logout-recovery-title">退出前检查本地修改</h2>
+						{logoutBusy && <p>正在检查或保存本地草稿…</p>}
+						{logoutDrafts && logoutDrafts.length > 0 && (
+							<>
+								<p>
+									有 {logoutDrafts.length}{" "}
+									份文档包含尚未同步的修改。你可以先导出副本；
+									丢弃操作只删除此设备上的本地副本。
+								</p>
+								<ul>
+									{logoutDrafts.map((draft) => (
+										<li key={draft.resource.resourceId}>
+											{draft.resource.name}
+										</li>
+									))}
+								</ul>
+							</>
+						)}
+						{logoutError && (
+							<p className="console-error" role="alert">
+								{logoutError}
+							</p>
+						)}
+						<div className="console-modal-actions">
+							<button
+								type="button"
+								className="btn-quiet"
+								disabled={logoutBusy}
+								onClick={() => {
+									setLogoutDialogOpen(false);
+									setLogoutDrafts(null);
+									setLogoutError("");
+								}}
+							>
+								取消退出
+							</button>
+							{logoutDrafts && logoutDrafts.length > 0 && (
+								<>
+									<button
+										type="button"
+										className="btn-quiet"
+										disabled={logoutBusy}
+										onClick={() => void exportDraftsAndLogout()}
+									>
+										导出副本并退出
+									</button>
+									<button
+										type="button"
+										className="btn-quiet"
+										disabled={logoutBusy}
+										onClick={() => void discardDraftsAndLogout()}
+									>
+										丢弃本地修改并退出
+									</button>
+								</>
+							)}
+							{logoutError && !logoutDrafts?.length && (
+								<button
+									type="button"
+									className="btn-quiet"
+									disabled={logoutBusy}
+									onClick={() => void logout()}
+								>
+									重新检查
+								</button>
+							)}
+						</div>
+					</section>
+				</div>
 			)}
 		</div>
 	);

@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { client } from "../../shared/api/client";
+import { resourceRuntime } from "../../shared/api/resource-runtime";
 import "./invitation-accept.css";
 
 function messageOf(error: unknown): string {
@@ -11,6 +13,7 @@ export function InvitationAcceptPage() {
 	const [params] = useSearchParams();
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
+	const [logoutNotice, setLogoutNotice] = useState("");
 	const token = params.get("token")?.trim() ?? "";
 	const returnPath = `/invite/accept?token=${encodeURIComponent(token)}`;
 	const loginPath = `/login?continue=${encodeURIComponent(returnPath)}`;
@@ -29,8 +32,39 @@ export function InvitationAcceptPage() {
 		},
 	});
 	const logout = useMutation({
-		mutationFn: () => client.logout(),
-		onSuccess: () => navigate(loginPath),
+		mutationFn: async () => {
+			const accountId = account.data?.accountId;
+			if (!accountId) throw new Error("无法确认当前账号，已取消退出。");
+
+			let unsyncedResources: Awaited<
+				ReturnType<typeof resourceRuntime.listUnsyncedResources>
+			>;
+			try {
+				unsyncedResources =
+					await resourceRuntime.listUnsyncedResources(accountId);
+			} catch (error) {
+				throw new Error(
+					`无法检查本地未同步草稿，已取消退出：${messageOf(error)}`,
+				);
+			}
+			if (unsyncedResources.length > 0) {
+				return { loggedOut: false, draftCount: unsyncedResources.length };
+			}
+
+			await client.logout();
+			resourceRuntime.clearCachedAccountId();
+			return { loggedOut: true, draftCount: 0 };
+		},
+		onSuccess: (result) => {
+			if (!result.loggedOut) {
+				setLogoutNotice(
+					`发现 ${result.draftCount} 个含未同步修改的资源，已取消退出；草稿仍保留在此设备。请完成同步后再切换账号。`,
+				);
+				return;
+			}
+			navigate(loginPath);
+		},
+		onError: (error) => setLogoutNotice(messageOf(error)),
 	});
 	const acceptedWorkspaceId = accept.data?.workspaceId;
 
@@ -114,7 +148,10 @@ export function InvitationAcceptPage() {
 							className="invitation-accept-link-button"
 							type="button"
 							disabled={logout.isPending}
-							onClick={() => logout.mutate()}
+							onClick={() => {
+								setLogoutNotice("");
+								logout.mutate();
+							}}
 						>
 							{logout.isPending ? "正在退出…" : "切换到其他账号"}
 						</button>
@@ -123,8 +160,10 @@ export function InvitationAcceptPage() {
 				{accept.error && (
 					<p className="invitation-accept-error">{messageOf(accept.error)}</p>
 				)}
-				{logout.error && (
-					<p className="invitation-accept-error">{messageOf(logout.error)}</p>
+				{logoutNotice && (
+					<p className="invitation-accept-error" role="alert">
+						{logoutNotice}
+					</p>
 				)}
 			</section>
 		</main>

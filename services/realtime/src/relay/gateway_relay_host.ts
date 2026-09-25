@@ -11,6 +11,7 @@
 import { connect, type JetStreamClient } from "nats";
 import type { PresenceStore } from "../backlog/presence_store.js";
 import type { YjsBacklogStore } from "../backlog/yjs_backlog_store.js";
+import type { CurrentResourceStateProvider } from "../persistence/current_resource_state.js";
 import {
 	type OpEnvelope,
 	ResourceSubscriptionManager,
@@ -27,6 +28,12 @@ export interface RelayHostOptions {
 	backlogStore?: YjsBacklogStore;
 	/** Presence roster store (arch 05); default in-memory. */
 	presenceStore?: PresenceStore;
+	currentResourceState?: CurrentResourceStateProvider;
+}
+
+export interface PublicShareGrant {
+	resourceId: string;
+	journalSeq: number;
 }
 
 export interface ConnectionRegistry {
@@ -38,8 +45,10 @@ export class GatewayRelayHost {
 	readonly manager: ResourceSubscriptionManager;
 	private readonly connections = new Map<string, (envelope: unknown) => void>();
 	private relay: NatsBroadcastRelay | null = null;
+	private readonly currentResourceState?: CurrentResourceStateProvider;
 
 	constructor(private readonly options: RelayHostOptions) {
+		this.currentResourceState = options.currentResourceState;
 		this.manager = new ResourceSubscriptionManager(
 			{
 				authorizeResource: async (actorId, resourceId) =>
@@ -55,6 +64,46 @@ export class GatewayRelayHost {
 			this.options.backlogStore,
 			this.options.presenceStore,
 		);
+	}
+
+	/** Validate an anonymous link through Permission's current share resolver. */
+	async resolvePublicShare(token: string): Promise<PublicShareGrant | null> {
+		if (token.length < 24 || token.length > 512) return null;
+		try {
+			const response = await fetch(
+				`${this.options.apiBaseUrl}/v1/public/shares/${encodeURIComponent(token)}`,
+				{
+					cache: "no-store",
+					signal: AbortSignal.timeout(3_000),
+				},
+			);
+			if (!response.ok) return null;
+			const grant = (await response.json()) as {
+				resourceId?: unknown;
+				journalSeq?: unknown;
+			};
+			if (
+				typeof grant.resourceId !== "string" ||
+				typeof grant.journalSeq !== "number" ||
+				!Number.isSafeInteger(grant.journalSeq) ||
+				grant.journalSeq < 0
+			) {
+				return null;
+			}
+			return {
+				resourceId: grant.resourceId,
+				journalSeq: grant.journalSeq,
+			};
+		} catch {
+			return null;
+		}
+	}
+
+	async readCurrentPublicState(resourceId: string): Promise<Uint8Array | null> {
+		if (!this.currentResourceState) {
+			throw new Error("Realtime durable Resource state is unavailable");
+		}
+		return this.currentResourceState.readCurrentState(resourceId);
 	}
 
 	private async authorize(

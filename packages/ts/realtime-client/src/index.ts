@@ -84,9 +84,12 @@ export interface ResourceRealtimeHandlers {
 	getLocalState(): Uint8Array;
 	onUpdate(update: Uint8Array): void;
 	onPeers(count: number): void;
+	onShareState?(stateKind: PublicShareStateKind): void;
 	onAwareness?(event: AwarenessEvent): void;
 	onStatus(state: RealtimeConnectionState | "denied"): void;
 }
+
+export type PublicShareStateKind = "yjs" | "checkpoint";
 
 export interface ResourceRealtimeClient {
 	subscribeResource(
@@ -146,11 +149,13 @@ export class ManagedResourceRealtimeClient implements ResourceRealtimeClient {
 	private manuallyClosed = false;
 	private connectionState: RealtimeConnectionState = "disconnected";
 	private lastReplacement: SessionReplacedFrame | null = null;
+	private shareAuthenticated = false;
 
 	constructor(
 		private readonly url: string,
 		private readonly socketFactory: RealtimeSocketFactory = (target) =>
 			new WebSocket(target) as unknown as RealtimeSocket,
+		private readonly shareToken?: string,
 	) {
 		this.open();
 	}
@@ -170,7 +175,7 @@ export class ManagedResourceRealtimeClient implements ResourceRealtimeClient {
 		};
 		this.subscriptions.set(resourceId, subscription);
 		handlers.onStatus(this.connectionState);
-		if (this.connectionState === "connected") {
+		if (this.isReady) {
 			this.sendControl("subscribe", resourceId, subscription.subscriptionId);
 		}
 		return () => {
@@ -181,10 +186,12 @@ export class ManagedResourceRealtimeClient implements ResourceRealtimeClient {
 	}
 
 	publishUpdate(resourceId: string, update: Uint8Array): void {
+		if (this.shareToken !== undefined) return;
 		this.sendBinary(resourceId, "sync.update", update);
 	}
 
 	publishAwareness(resourceId: string, state: AwarenessState): void {
+		if (this.shareToken !== undefined) return;
 		const subscription = this.subscriptions.get(resourceId);
 		if (!subscription) return;
 		const parsed = parseAwarenessState(state);
@@ -203,6 +210,7 @@ export class ManagedResourceRealtimeClient implements ResourceRealtimeClient {
 	}
 
 	requestStateVector(resourceId: string, vector: Uint8Array): void {
+		if (this.shareToken !== undefined) return;
 		this.sendBinary(resourceId, "sync.state-vector", vector);
 	}
 
@@ -261,10 +269,19 @@ export class ManagedResourceRealtimeClient implements ResourceRealtimeClient {
 		socket.addEventListener("open", (() => {
 			if (this.socket !== socket) return;
 			this.retryDelay = 500;
-			this.setConnectionState("connected");
-			for (const [resourceId, subscription] of this.subscriptions) {
-				this.sendControl("subscribe", resourceId, subscription.subscriptionId);
+			if (this.shareToken !== undefined) {
+				this.shareAuthenticated = false;
+				socket.send(
+					JSON.stringify({
+						protocolVersion: 1,
+						type: "authenticate-share",
+						token: this.shareToken,
+					}),
+				);
+				return;
 			}
+			this.setConnectionState("connected");
+			this.sendPendingSubscriptions();
 		}) as never);
 		socket.addEventListener("message", ((event: MessageEvent) => {
 			if (this.socket === socket) void this.receive(event.data);
@@ -361,29 +378,58 @@ export class ManagedResourceRealtimeClient implements ResourceRealtimeClient {
 			this.lastReplacement = message as unknown as SessionReplacedFrame;
 			return;
 		}
-		if (!message.resourceId) return;
-		const subscription = this.subscriptions.get(message.resourceId);
+		if (
+			this.shareToken !== undefined &&
+			message.type === "share-authenticated"
+		) {
+			const authPayload =
+				typeof message.payload === "object" && message.payload !== null
+					? (message.payload as Record<string, unknown>)
+					: {};
+			if (authPayload.status !== "ok") {
+				for (const subscription of this.subscriptions.values()) {
+					subscription.handlers.onStatus("denied");
+				}
+				this.manuallyClosed = true;
+				this.socket?.close(4403, "public share authentication denied");
+				return;
+			}
+			this.shareAuthenticated = true;
+			this.setConnectionState("connected");
+			this.sendPendingSubscriptions();
+			return;
+		}
+		const payload =
+			typeof message.payload === "object" && message.payload !== null
+				? (message.payload as Record<string, unknown>)
+				: {};
+		const resourceId =
+			message.resourceId ??
+			(typeof payload.resourceId === "string" ? payload.resourceId : undefined);
+		if (!resourceId) return;
+		const subscription = this.subscriptions.get(resourceId);
 		if (!subscription) return;
 		if (
 			message.subscriptionId !== undefined &&
 			message.subscriptionId !== subscription.subscriptionId
 		)
 			return;
-		const payload =
-			typeof message.payload === "object" && message.payload !== null
-				? (message.payload as Record<string, unknown>)
-				: {};
-		if (message.kind === "subscribe" && payload.status === "ok") {
+		if (
+			this.shareToken !== undefined &&
+			message.type === "share-state" &&
+			(payload.stateKind === "yjs" || payload.stateKind === "checkpoint")
+		) {
+			subscription.handlers.onShareState?.(payload.stateKind);
+		} else if (message.kind === "subscribe" && payload.status === "ok") {
 			subscription.handlers.onStatus("connected");
-			this.requestStateVector(
-				message.resourceId,
-				subscription.handlers.getStateVector(),
-			);
-			this.publishUpdate(
-				message.resourceId,
-				subscription.handlers.getLocalState(),
-			);
-			this.publishAwareness(message.resourceId, subscription.awareness);
+			if (this.shareToken === undefined) {
+				this.requestStateVector(
+					resourceId,
+					subscription.handlers.getStateVector(),
+				);
+				this.publishUpdate(resourceId, subscription.handlers.getLocalState());
+				this.publishAwareness(resourceId, subscription.awareness);
+			}
 		} else if (message.kind === "subscribe" && payload.status === "denied") {
 			subscription.handlers.onStatus("denied");
 		} else if (message.kind === "op" && payload.kind === "roster") {
@@ -410,7 +456,7 @@ export class ManagedResourceRealtimeClient implements ResourceRealtimeClient {
 		resourceId: string,
 		subscriptionId: string,
 	): void {
-		if (this.socket?.readyState !== SOCKET_OPEN) return;
+		if (this.socket?.readyState !== SOCKET_OPEN || !this.isReady) return;
 		this.socket.send(
 			JSON.stringify({
 				protocolVersion: 1,
@@ -420,6 +466,19 @@ export class ManagedResourceRealtimeClient implements ResourceRealtimeClient {
 				payload: {},
 			}),
 		);
+	}
+
+	private get isReady(): boolean {
+		return (
+			this.connectionState === "connected" &&
+			(this.shareToken === undefined || this.shareAuthenticated)
+		);
+	}
+
+	private sendPendingSubscriptions(): void {
+		for (const [resourceId, subscription] of this.subscriptions) {
+			this.sendControl("subscribe", resourceId, subscription.subscriptionId);
+		}
 	}
 
 	private sendBinary(
@@ -465,4 +524,14 @@ export function createResourceRealtimeClient(
 	socketFactory?: RealtimeSocketFactory,
 ): ResourceRealtimeClient {
 	return new ManagedResourceRealtimeClient(url, socketFactory);
+}
+
+/** Isolated anonymous transport. It authenticates with the share token before
+ * subscribing and never emits document, state-vector, or Awareness frames. */
+export function createPublicShareRealtimeClient(
+	url: string,
+	token: string,
+	socketFactory?: RealtimeSocketFactory,
+): ResourceRealtimeClient {
+	return new ManagedResourceRealtimeClient(url, socketFactory, token);
 }

@@ -1739,6 +1739,15 @@ contracts:
     ownerModule: packages/ts/realtime-client
     status: active
 
+  - logicalName: PublicShareRealtimeFrame
+    kind: RealtimeFrame
+    domain: realtime
+    version: "1.0.0"
+    schemaPath: contracts/realtime/public-share-frame.schema.json
+    ownerDocument: docs/architecture/07-Permission-Access-Control-Design.md
+    ownerModule: packages/ts/realtime-client
+    status: active
+
   - logicalName: ErrorEnvelope
     kind: Error
     domain: common

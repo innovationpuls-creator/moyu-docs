@@ -6,7 +6,7 @@ import {
 	type TextEditorSurface,
 } from "@dom/editor-core";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router";
 import { client } from "../../shared/api/client";
 import { resourceRuntime } from "../../shared/api/resource-runtime";
@@ -57,6 +57,25 @@ function snapshotText(snapshot: unknown): string {
 	if (typeof snapshot !== "object" || snapshot === null) return "";
 	const value = (snapshot as { text?: unknown }).text;
 	return typeof value === "string" ? value : "";
+}
+
+function isPermanentSyncRejection(error: unknown): error is DomApiError {
+	return error instanceof DomApiError && !error.retryable;
+}
+
+function syncRejectionMessage(error: DomApiError): string {
+	switch (error.errorCode) {
+		case "SESSION_EXPIRED":
+		case "SESSION_REPLACED":
+		case "SESSION_NOT_AUTHORIZED":
+			return "会话已失效，服务器拒绝同步；本地 Yjs 修改已保留。请重新登录后再重试。";
+		case "RESOURCE_PERMISSION_DENIED":
+			return "当前账号没有此资源的写入权限；本地 Yjs 修改已保留。确认权限恢复后可重试或导出。";
+		case "RESOURCE_NOT_FOUND":
+			return "资源已不存在或不可访问；本地 Yjs 修改已保留，可导出草稿。";
+		default:
+			return `服务器拒绝同步（${error.errorCode}）；本地 Yjs 修改已保留，可检查后重试或导出。`;
+	}
 }
 
 type InlineAssetMetadata = Awaited<
@@ -141,6 +160,7 @@ export function EditorPage() {
 	const [params] = useSearchParams();
 	const resourceId = params.get("resourceId") ?? params.get("resource");
 	const [replaced, setReplaced] = useState(false);
+	const sessionRevokedRef = useRef(false);
 	const [realtimeStatus, setRealtimeStatus] = useState("connecting");
 	const [browserOnline, setBrowserOnline] = useState(() => navigator.onLine);
 	const [cachedAccountId] = useState(() =>
@@ -181,6 +201,7 @@ export function EditorPage() {
 			setRealtimeStatus(state === "replaced" ? "closed:4001" : state);
 		});
 		const unsubscribeReplacement = realtime.onSessionReplaced(() => {
+			sessionRevokedRef.current = true;
 			resetResourceRealtimeClient();
 			setRealtimeStatus("closed:4001");
 			setReplaced(true);
@@ -253,6 +274,8 @@ export function EditorPage() {
 						opened={resource.data}
 						realtimeStatus={realtimeStatus}
 						serverAuthenticated={serverAuthenticated}
+						sessionReplaced={replaced}
+						sessionRevokedRef={sessionRevokedRef}
 						onBack={() => navigate("/workspace")}
 					/>
 				) : null
@@ -303,12 +326,16 @@ function ResourceEditor({
 	opened,
 	realtimeStatus,
 	serverAuthenticated,
+	sessionReplaced,
+	sessionRevokedRef,
 	onBack,
 }: {
 	accountId: string;
 	opened: OpenedResource;
 	realtimeStatus: string;
 	serverAuthenticated: boolean;
+	sessionReplaced: boolean;
+	sessionRevokedRef: { current: boolean };
 	onBack(): void;
 }) {
 	const navigate = useNavigate();
@@ -350,13 +377,17 @@ function ResourceEditor({
 	const journalRetryTimer = useRef<number | null>(null);
 	const journalSeqRef = useRef(cache.journalSeq);
 	const latestSnapshotRef = useRef<LocalResourceSnapshot | null>(null);
+	const persistedChangeGenerationRef = useRef(0);
 	const coveredSnapshotsRef = useRef(localRecoverySnapshots);
 	const hasUnconfirmedLocalChangesRef = useRef(
 		localRecoverySnapshots.length > 0,
 	);
 	const documentChangeGenerationRef = useRef(0);
-	const serverAuthenticatedRef = useRef(serverAuthenticated);
-	serverAuthenticatedRef.current = serverAuthenticated;
+	const serverAuthenticatedRef = useRef(
+		serverAuthenticated && !sessionReplaced && !sessionRevokedRef.current,
+	);
+	serverAuthenticatedRef.current =
+		serverAuthenticated && !sessionReplaced && !sessionRevokedRef.current;
 	const pendingJournalRef = useRef<PendingJournalSnapshot | null>(null);
 	const journalInFlight = useRef(false);
 	const runPendingJournal = useRef<() => void>(() => {});
@@ -365,6 +396,9 @@ function ResourceEditor({
 	const [journalSeq, setJournalSeq] = useState(cache.journalSeq);
 	const [saveMessage, setSaveMessage] = useState("");
 	const [storageMessage, setStorageMessage] = useState("");
+	const [syncRejected, setSyncRejected] = useState(false);
+	const syncRejectedRef = useRef(false);
+	const [leavingEditor, setLeavingEditor] = useState(false);
 	const [localStatus, setLocalStatus] = useState(
 		opened.source === "offline-cache"
 			? "离线编辑中；本地修改将在重新验证会话后同步。"
@@ -379,10 +413,34 @@ function ResourceEditor({
 	const [trashPending, setTrashPending] = useState(false);
 	const [renameError, setRenameError] = useState("");
 	const [unboundDraft, setUnboundDraft] = useState("");
+	const canQueueJournal = useCallback(
+		() => serverAuthenticatedRef.current && !sessionRevokedRef.current,
+		[sessionRevokedRef],
+	);
+	const canPublishRealtime = useCallback(
+		() => canQueueJournal() && !syncRejectedRef.current,
+		[canQueueJournal],
+	);
+	const isSyncPaused = useCallback(() => syncRejectedRef.current, []);
+
+	const pauseSync = useCallback((message: string) => {
+		syncRejectedRef.current = true;
+		setSyncRejected(true);
+		setSaveMessage(message);
+		setLocalStatus(
+			"本地 Yjs 修改已保留在此设备；确认会话和资源权限后可手动重试或导出。",
+		);
+		if (journalRetryTimer.current !== null) {
+			window.clearTimeout(journalRetryTimer.current);
+			journalRetryTimer.current = null;
+		}
+	}, []);
 
 	runPendingJournal.current = () => {
 		if (
 			!serverAuthenticatedRef.current ||
+			sessionRevokedRef.current ||
+			syncRejectedRef.current ||
 			!navigator.onLine ||
 			journalInFlight.current ||
 			!pendingJournalRef.current
@@ -499,7 +557,12 @@ function ResourceEditor({
 					setLocalStatus(
 						`检测到并发写入；本地修改已保留，正在重试提交。此回执不确认远端正文是否已合并（协同连接：${realtimeStatus}）。`,
 					);
-					if (navigator.onLine && serverAuthenticatedRef.current) {
+					if (
+						navigator.onLine &&
+						serverAuthenticatedRef.current &&
+						!sessionRevokedRef.current &&
+						!syncRejectedRef.current
+					) {
 						journalRetryTimer.current = window.setTimeout(
 							() => {
 								journalRetryTimer.current = null;
@@ -518,6 +581,16 @@ function ResourceEditor({
 					pendingJournalRef.current = attempt;
 				}
 				hasUnconfirmedLocalChangesRef.current = true;
+				if (isPermanentSyncRejection(error)) {
+					pauseSync(syncRejectionMessage(error));
+					return;
+				}
+				if (sessionRevokedRef.current) {
+					setLocalStatus(
+						"会话已被替换；本地 Yjs 修改已保留，重新登录并验证权限后才能同步。",
+					);
+					return;
+				}
 				setSaveMessage(
 					error instanceof Error ? error.message : "后台同步失败。",
 				);
@@ -528,7 +601,12 @@ function ResourceEditor({
 				);
 				if (journalRetryTimer.current !== null)
 					window.clearTimeout(journalRetryTimer.current);
-				if (navigator.onLine && serverAuthenticatedRef.current) {
+				if (
+					navigator.onLine &&
+					serverAuthenticatedRef.current &&
+					!sessionRevokedRef.current &&
+					!syncRejectedRef.current
+				) {
 					journalRetryTimer.current = window.setTimeout(() => {
 						journalRetryTimer.current = null;
 						runPendingJournal.current();
@@ -577,6 +655,18 @@ function ResourceEditor({
 	}
 
 	useEffect(() => {
+		if (!sessionReplaced) return;
+		syncRejectedRef.current = true;
+		setSyncRejected(true);
+		setSaveMessage("会话已被另一台设备替换；同步已暂停。");
+		setLocalStatus("本地 Yjs 修改已保留；重新登录并验证资源权限后才能同步。");
+		if (journalRetryTimer.current !== null) {
+			window.clearTimeout(journalRetryTimer.current);
+			journalRetryTimer.current = null;
+		}
+	}, [sessionReplaced]);
+
+	useEffect(() => {
 		if (!editorHost.current) return;
 		const assetRenderer = createInlineAssetRenderer(resourceId);
 		inlineAssetRenderer.current = assetRenderer;
@@ -597,14 +687,16 @@ function ResourceEditor({
 			hasUnconfirmedLocalChangesRef.current = true;
 			setText(value);
 			const updates = document.flushLocalUpdates();
-			const realtime = getResourceRealtimeClient();
-			if (serverAuthenticatedRef.current) {
+			if (canPublishRealtime()) {
+				const realtime = getResourceRealtimeClient();
 				for (const update of updates)
 					realtime.publishUpdate(resourceId, update);
 			}
 			if (persistTimer.current !== null)
 				window.clearTimeout(persistTimer.current);
 			persistTimer.current = window.setTimeout(() => {
+				persistTimer.current = null;
+				const savedGeneration = documentChangeGenerationRef.current;
 				void resourceRuntime
 					.persistLocalState(
 						accountId,
@@ -614,18 +706,28 @@ function ResourceEditor({
 					)
 					.then((snapshot) => {
 						latestSnapshotRef.current = snapshot;
+						persistedChangeGenerationRef.current = Math.max(
+							persistedChangeGenerationRef.current,
+							savedGeneration,
+						);
 						hasUnconfirmedLocalChangesRef.current =
 							snapshot.revision > snapshot.durableRevision;
 						setStorageMessage("已保存在此设备。 ");
-						if (serverAuthenticatedRef.current) {
+						if (canQueueJournal()) {
 							pendingJournalRef.current = {
 								snapshot,
 								idempotencyKey: crypto.randomUUID(),
 								coveredSnapshots: coveredSnapshotsRef.current,
 								changeGeneration: documentChangeGenerationRef.current,
 							};
-							setLocalStatus("本地修改已保存，正在同步到服务器…");
-							runPendingJournal.current();
+							if (isSyncPaused()) {
+								setLocalStatus(
+									"本地 Yjs 修改已保存；服务器拒绝同步，请确认权限后手动重试或导出。",
+								);
+							} else {
+								setLocalStatus("本地修改已保存，正在同步到服务器…");
+								runPendingJournal.current();
+							}
 						} else {
 							setLocalStatus(
 								"本地修改已保存；离线内容将在重新验证会话后同步。",
@@ -646,10 +748,18 @@ function ResourceEditor({
 				persistTimer.current = null;
 			}
 		};
-	}, [accountId, cache, document, resourceId]);
+	}, [
+		accountId,
+		cache,
+		document,
+		resourceId,
+		canPublishRealtime,
+		canQueueJournal,
+		isSyncPaused,
+	]);
 
 	useEffect(() => {
-		if (!serverAuthenticated) {
+		if (!serverAuthenticated || sessionReplaced || syncRejected) {
 			setRoster(0);
 			return;
 		}
@@ -675,23 +785,43 @@ function ResourceEditor({
 				surface?.setRemoteCursors([...remoteCursors.current.values()]);
 			},
 			onStatus: (state) => {
-				if (state === "denied")
-					setSaveMessage("当前账号没有此资源的访问权限。");
+				if (state === "denied") {
+					pauseSync(
+						"服务器拒绝了此资源的协同访问；本地 Yjs 修改已保留，请确认权限后重试或导出。",
+					);
+				}
 			},
 		});
 		const unsubscribeSelection = surface?.onSelectionChange((cursor) => {
-			realtime.publishAwareness(resourceId, { cursor });
+			if (canPublishRealtime())
+				realtime.publishAwareness(resourceId, { cursor });
 		});
 		return () => {
 			unsubscribeSelection?.();
-			realtime.publishAwareness(resourceId, { cursor: null });
+			if (canPublishRealtime()) {
+				realtime.publishAwareness(resourceId, { cursor: null });
+			}
 			remoteCursors.current.clear();
 			unsubscribe();
 		};
-	}, [document, resourceId, serverAuthenticated]);
+	}, [
+		document,
+		resourceId,
+		serverAuthenticated,
+		sessionReplaced,
+		syncRejected,
+		pauseSync,
+		canPublishRealtime,
+	]);
 
 	useEffect(() => {
-		if (!serverAuthenticated || !hasUnconfirmedLocalChangesRef.current) return;
+		if (
+			!serverAuthenticated ||
+			sessionReplaced ||
+			syncRejected ||
+			!hasUnconfirmedLocalChangesRef.current
+		)
+			return;
 		if (pendingJournalRef.current) {
 			runPendingJournal.current();
 			return;
@@ -704,6 +834,8 @@ function ResourceEditor({
 			.persistLocalState(accountId, resourceId, document.exportState(), cache)
 			.then((snapshot) => {
 				latestSnapshotRef.current = snapshot;
+				persistedChangeGenerationRef.current =
+					documentChangeGenerationRef.current;
 				hasUnconfirmedLocalChangesRef.current =
 					snapshot.revision > snapshot.durableRevision;
 				pendingJournalRef.current = {
@@ -718,7 +850,15 @@ function ResourceEditor({
 			.catch(() =>
 				setLocalStatus("本地恢复内容已保留，但暂时无法再次写入缓存。"),
 			);
-	}, [accountId, cache, document, resourceId, serverAuthenticated]);
+	}, [
+		accountId,
+		cache,
+		document,
+		resourceId,
+		serverAuthenticated,
+		sessionReplaced,
+		syncRejected,
+	]);
 
 	useEffect(() => {
 		setUnboundDraft(resourceRuntime.readUnboundRecoveryDraft());
@@ -790,6 +930,112 @@ function ResourceEditor({
 		URL.revokeObjectURL(url);
 	}
 
+	function exportLocalYjsDraft() {
+		const body = JSON.stringify(
+			{
+				format: "dom-yjs-update-base64-v1",
+				resourceId,
+				exportedAt: new Date().toISOString(),
+				updateBase64: encodeBase64(document.exportState()),
+			},
+			null,
+			2,
+		);
+		const blob = new Blob([body], { type: "application/json;charset=utf-8" });
+		const url = URL.createObjectURL(blob);
+		const link = window.document.createElement("a");
+		link.href = url;
+		link.download = `dom-resource-${resourceId}-local-draft.json`;
+		link.click();
+		URL.revokeObjectURL(url);
+	}
+
+	async function retryRejectedSync() {
+		if (sessionRevokedRef.current || sessionReplaced) {
+			setSaveMessage("请重新登录并验证资源权限后再同步本地修改。");
+			return;
+		}
+		if (!serverAuthenticatedRef.current || !navigator.onLine) {
+			setSaveMessage("请联网并重新验证会话后再同步本地修改。");
+			return;
+		}
+		syncRejectedRef.current = false;
+		setSyncRejected(false);
+		setSaveMessage("");
+		if (!pendingJournalRef.current && hasUnconfirmedLocalChangesRef.current) {
+			if (persistTimer.current !== null) {
+				window.clearTimeout(persistTimer.current);
+				persistTimer.current = null;
+			}
+			try {
+				const changeGeneration = documentChangeGenerationRef.current;
+				const snapshot = await resourceRuntime.persistLocalState(
+					accountId,
+					resourceId,
+					document.exportState(),
+					cache,
+				);
+				latestSnapshotRef.current = snapshot;
+				persistedChangeGenerationRef.current = changeGeneration;
+				pendingJournalRef.current = {
+					snapshot,
+					idempotencyKey: crypto.randomUUID(),
+					coveredSnapshots: coveredSnapshotsRef.current,
+					changeGeneration,
+				};
+			} catch (error) {
+				syncRejectedRef.current = true;
+				setSyncRejected(true);
+				setSaveMessage(
+					error instanceof Error ? error.message : "本地草稿保存失败。",
+				);
+				return;
+			}
+		}
+		setLocalStatus("正在重新检查同步；本地 Yjs 修改仍已保留。");
+		runPendingJournal.current();
+	}
+
+	async function returnToWorkspace(navigateAway: () => void = onBack) {
+		if (leavingEditor) return;
+		setLeavingEditor(true);
+		if (persistTimer.current !== null) {
+			window.clearTimeout(persistTimer.current);
+			persistTimer.current = null;
+		}
+		try {
+			while (
+				persistedChangeGenerationRef.current <
+				documentChangeGenerationRef.current
+			) {
+				if (persistTimer.current !== null) {
+					window.clearTimeout(persistTimer.current);
+					persistTimer.current = null;
+				}
+				const changeGeneration = documentChangeGenerationRef.current;
+				const snapshot = await resourceRuntime.persistLocalState(
+					accountId,
+					resourceId,
+					document.exportState(),
+					cache,
+				);
+				latestSnapshotRef.current = snapshot;
+				persistedChangeGenerationRef.current = changeGeneration;
+				hasUnconfirmedLocalChangesRef.current =
+					snapshot.revision > snapshot.durableRevision;
+				setStorageMessage("已保存在此设备。");
+			}
+		} catch (error) {
+			setLeavingEditor(false);
+			setStorageMessage(
+				error instanceof Error ? error.message : "本地草稿保存失败。",
+			);
+			setLocalStatus("当前修改尚未确认写入本地缓存；请留在编辑器重试保存。");
+			return;
+		}
+		navigateAway();
+	}
+
 	return (
 		<div className="editor-shell">
 			<header className="editor-topbar">
@@ -798,9 +1044,12 @@ function ResourceEditor({
 						type="button"
 						className="btn-editor-back"
 						data-testid="editor-back"
-						onClick={onBack}
+						disabled={leavingEditor}
+						aria-busy={leavingEditor}
+						onClick={() => void returnToWorkspace()}
 					>
-						<span aria-hidden="true">‹</span> 返回管理台
+						<span aria-hidden="true">‹</span>
+						{leavingEditor ? "正在保存本地修改…" : "返回管理台"}
 					</button>
 					<nav
 						className="breadcrumb-trail editor-breadcrumb"
@@ -810,9 +1059,12 @@ function ResourceEditor({
 						<button
 							type="button"
 							className="breadcrumb-item"
+							disabled={leavingEditor}
 							onClick={() =>
-								navigate(
-									`/workspace?workspaceId=${encodeURIComponent(tree.data?.workspaceId ?? "")}`,
+								void returnToWorkspace(() =>
+									navigate(
+										`/workspace?workspaceId=${encodeURIComponent(tree.data?.workspaceId ?? "")}`,
+									),
 								)
 							}
 						>
@@ -972,6 +1224,24 @@ function ResourceEditor({
 								storageMessage ||
 								(opened.source === "offline-cache" ? "离线缓存" : "")}
 						</p>
+						{syncRejected && (
+							<div
+								className="editor-status-line"
+								data-testid="editor-sync-rejected-actions"
+							>
+								<button type="button" onClick={exportLocalYjsDraft}>
+									导出本地 Yjs 草稿
+								</button>
+								{!sessionReplaced && (
+									<button
+										type="button"
+										onClick={() => void retryRejectedSync()}
+									>
+										确认权限已恢复后重试同步
+									</button>
+								)}
+							</div>
+						)}
 						{opened.source === "offline-cache" && (
 							<p className="feature-muted">
 								当前显示此账号保存在本地的离线内容。
