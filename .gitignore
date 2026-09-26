@@ -10,6 +10,7 @@
 
 # 会话记忆 / 本地工具状态（不进 Git）
 .workbuddy/
+.superpowers/
 
 # DSH harness / Agent 本地状态（非部署必须）
 # .dsh/ = DSH 会话状态；.agents/ = DSH 原生项目 skill 根
@@ -62,6 +63,17 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# Local database files and backups may contain development or user data
+*.db
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.sqlite3-*
+*.dump
+*.backup
+*.bak
+*.sql.gz
 
 # Environment Variables & Secrets
 .env
