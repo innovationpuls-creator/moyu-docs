@@ -1,3 +1,4 @@
+import "./shared/crypto-random-uuid";
 import { createRoot } from "react-dom/client";
 import "./styles/assets.css";
 import "./styles/auth.css";

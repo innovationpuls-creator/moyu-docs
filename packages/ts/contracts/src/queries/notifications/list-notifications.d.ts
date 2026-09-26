@@ -13,6 +13,7 @@ export interface ListNotificationsResponse {
 	items: {
 		notificationId: UserId;
 		kind: string;
+		targetRef?: {};
 		payload: {};
 		createdAt: string | null;
 		readAt: string | null;

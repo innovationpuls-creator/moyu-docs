@@ -39,3 +39,4 @@ class CreateWorkspaceInvitationResponse(BaseModel):
     createdBy: UUID = Field(..., title="UserId")
     createdAt: AwareDatetime
     invitationUrl: constr(min_length=1)
+    notificationSent: bool | None = None

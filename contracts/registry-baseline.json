@@ -957,6 +957,9 @@
 					"type": "string",
 					"required": true
 				},
+				"#/properties/items/items/properties/targetRef": {
+					"type": "object"
+				},
 				"#/properties/items/items/properties/payload": {
 					"type": "object",
 					"required": true
@@ -2655,6 +2658,9 @@
 				"#/$defs/CreateWorkspaceInvitationResponse/properties/invitationUrl": {
 					"type": "string",
 					"required": true
+				},
+				"#/$defs/CreateWorkspaceInvitationResponse/properties/notificationSent": {
+					"type": "boolean"
 				}
 			}
 		},
@@ -2774,6 +2780,37 @@
 					"required": true
 				},
 				"#/$defs/AcceptWorkspaceInvitationResponse/properties/createdAt": {
+					"type": "string",
+					"required": true
+				}
+			}
+		},
+		"AcceptWorkspaceInvitationById": {
+			"kind": "Command",
+			"eventSubject": null,
+			"versionMajor": 1,
+			"shape": {
+				"#": {
+					"type": "object"
+				},
+				"#/properties/workspaceId": {
+					"ref": "../../ids/ids.schema.json#/$defs/WorkspaceId",
+					"required": true
+				},
+				"#/properties/accountId": {
+					"ref": "../../ids/ids.schema.json#/$defs/UserId",
+					"required": true
+				},
+				"#/properties/membershipKind": {
+					"type": "string",
+					"enum": ["Owner", "Member"],
+					"required": true
+				},
+				"#/properties/email": {
+					"type": "string",
+					"required": true
+				},
+				"#/properties/createdAt": {
 					"type": "string",
 					"required": true
 				}

@@ -1,10 +1,11 @@
 /**
  * Playwright config for the DOM web E2E suite (plan Task 30).
  *
- * Three web servers are started for the browser suite:
+ * Four web servers are started for the browser suite:
  *  1. the FastAPI auth service (uvicorn, port 8000) — the /v1 API;
  *  2. the realtime WebSocket gateway (@dom/realtime, port 8765);
  *  3. the web dev server (vite, port 5173) which proxies /v1 -> the API.
+ *  4. the production preview (port 4173) for Service Worker offline flows.
  *
  * Chromium only (the browser-semantics scenarios are auth/session flows that
  * do not depend on engine-specific behavior; firefox/webkit are optional —
@@ -51,10 +52,20 @@ export default defineConfig({
 	projects: [
 		{
 			name: "chromium",
+			testIgnore: "**/offline_reconnect.spec.ts",
 			use: {
 				...devices["Desktop Chrome"],
 				// Each test creates its own browser contexts; cookies are always
 				// per-context (fresh device identity per context).
+				permissions: [],
+			},
+		},
+		{
+			name: "chromium-offline-reconnect",
+			testMatch: "**/offline_reconnect.spec.ts",
+			use: {
+				...devices["Desktop Chrome"],
+				baseURL: "http://localhost:4173",
 				permissions: [],
 			},
 		},
@@ -68,6 +79,14 @@ export default defineConfig({
 			env: { ...apiEnv },
 			reuseExistingServer: true,
 			timeout: 60_000,
+		},
+		{
+			command:
+				"pnpm --filter @dom/web build && pnpm --filter @dom/web exec vite preview --config vite.e2e-preview.config.ts --host localhost --port 4173 --strictPort",
+			url: "http://localhost:4173",
+			cwd: repoRoot,
+			reuseExistingServer: true,
+			timeout: 120_000,
 		},
 		{
 			command: "pnpm --filter @dom/realtime dev",

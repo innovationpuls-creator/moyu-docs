@@ -1277,6 +1277,22 @@ contracts:
     ownerModule: packages/py/core/permission
     status: active
 
+  - logicalName: AcceptWorkspaceInvitationById
+    kind: Command
+    domain: permission
+    version: "1.0.0"
+    schemaPath: contracts/commands/permission/accept-workspace-invitation-by-id.schema.json
+    requestRef: none
+    responseRef: contracts/commands/permission/accept-workspace-invitation-by-id.schema.json
+    requestBody: none
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [INVITATION_INVALID, INVITATION_EXPIRED, INVITATION_REVOKED, INVITATION_EMAIL_MISMATCH, INVITATION_CREATOR_UNAUTHORIZED, INVITATION_SCOPE_UNSUPPORTED, WORKSPACE_NOT_FOUND, WORKSPACE_LIFECYCLE_CONFLICT, ACCOUNT_DISABLED]
+    ownerDocument: docs/architecture/07-Permission-Access-Control-Design.md
+    ownerModule: packages/py/core/permission
+    status: active
+
   - logicalName: RevokeWorkspaceInvitation
     kind: Command
     domain: permission

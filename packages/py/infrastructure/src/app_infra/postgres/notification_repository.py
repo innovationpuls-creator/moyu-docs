@@ -15,25 +15,45 @@ class PostgresNotificationsRepository:
         self._session = session
 
     async def save(self, notification: Notification) -> Notification:
-        row = (
-            (
-                await self._session.execute(
-                    text(
-                        "INSERT INTO core.notifications "
-                        "(notification_id,account_id,kind,payload) "
-                        "VALUES (:nid,:aid,:kind,:payload) RETURNING *"
-                    ),
-                    {
-                        "nid": notification.notification_id,
-                        "aid": notification.account_id,
-                        "kind": notification.kind,
-                        "payload": json.dumps(notification.payload, default=str),
-                    },
-                )
-            )
-            .mappings()
-            .one()
+        result = await self._session.execute(
+            text(
+                "INSERT INTO collab.notifications "
+                "(notification_id,recipient_account_id,type,target_ref,payload,"
+                "source_event_id) "
+                "VALUES (:nid,:aid,:kind,:target_ref,:payload,:source_event_id) "
+                "ON CONFLICT (recipient_account_id,source_event_id,type) "
+                "DO NOTHING RETURNING *"
+            ),
+            {
+                "nid": notification.notification_id,
+                "aid": notification.account_id,
+                "kind": notification.kind,
+                "target_ref": json.dumps(notification.target_ref or {}),
+                "payload": json.dumps(notification.payload, default=str),
+                "source_event_id": notification.source_event_id,
+            },
         )
+        row = result.mappings().one_or_none()
+        if row is None:
+            row = (
+                (
+                    await self._session.execute(
+                        text(
+                            "SELECT * FROM collab.notifications "
+                            "WHERE recipient_account_id=:aid "
+                            "AND source_event_id=:event_id "
+                            "AND type=:kind"
+                        ),
+                        {
+                            "aid": notification.account_id,
+                            "event_id": notification.source_event_id,
+                            "kind": notification.kind,
+                        },
+                    )
+                )
+                .mappings()
+                .one()
+            )
         return _to_notification(row)
 
     async def list_for_account(
@@ -43,7 +63,8 @@ class PostgresNotificationsRepository:
             (
                 await self._session.execute(
                     text(
-                        "SELECT * FROM core.notifications WHERE account_id=:aid "
+                        "SELECT * FROM collab.notifications "
+                        "WHERE recipient_account_id=:aid "
                         "ORDER BY created_at DESC LIMIT :lim"
                     ),
                     {"aid": account_id, "lim": limit},
@@ -59,8 +80,9 @@ class PostgresNotificationsRepository:
     ) -> bool:
         result = await self._session.execute(
             text(
-                "UPDATE core.notifications SET read_at=:at "
-                "WHERE notification_id=:nid AND account_id=:aid AND read_at IS NULL"
+                "UPDATE collab.notifications SET read_at=:at "
+                "WHERE notification_id=:nid AND recipient_account_id=:aid "
+                "AND read_at IS NULL"
             ),
             {"at": read_at, "nid": notification_id, "aid": account_id},
         )
@@ -70,8 +92,8 @@ class PostgresNotificationsRepository:
     async def mark_all_read(self, account_id: UUID, read_at: datetime) -> int:
         result = await self._session.execute(
             text(
-                "UPDATE core.notifications SET read_at=:at "
-                "WHERE account_id=:aid AND read_at IS NULL"
+                "UPDATE collab.notifications SET read_at=:at "
+                "WHERE recipient_account_id=:aid AND read_at IS NULL"
             ),
             {"at": read_at, "aid": account_id},
         )
@@ -80,8 +102,8 @@ class PostgresNotificationsRepository:
     async def unread_count(self, account_id: UUID) -> int:
         value = await self._session.scalar(
             text(
-                "SELECT count(*) FROM core.notifications "
-                "WHERE account_id=:aid AND read_at IS NULL"
+                "SELECT count(*) FROM collab.notifications "
+                "WHERE recipient_account_id=:aid AND read_at IS NULL"
             ),
             {"aid": account_id},
         )
@@ -105,9 +127,11 @@ class PostgresAccountLookup:
 def _to_notification(row: Any) -> Notification:
     return Notification(
         notification_id=row["notification_id"],
-        account_id=row["account_id"],
-        kind=row["kind"],
+        account_id=row["recipient_account_id"],
+        kind=row["type"],
         payload=dict(row["payload"]),
         created_at=row["created_at"],
         read_at=row["read_at"],
+        target_ref=dict(row["target_ref"]),
+        source_event_id=row["source_event_id"],
     )

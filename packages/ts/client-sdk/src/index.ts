@@ -88,6 +88,8 @@ type ResourceId = components["schemas"]["ResourceId"];
 type ThreadId = components["schemas"]["ThreadId"];
 type SearchWorkspaceResponse = components["schemas"]["search-workspace.schema"];
 type ListWorkspacesResponse = components["schemas"]["list-workspaces.schema"];
+type ListNotificationsResponse =
+	components["schemas"]["list-notifications.schema"];
 type ListProjectsResponse = components["schemas"]["list-projects.schema"];
 type ListResourcesResponse = components["schemas"]["list-resources.schema"];
 type ListResourcesQuery = NonNullable<
@@ -133,6 +135,8 @@ type AcceptWorkspaceInvitationRequest = Omit<
 >;
 type AcceptWorkspaceInvitationResponse =
 	components["schemas"]["AcceptWorkspaceInvitationResponse"];
+type AcceptWorkspaceInvitationByIdResponse =
+	components["schemas"]["accept-workspace-invitation-by-id.schema"];
 type ListWorkspaceMembersResponse =
 	components["schemas"]["list-workspace-members.schema"];
 type ListWorkspaceInvitationsResponse =
@@ -330,6 +334,16 @@ export class DomClient {
 		return this.requestOrNull("/auth/me", { method: "GET" });
 	}
 
+	/**
+	 * Editor recovery needs to distinguish a replaced session from an ordinary
+	 * unauthenticated visit so it can keep account-scoped local drafts visible.
+	 */
+	async meForSessionRecovery(): Promise<GetCurrentAccountResponse | null> {
+		return this.requestOrNull("/auth/me", { method: "GET" }, [
+			"SESSION_REPLACED",
+		]);
+	}
+
 	async session(): Promise<GetCurrentSessionResponse | null> {
 		return this.requestOrNull("/auth/session", { method: "GET" });
 	}
@@ -449,6 +463,15 @@ export class DomClient {
 		body: AcceptWorkspaceInvitationRequest,
 	): Promise<AcceptWorkspaceInvitationResponse> {
 		return this.request("/invitations/accept", { method: "POST", body });
+	}
+
+	async acceptWorkspaceInvitationById(
+		invitationId: string,
+	): Promise<AcceptWorkspaceInvitationByIdResponse> {
+		return this.request(
+			`/invitations/${encodeURIComponent(invitationId)}/accept`,
+			{ method: "POST" },
+		);
 	}
 
 	async revokeWorkspaceInvitation(
@@ -753,16 +776,7 @@ export class DomClient {
 		return this.request(`/resources/${resourceId}/history`, { method: "GET" });
 	}
 
-	async listNotifications(): Promise<{
-		items: Array<{
-			notificationId: string;
-			kind: string;
-			payload: unknown;
-			createdAt: string | null;
-			readAt: string | null;
-		}>;
-		unreadCount: number;
-	}> {
+	async listNotifications(): Promise<ListNotificationsResponse> {
 		return this.request(`/notifications`, { method: "GET" });
 	}
 
@@ -1048,10 +1062,15 @@ export class DomClient {
 	private async requestOrNull<T>(
 		path: string,
 		init: { method: string; body?: object; idempotencyKey?: IdempotencyKey },
+		propagate401Codes: readonly string[] = [],
 	): Promise<T | null> {
 		const response = await this.fetch(path, init);
 		if (!response.ok) {
 			if (response.status === 401) {
+				if (propagate401Codes.length > 0) {
+					const error = await this.toError(response);
+					if (propagate401Codes.includes(error.errorCode)) throw error;
+				}
 				// Unauthenticated is a state, not an error, for these queries.
 				return null;
 			}

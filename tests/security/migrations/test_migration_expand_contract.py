@@ -55,7 +55,7 @@ def test_single_linear_head() -> None:
     script = ScriptDirectory.from_config(_config())
     heads = script.get_heads()
     assert len(heads) == 1, f"expected one head, got {heads}"
-    assert heads[0] == "0024"
+    assert heads[0] == "0025"
 
 
 @pytest.mark.asyncio

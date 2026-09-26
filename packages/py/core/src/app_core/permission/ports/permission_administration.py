@@ -13,6 +13,7 @@ from app_core.permission.domain.collaboration import (
     InvitationAcceptanceExpired,
     ProjectMemberView,
     ResourcePermissionView,
+    WorkspaceInvitationNotice,
     WorkspaceInvitationView,
     WorkspaceMemberView,
 )
@@ -46,6 +47,18 @@ class PermissionAdministrationRepository(Protocol):
     async def accept_workspace_invitation(
         self, actor_id: UUID, token_hash: str
     ) -> WorkspaceMemberView | InvitationAcceptanceExpired: ...
+
+    async def accept_workspace_invitation_by_id(
+        self, actor_id: UUID, invitation_id: UUID
+    ) -> WorkspaceMemberView | InvitationAcceptanceExpired: ...
+
+    async def get_workspace_invitation_notice(
+        self, invitation_id: UUID
+    ) -> WorkspaceInvitationNotice | None: ...
+
+    async def get_workspace_invitation_notice_by_token_hash(
+        self, token_hash: str
+    ) -> WorkspaceInvitationNotice | None: ...
 
     async def revoke_workspace_invitation(
         self,

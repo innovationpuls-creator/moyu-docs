@@ -57,12 +57,18 @@ async function submitAuthForm(
 	await page.getByTestId("password-input").press("Enter");
 }
 
+async function expectCurrentAccount(page: Page, email: string): Promise<void> {
+	const response = await page.request.get("/v1/auth/me");
+	expect(response.status()).toBe(200);
+	expect((await response.json()).primaryEmail).toBe(email);
+}
+
 /** Register a fresh account through the UI; lands on /workspace. */
 async function registerAccount(page: Page, email: string): Promise<void> {
 	await page.goto("/register");
 	await submitAuthForm(page, email, PASSWORD);
 	await expect(page).toHaveURL("/workspace");
-	await expect(page.getByTestId("workspace-email")).toHaveText(email);
+	await expectCurrentAccount(page, email);
 	// 邮箱验证已停用（产品决策 2026-09）：注册即 Active，无需（也无）验证邮件。
 }
 /** Log a browser context into an EXISTING account via the /login page. */
@@ -70,7 +76,7 @@ async function loginDevice(page: Page, email: string): Promise<void> {
 	await page.goto("/login");
 	await submitAuthForm(page, email, PASSWORD);
 	await expect(page).toHaveURL("/workspace");
-	await expect(page.getByTestId("workspace-email")).toHaveText(email);
+	await expectCurrentAccount(page, email);
 }
 
 /**
@@ -197,7 +203,7 @@ test("Scenario 26: two tabs in one browser share the same device session", async
 	const tab2 = await context.newPage();
 	await tab2.goto("/workspace");
 	await expect(tab2).toHaveURL("/workspace");
-	await expect(tab2.getByTestId("workspace-email")).toHaveText(email);
+	await expectCurrentAccount(tab2, email);
 
 	// Both tabs share the SAME session id -> exactly one active device session.
 	const session1 = await currentSessionId(tab1);
@@ -325,14 +331,19 @@ test("Scenario 33: unsynced draft survives a session replacement", async ({
 		const [pageA] = await setupAB(browser, ctxA, ctxB, email);
 		const resourceId = await createResource(pageA, "会话替换草稿");
 		await pageA.goto(`/editor?resourceId=${resourceId}`);
+		await expect(pageA.getByTestId("realtime-status")).toHaveText("connected", {
+			timeout: 5_000,
+		});
+		await ctxA.setOffline(true);
 		const draftText = `未同步草稿 ${email}`;
 		await fillEditorSource(pageA, draftText);
 		await expect(pageA.getByTestId("editor-offline-status")).toContainText(
-			"草稿已存入此账号的本地资源缓存",
+			"本地修改已保存；离线内容将在重新验证会话后同步。",
 		);
 
 		// Device C replacement while the draft is unsynced.
 		await loginDeviceC(ctxC, email);
+		await ctxA.setOffline(false);
 
 		// Draft is preserved and surfaced — never silently discarded.
 		await expect(pageA.getByTestId("session-replaced-dialog")).toBeVisible({
@@ -366,19 +377,25 @@ test("Scenario 34: re-login preserves the unsynced draft for recovery", async ({
 		const [pageA] = await setupAB(browser, ctxA, ctxB, email);
 		const resourceId = await createResource(pageA, "重新登录草稿");
 		await pageA.goto(`/editor?resourceId=${resourceId}`);
+		await expect(pageA.getByTestId("realtime-status")).toHaveText("connected", {
+			timeout: 5_000,
+		});
+		await ctxA.setOffline(true);
 		const draftText = `草稿在替换后依然可恢复 ${email}`;
 		await fillEditorSource(pageA, draftText);
 		await expect(pageA.getByTestId("editor-offline-status")).toContainText(
-			"草稿已存入此账号的本地资源缓存",
+			"本地修改已保存；离线内容将在重新验证会话后同步。",
 		);
 		await loginDeviceC(ctxC, email);
+		await ctxA.setOffline(false);
 		await expect(pageA.getByTestId("session-replaced-dialog")).toBeVisible({
 			timeout: 5_000,
 		});
+		await pageA.getByTestId("session-replaced-relogin").click();
+		await expect(pageA).toHaveURL("/login");
 
 		// Re-login on device A; the account/resource scoped IndexedDB draft
 		// remains available when the same resource is opened again.
-		await pageA.getByTestId("session-replaced-relogin").click();
 		await loginDevice(pageA, email);
 		await pageA.goto(`/editor?resourceId=${resourceId}`);
 		await pageA.getByTestId("editor-rich-toggle").click();
@@ -447,7 +464,7 @@ test("Scenario 38: session survives page refresh and browser restart", async ({
 		// Page refresh -> cookie-based recovery, no re-login.
 		await page.reload();
 		await expect(page).toHaveURL("/workspace");
-		await expect(page.getByTestId("workspace-email")).toHaveText(email);
+		await expectCurrentAccount(page, email);
 
 		// Browser restart: a NEW context seeded with the persisted cookies
 		// (storageState) auto-recovers the session (FR-AUTH-021 AC-021.1).
@@ -457,7 +474,7 @@ test("Scenario 38: session survives page refresh and browser restart", async ({
 			const page2 = await restarted.newPage();
 			await page2.goto("/workspace");
 			await expect(page2).toHaveURL("/workspace");
-			await expect(page2.getByTestId("workspace-email")).toHaveText(email);
+			await expectCurrentAccount(page2, email);
 			expect(await currentSessionId(page2)).not.toBe("");
 		} finally {
 			await restarted.close();
@@ -570,9 +587,7 @@ test("Editor saves a draft op and surfaces the authoritative seq", async ({
 	await expect(page.getByTestId("resource-name-input")).toHaveValue("Doc");
 	await fillEditorSource(page, "编辑内容 alpha");
 	await page.getByTestId("editor-save").click();
-	await expect(page.getByTestId("editor-save-status")).toContainText(
-		"journalSeq=1",
-	);
+	await expect(page.getByTestId("editor-journal-seq")).toHaveText("#1 ops");
 	await page.getByTestId("editor-panel-tab-history").click();
 	await page.getByRole("textbox", { name: "版本名称" }).fill("初始保存版本");
 	await page.getByRole("button", { name: "保存版本" }).click();
@@ -778,6 +793,13 @@ test("mobile shell supports context creation from workspace through folder resou
 	);
 
 	const sidebar = page.locator(".console-sidebar");
+	await page.getByRole("button", { name: "创建第一个工作区" }).click();
+	let dialog = page.getByRole("dialog", { name: "新建工作区" });
+	await dialog.getByLabel("名称").fill("Mobile workspace");
+	await dialog.getByRole("button", { name: "创建" }).click();
+	await expect(page.getByTestId("console-empty-state")).toContainText(
+		"先建一个项目",
+	);
 	await expect(sidebar).not.toBeInViewport();
 	await page.getByRole("button", { name: "打开导航" }).click();
 	await expect(sidebar).toBeInViewport();
@@ -785,14 +807,6 @@ test("mobile shell supports context creation from workspace through folder resou
 		position: { x: 350, y: 400 },
 	});
 	await expect(sidebar).not.toHaveClass(/mobile-open/);
-
-	await page.getByRole("button", { name: "创建工作区" }).click();
-	let dialog = page.getByRole("dialog", { name: "新建工作区" });
-	await dialog.getByLabel("名称").fill("Mobile workspace");
-	await dialog.getByRole("button", { name: "创建" }).click();
-	await expect(page.getByTestId("console-empty-state")).toContainText(
-		"先建一个项目",
-	);
 
 	await page
 		.getByTestId("console-empty-state")

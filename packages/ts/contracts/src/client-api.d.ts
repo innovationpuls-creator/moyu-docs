@@ -1189,6 +1189,23 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/v1/invitations/{invitationId}/accept": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Accept an in-app Workspace invitation for the matching Active Account */
+		post: operations["AcceptWorkspaceInvitationById"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/v1/workspaces/{workspaceId}/invitations/{invitationId}": {
 		parameters: {
 			query?: never;
@@ -2489,6 +2506,7 @@ export interface components {
 			items: {
 				notificationId: components["schemas"]["UserId"];
 				kind: string;
+				targetRef?: Record<string, never>;
 				payload: Record<string, never>;
 				createdAt: string | null;
 				readAt: string | null;
@@ -3229,6 +3247,7 @@ export interface components {
 					/** Format: date-time */
 					createdAt: string;
 					invitationUrl: string;
+					notificationSent?: boolean;
 				};
 			};
 		};
@@ -3248,6 +3267,7 @@ export interface components {
 			/** Format: date-time */
 			createdAt: string;
 			invitationUrl: string;
+			notificationSent?: boolean;
 		};
 		/** ListWorkspaceMembersResponse */
 		"list-workspace-members.schema": {
@@ -3278,6 +3298,16 @@ export interface components {
 		};
 		/** AcceptWorkspaceInvitationResponse */
 		AcceptWorkspaceInvitationResponse: {
+			workspaceId: components["schemas"]["WorkspaceId"];
+			accountId: components["schemas"]["UserId"];
+			/** @enum {string} */
+			membershipKind: "Owner" | "Member";
+			email: string;
+			/** Format: date-time */
+			createdAt: string;
+		};
+		/** AcceptWorkspaceInvitationByIdResponse */
+		"accept-workspace-invitation-by-id.schema": {
 			workspaceId: components["schemas"]["WorkspaceId"];
 			accountId: components["schemas"]["UserId"];
 			/** @enum {string} */
@@ -5976,6 +6006,33 @@ export interface operations {
 				};
 			};
 			400: components["responses"]["ErrorEnvelopeResponse"];
+			401: components["responses"]["ErrorEnvelopeResponse"];
+			403: components["responses"]["ErrorEnvelopeResponse"];
+			404: components["responses"]["ErrorEnvelopeResponse"];
+			409: components["responses"]["ErrorEnvelopeResponse"];
+			503: components["responses"]["ErrorEnvelopeResponse"];
+		};
+	};
+	AcceptWorkspaceInvitationById: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				invitationId: components["schemas"]["InvitationId"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Workspace Member membership is granted atomically */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["accept-workspace-invitation-by-id.schema"];
+				};
+			};
 			401: components["responses"]["ErrorEnvelopeResponse"];
 			403: components["responses"]["ErrorEnvelopeResponse"];
 			404: components["responses"]["ErrorEnvelopeResponse"];

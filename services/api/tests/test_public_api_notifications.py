@@ -34,8 +34,8 @@ async def test_public_notifications_signed_access() -> None:
             )
             await session.execute(
                 text(
-                    "INSERT INTO core.notifications "
-                    "(notification_id,account_id,kind,payload,read_at) "
+                    "INSERT INTO collab.notifications "
+                    "(notification_id,recipient_account_id,type,payload,read_at) "
                     "VALUES (:n,:a,'comment.mention','{}'::jsonb,NULL)"
                 ),
                 {"n": uuid4(), "a": account_id},

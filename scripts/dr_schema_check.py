@@ -16,7 +16,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 REQUIRED_DB = "dom_workspace_lifecycle_test"
-EXPECTED_HEAD = "0024"
+EXPECTED_HEAD = "0025"
 
 # (schema, table) pairs frozen by the migration chain + domain owners
 SCHEMA_INVENTORY: tuple[tuple[str, str], ...] = (
@@ -27,7 +27,7 @@ SCHEMA_INVENTORY: tuple[tuple[str, str], ...] = (
     ("core", "projects"),
     ("core", "folders"),
     ("core", "resources"),
-    ("core", "notifications"),
+    ("collab", "notifications"),
     ("core", "search_history"),
     ("core", "webhook_subscriptions"),
     ("core", "project_members"),

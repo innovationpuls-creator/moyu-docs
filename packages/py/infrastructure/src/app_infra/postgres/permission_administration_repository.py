@@ -24,6 +24,7 @@ from app_core.permission.domain.collaboration import (
     InvitationAcceptanceExpired,
     ProjectMemberView,
     ResourcePermissionView,
+    WorkspaceInvitationNotice,
     WorkspaceInvitationView,
     WorkspaceMemberView,
 )
@@ -319,6 +320,60 @@ class PostgresPermissionAdministrationRepository:
         ).mappings()
         return [_invitation_view(row) for row in rows]
 
+    async def get_workspace_invitation_notice(
+        self, invitation_id: UUID
+    ) -> WorkspaceInvitationNotice | None:
+        row = (
+            (
+                await self._session.execute(
+                    text(
+                        "SELECT i.invitation_id, i.workspace_id, "
+                        "w.name AS workspace_name, "
+                        "i.target_email, "
+                        "COALESCE(i.target_account_id, target.account_id) "
+                        "AS target_account_id, i.created_by AS inviter_account_id, "
+                        "COALESCE(inviter.primary_email, inviter.normalized_email, '') "
+                        "AS inviter_email FROM core.invitations i "
+                        "JOIN core.workspaces w ON w.workspace_id=i.workspace_id "
+                        "JOIN auth.accounts inviter ON inviter.account_id=i.created_by "
+                        "LEFT JOIN auth.accounts target ON "
+                        "target.normalized_email=i.target_email "
+                        "AND target.status='Active' "
+                        "WHERE i.invitation_id=:invitation_id AND i.project_id IS NULL "
+                        "AND i.resource_id IS NULL"
+                    ),
+                    {"invitation_id": invitation_id},
+                )
+            )
+            .mappings()
+            .one_or_none()
+        )
+        if row is None:
+            return None
+        return WorkspaceInvitationNotice(
+            invitation_id=row["invitation_id"],
+            workspace_id=row["workspace_id"],
+            workspace_name=row["workspace_name"],
+            target_email=row["target_email"],
+            target_account_id=row["target_account_id"],
+            inviter_account_id=row["inviter_account_id"],
+            inviter_email=row["inviter_email"],
+        )
+
+    async def get_workspace_invitation_notice_by_token_hash(
+        self, token_hash: str
+    ) -> WorkspaceInvitationNotice | None:
+        invitation_id = await self._session.scalar(
+            text(
+                "SELECT invitation_id FROM core.invitations "
+                "WHERE token_hash=:token_hash"
+            ),
+            {"token_hash": token_hash},
+        )
+        if invitation_id is None:
+            return None
+        return await self.get_workspace_invitation_notice(invitation_id)
+
     async def accept_workspace_invitation(
         self, actor_id: UUID, token_hash: str
     ) -> WorkspaceMemberView | InvitationAcceptanceExpired:
@@ -408,6 +463,20 @@ class PostgresPermissionAdministrationRepository:
             "Member",
         )
         return await self._workspace_member_view(workspace_id, actor_id)
+
+    async def accept_workspace_invitation_by_id(
+        self, actor_id: UUID, invitation_id: UUID
+    ) -> WorkspaceMemberView | InvitationAcceptanceExpired:
+        token_hash = await self._session.scalar(
+            text(
+                "SELECT token_hash FROM core.invitations "
+                "WHERE invitation_id=:invitation_id"
+            ),
+            {"invitation_id": invitation_id},
+        )
+        if token_hash is None:
+            raise NotFoundError("Invitation is invalid.", "INVITATION_INVALID")
+        return await self.accept_workspace_invitation(actor_id, token_hash)
 
     async def _validate_invitation_target(self, actor_id: UUID, row) -> None:
         account = (

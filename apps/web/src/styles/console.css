@@ -33,7 +33,9 @@
 
 body.console-surface {
 	margin: 0;
+	height: 100vh;
 	min-height: 100vh;
+	box-sizing: border-box;
 	font-family: var(--font-body);
 	color: var(--ink-primary);
 	background-color: var(--canvas-bg);
@@ -48,7 +50,7 @@ body.console-surface {
 
 body.console-surface #app {
 	width: 100%;
-	height: 100vh;
+	height: 100%;
 	display: flex;
 	flex-direction: column;
 }
@@ -180,7 +182,10 @@ body.console-surface #app {
 	font-weight: 700;
 	color: var(--ink-primary);
 	cursor: pointer;
-	transition: all 180ms var(--ease-buoyant);
+	transition:
+		background-color 180ms var(--ease-buoyant),
+		border-color 180ms var(--ease-buoyant),
+		box-shadow 180ms var(--ease-buoyant);
 }
 
 .ws-switcher-btn:hover {
@@ -223,7 +228,10 @@ body.console-surface #app {
 	font-size: 13.5px;
 	color: var(--ink-muted);
 	cursor: pointer;
-	transition: all 150ms var(--ease-buoyant);
+	transition:
+		background-color 150ms var(--ease-buoyant),
+		border-color 150ms var(--ease-buoyant),
+		box-shadow 150ms var(--ease-buoyant);
 }
 
 .search-trigger-bar:hover {
@@ -255,7 +263,9 @@ body.console-surface #app {
 	justify-content: center;
 	cursor: pointer;
 	position: relative;
-	transition: all 150ms ease;
+	transition:
+		background-color 150ms ease,
+		color 150ms ease;
 }
 
 .icon-btn-quiet:hover {
@@ -288,7 +298,9 @@ body.console-surface #app {
 	border: 1px solid var(--border-input);
 	background: rgba(255, 253, 249, 0.85);
 	cursor: pointer;
-	transition: all 150ms ease;
+	transition:
+		background-color 150ms ease,
+		border-color 150ms ease;
 }
 
 .account-menu-trigger:hover {
@@ -437,7 +449,9 @@ body.console-surface #app {
 	font-weight: 600;
 	color: var(--ink-secondary);
 	cursor: pointer;
-	transition: all 140ms ease;
+	transition:
+		background-color 140ms ease,
+		color 140ms ease;
 	user-select: none;
 	background: none;
 	border: none;
@@ -492,7 +506,9 @@ body.console-surface #app {
 	font-weight: 600;
 	color: var(--ink-muted);
 	cursor: pointer;
-	transition: all 140ms ease;
+	transition:
+		background-color 140ms ease,
+		color 140ms ease;
 	background: none;
 	border: none;
 	width: 100%;
@@ -555,6 +571,17 @@ body.console-surface #app {
 	text-overflow: ellipsis;
 }
 
+button.breadcrumb-item {
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	line-height: inherit;
+	text-align: left;
+	appearance: none;
+}
+
 .breadcrumb-item:hover {
 	color: var(--accent-coral-active);
 }
@@ -579,6 +606,15 @@ body.console-surface #app {
 	flex-shrink: 0;
 }
 
+.header-actions > .btn-quiet {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	flex-shrink: 0;
+	white-space: nowrap;
+}
+
 .btn-create-context {
 	display: inline-flex;
 	align-items: center;
@@ -592,10 +628,16 @@ body.console-surface #app {
 	font-family: var(--font-display);
 	font-size: 13.5px;
 	font-weight: 700;
+	flex-shrink: 0;
+	white-space: nowrap;
 	border: none;
 	cursor: pointer;
 	box-shadow: 0 4px 14px rgba(244, 165, 115, 0.4);
-	transition: all 180ms var(--ease-buoyant);
+	transition:
+		background-color 180ms var(--ease-buoyant),
+		border-color 180ms var(--ease-buoyant),
+		box-shadow 180ms var(--ease-buoyant),
+		transform 180ms var(--ease-buoyant);
 }
 
 .btn-create-context:hover {
@@ -668,6 +710,10 @@ body.console-surface #app {
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+}
+
+.mobile-meta-slot {
+	display: none;
 }
 
 .resource-type-icon {
@@ -798,7 +844,10 @@ body.console-surface #app {
 	font-weight: 700;
 	color: var(--ink-primary);
 	cursor: pointer;
-	transition: all 150ms ease;
+	transition:
+		background-color 150ms ease,
+		border-color 150ms ease,
+		color 150ms ease;
 	flex-shrink: 0;
 }
 
@@ -909,7 +958,9 @@ body.console-surface #app {
 	font-weight: 700;
 	color: var(--ink-primary);
 	cursor: pointer;
-	transition: all 150ms ease;
+	transition:
+		background-color 150ms ease,
+		border-color 150ms ease;
 }
 
 .editor-toolbar button:hover {
@@ -1007,7 +1058,9 @@ body.console-surface .editor-doc-paper [data-testid="editor-save"] {
 	font-weight: 700;
 	cursor: pointer;
 	box-shadow: 0 4px 14px rgba(244, 165, 115, 0.4);
-	transition: all 180ms var(--ease-buoyant);
+	transition:
+		background-color 180ms var(--ease-buoyant),
+		transform 180ms var(--ease-buoyant);
 	width: fit-content;
 }
 
@@ -1056,7 +1109,9 @@ body.console-surface [data-testid="editor-rich-toggle"] {
 	color: var(--ink-primary);
 	cursor: pointer;
 	width: fit-content;
-	transition: all 150ms ease;
+	transition:
+		background-color 150ms ease,
+		border-color 150ms ease;
 }
 
 body.console-surface [data-testid="editor-rich-toggle"]:hover {
@@ -1095,15 +1150,16 @@ body.console-surface .editor-topbar [data-testid="editor-presence"] {
 }
 
 .drawer-tabs-header {
-	display: flex;
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
 	border-bottom: 1px solid rgba(244, 165, 115, 0.2);
 	background: rgba(251, 245, 235, 0.5);
 	flex-shrink: 0;
 }
 
 .drawer-tab-btn {
-	flex: 1;
-	padding: 12px 6px;
+	min-width: 0;
+	padding: 12px 5px;
 	border: none;
 	background: transparent;
 	font-family: var(--font-display);
@@ -1115,8 +1171,12 @@ body.console-surface .editor-topbar [data-testid="editor-presence"] {
 	align-items: center;
 	justify-content: center;
 	gap: 6px;
-	transition: all 140ms ease;
+	transition:
+		background-color 140ms ease,
+		border-bottom-color 140ms ease,
+		color 140ms ease;
 	border-bottom: 2px solid transparent;
+	white-space: nowrap;
 }
 
 .drawer-tab-btn:hover {
@@ -1339,7 +1399,11 @@ button:focus-visible,
 @media (prefers-reduced-motion: reduce) {
 	.console-patchwork .patchwork-shape-1,
 	.console-patchwork .patchwork-shape-2,
-	.console-patchwork .patchwork-shape-3 {
+	.console-patchwork .patchwork-shape-3,
+	.dropdown-popover,
+	.empty-state-card,
+	.roster-dot,
+	.cmd-palette-modal {
 		animation: none;
 	}
 }
@@ -1468,8 +1532,16 @@ button:focus-visible,
 	}
 	.header-actions {
 		width: 100%;
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 8px;
+	}
+	.header-actions > .btn-quiet {
+		width: 100%;
+		min-width: 0;
 	}
 	.btn-create-context {
+		grid-column: 1 / -1;
 		width: 100%;
 		min-height: 44px;
 	}
@@ -1571,7 +1643,7 @@ body.console-surface {
 
 body.console-surface #app {
 	width: 100%;
-	height: 100vh;
+	height: 100%;
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -1588,10 +1660,6 @@ body.console-surface #app {
 	border-radius: var(--radius-stage);
 	box-shadow: var(--shadow-stage);
 	overflow: hidden;
-}
-
-.console-shell {
-	height: 100%;
 }
 
 .console-patchwork span:nth-child(1),
@@ -2509,6 +2577,9 @@ body.console-surface #app {
 }
 
 @media (max-width: 1099px) {
+	body.console-surface {
+		padding: 16px;
+	}
 	.app-stage {
 		height: calc(100vh - 32px);
 		min-height: 600px;
@@ -2584,6 +2655,7 @@ body.console-surface #app {
 		top: 56px;
 		right: 0;
 		bottom: 0;
+		height: auto;
 		z-index: 60;
 		width: 300px;
 		max-width: 86vw;
@@ -3136,5 +3208,49 @@ body.console-surface #app {
 
 	.editor-toolbar-divider {
 		display: none;
+	}
+}
+.notification-accept {
+	margin: 0.25rem 0 0.5rem 2.25rem;
+	padding: 0.3rem 0.7rem;
+	border: 1px solid currentColor;
+	border-radius: 999px;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+}
+
+.notification-accept:disabled {
+	cursor: wait;
+	opacity: 0.65;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ws-switcher-btn,
+	.search-trigger-bar,
+	.icon-btn-quiet,
+	.account-menu-trigger,
+	.dropdown-item,
+	.tree-node-row,
+	.tree-node-arrow,
+	.sidebar-trash-row,
+	.breadcrumb-item,
+	.btn-create-context,
+	.resource-row,
+	.btn-editor-back,
+	.editor-toolbar button,
+	body.console-surface .editor-doc-paper .editor-toolbar-row,
+	body.console-surface .editor-doc-paper [data-testid="editor-save"],
+	body.console-surface [data-testid="editor-draft-textarea"],
+	body.console-surface [data-testid="editor-rich-toggle"],
+	.editor-drawer,
+	.drawer-tab-btn,
+	.palette-result-item,
+	.console-sidebar,
+	.app-stage,
+	.console-shell,
+	.editor-shell {
+		transition: none;
 	}
 }

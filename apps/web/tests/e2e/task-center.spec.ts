@@ -4,7 +4,7 @@ const failedTaskId = "00000000-0000-0000-0000-000000000001";
 
 function taskSummary(
 	taskId: string,
-	state: "Failed" | "Succeeded" | "Queued" = "Succeeded",
+	state: "Failed" | "Succeeded" | "Queued" | "Running" = "Succeeded",
 ) {
 	return {
 		taskId,
@@ -202,6 +202,66 @@ test("429 retry reuses its key after reload", async ({ page }) => {
 	expect(retryKeys[0]).toBeTruthy();
 	expect(retryKeys[1]).toBe(retryKeys[0]);
 	expect(retryKeys[2]).not.toBe(retryKeys[1]);
+});
+
+test("cancel sends one cooperative request and waits for server acknowledgement", async ({
+	page,
+}) => {
+	await mockCurrentAccount(page);
+	const activeTaskId = "00000000-0000-0000-0000-000000000003";
+	let cancelRequestedAt: string | null = null;
+	let cancelRequests = 0;
+	await page.route("**/v1/tasks**", async (route) => {
+		const request = route.request();
+		const url = new URL(request.url());
+		if (request.method() === "GET" && url.pathname === "/v1/tasks") {
+			await route.fulfill({
+				status: 200,
+				contentType: "application/json",
+				body: JSON.stringify({
+					tasks: [
+						{
+							...taskSummary(activeTaskId, "Running"),
+							cancelRequestedAt,
+						},
+					],
+					limit: 50,
+					offset: Number(url.searchParams.get("offset") ?? 0),
+				}),
+			});
+			return;
+		}
+		if (
+			request.method() === "POST" &&
+			url.pathname === `/v1/tasks/${activeTaskId}/cancel`
+		) {
+			cancelRequests += 1;
+			cancelRequestedAt = "2026-09-25T00:01:00Z";
+			await route.fulfill({
+				status: 200,
+				contentType: "application/json",
+				body: JSON.stringify({
+					task: {
+						...taskSummary(activeTaskId, "Running"),
+						cancelRequestedAt,
+					},
+				}),
+			});
+			return;
+		}
+		await route.abort();
+	});
+
+	await page.goto("/tasks");
+	const cancelButton = page.getByRole("button", { name: "取消任务" });
+	await expect(cancelButton).toBeEnabled();
+	await cancelButton.click();
+	await expect.poll(() => cancelRequests).toBe(1);
+	await expect(
+		page.getByRole("button", { name: "正在请求取消" }),
+	).toBeDisabled();
+	expect(cancelRequestedAt).toBe("2026-09-25T00:01:00Z");
+	expect(cancelRequests).toBe(1);
 });
 
 for (const { operation, expectedMessage } of [

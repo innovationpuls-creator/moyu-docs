@@ -31,6 +31,12 @@ type UnsyncedDraft = Awaited<
 	ReturnType<typeof resourceRuntime.listUnsyncedResources>
 >[number];
 
+function resourceListQueryKey(projectId: string, folderId?: string | null) {
+	return folderId
+		? (["resources", projectId, folderId] as const)
+		: (["resources", projectId] as const);
+}
+
 function resourceTypeLabel(type: ResourceType): string {
 	return {
 		document: "文档",
@@ -533,13 +539,17 @@ export function WorkspacePage() {
 	const project = projects.find((item) => item.projectId === projectId) ?? null;
 	const folderId = params.get("folderId");
 	const trashMode = params.get("view") === "trash";
+	const isProjectExpanded = (candidateProjectId: string) =>
+		expandedProject
+			? expandedProject.projectId === candidateProjectId && expandedProject.open
+			: projectId === candidateProjectId;
 	const treeQuery = useQuery({
 		queryKey: ["project-tree", projectId],
 		queryFn: () => client.getProjectTree(projectId as string),
 		enabled: !!projectId,
 	});
 	const resourcesQuery = useQuery({
-		queryKey: ["resources", projectId, folderId],
+		queryKey: resourceListQueryKey(projectId as string, folderId),
 		queryFn: () =>
 			client.listResources(projectId as string, folderId ?? undefined),
 		enabled: !!projectId,
@@ -552,7 +562,7 @@ export function WorkspacePage() {
 	});
 	const allResourcesQueries = useQueries({
 		queries: projects.map((item) => ({
-			queryKey: ["resources", item.projectId],
+			queryKey: resourceListQueryKey(item.projectId),
 			queryFn: () => client.listResources(item.projectId),
 		})),
 	});
@@ -567,8 +577,9 @@ export function WorkspacePage() {
 	const folderResourceQueries = useQueries({
 		queries: folderResourceEntries.map(
 			({ projectId: ownerId, folderId: id }) => ({
-				queryKey: ["resources", ownerId, id],
+				queryKey: resourceListQueryKey(ownerId, id),
 				queryFn: () => client.listResources(ownerId, id),
+				enabled: trashMode || isProjectExpanded(ownerId),
 			}),
 		),
 	});
@@ -698,21 +709,19 @@ export function WorkspacePage() {
 		}),
 	);
 	const trashed = allResources.filter((item) => item.lifecycle === "Trashed");
+	const sidebarQueriesLoading =
+		allResourcesQueries.some((query) => query.isLoading) ||
+		projectTreeQueries.some((query) => query.isLoading) ||
+		folderResourceQueries.some((query) => query.isLoading);
 	const loading =
 		workspaceQuery.isLoading ||
 		(!!workspaceId && projectsQuery.isLoading) ||
 		(!!projectId && (treeQuery.isLoading || resourcesQuery.isLoading)) ||
-		allResourcesQueries.some((query) => query.isLoading) ||
-		projectTreeQueries.some((query) => query.isLoading) ||
-		folderResourceQueries.some((query) => query.isLoading);
+		(trashMode && sidebarQueriesLoading);
 	const loadFailed =
 		workspaceQuery.isError ||
 		projectsQuery.isError ||
-		resourcesQuery.isError ||
-		treeQuery.isError ||
-		allResourcesQueries.some((query) => query.isError) ||
-		projectTreeQueries.some((query) => query.isError) ||
-		folderResourceQueries.some((query) => query.isError);
+		(!trashMode && (resourcesQuery.isError || treeQuery.isError));
 	const fullWorkspaceEmpty =
 		workspaceQuery.isSuccess && workspaces.length === 0 && !loadFailed;
 	useEffect(() => {
@@ -879,10 +888,15 @@ export function WorkspacePage() {
 						const itemResources =
 							projectResourceQueries.get(item.projectId) ?? [];
 						const itemFolders = projectTreeQueries[index]?.data?.folders ?? [];
-						const projectExpanded = expandedProject
-							? expandedProject.projectId === item.projectId &&
-								expandedProject.open
-							: projectId === item.projectId;
+						const projectQueriesFailed =
+							projectTreeQueries[index]?.isError === true ||
+							allResourcesQueries[index]?.isError === true ||
+							folderResourceEntries.some(
+								(entry, queryIndex) =>
+									entry.projectId === item.projectId &&
+									folderResourceQueries[queryIndex]?.isError === true,
+							);
+						const projectExpanded = isProjectExpanded(item.projectId);
 						const hasChildren =
 							itemFolders.some((folder) => folder.lifecycle === "Active") ||
 							itemResources.some((resource) => resource.lifecycle === "Active");
@@ -945,6 +959,29 @@ export function WorkspacePage() {
 										<ConsoleIcon name="plus" />
 									</button>
 								</div>
+								{projectQueriesFailed && (
+									<div
+										className="sidebar-empty"
+										role="alert"
+										data-testid={`project-load-error-${item.projectId}`}
+									>
+										部分项目内容未能加载。
+										<button
+											type="button"
+											className="btn-quiet"
+											onClick={() => {
+												void cache.invalidateQueries({
+													queryKey: ["project-tree", item.projectId],
+												});
+												void cache.invalidateQueries({
+													queryKey: ["resources", item.projectId],
+												});
+											}}
+										>
+											重试
+										</button>
+									</div>
+								)}
 								{projectExpanded && (
 									<FolderTree
 										projectId={item.projectId}
@@ -1309,6 +1346,17 @@ function ResourceTable({
 											恢复
 										</button>
 									)}
+								</div>
+								<div className="mobile-meta-slot">
+									<span>{resourceTypeLabel(item.resourceType)}</span>
+									<span
+										className={
+											"lifecycle-badge " +
+											(item.lifecycle === "Trashed" ? "trashed" : "")
+										}
+									>
+										{lifecycleLabel(item.lifecycle)}
+									</span>
 								</div>
 							</td>
 							<td>{resourceTypeLabel(item.resourceType)}</td>

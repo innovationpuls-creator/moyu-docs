@@ -133,6 +133,7 @@ ROUTED_LOGICAL_NAMES: frozenset[str] = frozenset(
         "CancelTask",
         "RetryTask",
         "AcceptWorkspaceInvitation",
+        "AcceptWorkspaceInvitationById",
         "CreateResourceExportTask",
         "CreateResourceShareLink",
         "CreateWorkspaceInvitation",
@@ -217,6 +218,7 @@ NO_BODY_LOGICAL_NAMES: frozenset[str] = frozenset(
         "ListWorkspaceInvitations",
         "ListWorkspaceMembers",
         "OpenPublicSharedResource",
+        "AcceptWorkspaceInvitationById",
         "RevokeResourceShareLink",
     }
 )

@@ -2202,15 +2202,24 @@ async def test_mention_creates_notification_only_with_access() -> None:
         assert posted.status_code == 201, posted.text
         async with session.begin():
             mentioned_count = await session.scalar(
-                text("SELECT count(*) FROM core.notifications WHERE account_id=:aid"),
+                text(
+                    "SELECT count(*) FROM collab.notifications "
+                    "WHERE recipient_account_id=:aid"
+                ),
                 {"aid": mentioned},
             )
             no_access_count = await session.scalar(
-                text("SELECT count(*) FROM core.notifications WHERE account_id=:aid"),
+                text(
+                    "SELECT count(*) FROM collab.notifications "
+                    "WHERE recipient_account_id=:aid"
+                ),
                 {"aid": no_access},
             )
             self_count = await session.scalar(
-                text("SELECT count(*) FROM core.notifications WHERE account_id=:aid"),
+                text(
+                    "SELECT count(*) FROM collab.notifications "
+                    "WHERE recipient_account_id=:aid"
+                ),
                 {"aid": account_id},
             )
         assert mentioned_count == 1
@@ -2548,16 +2557,16 @@ async def test_mark_single_notification_read() -> None:
             second = uuid4()
             await session.execute(
                 text(
-                    "INSERT INTO core.notifications "
-                    "(notification_id,account_id,kind,payload) "
+                    "INSERT INTO collab.notifications "
+                    "(notification_id,recipient_account_id,type,payload) "
                     "VALUES (:a,:acc,'comment.mention','{}'::jsonb)"
                 ),
                 {"a": first, "acc": account_id},
             )
             await session.execute(
                 text(
-                    "INSERT INTO core.notifications "
-                    "(notification_id,account_id,kind,payload) "
+                    "INSERT INTO collab.notifications "
+                    "(notification_id,recipient_account_id,type,payload) "
                     "VALUES (:a,:acc,'comment.mention','{}'::jsonb)"
                 ),
                 {"a": second, "acc": account_id},
@@ -3294,8 +3303,8 @@ async def test_list_notifications_unread_count() -> None:
             )
             await session.execute(
                 text(
-                    "INSERT INTO core.notifications "
-                    "(notification_id,account_id,kind,payload,read_at) "
+                    "INSERT INTO collab.notifications "
+                    "(notification_id,recipient_account_id,type,payload,read_at) "
                     "VALUES (:n1,:a,'test','{}'::jsonb,NULL), "
                     "(:n2,:a,'test','{}'::jsonb,NULL), "
                     "(:n3,:a,'test','{}'::jsonb,now())"

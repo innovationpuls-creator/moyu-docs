@@ -15,6 +15,7 @@ class Item(BaseModel):
     )
     notificationId: UUID = Field(..., title="UserId")
     kind: str
+    targetRef: dict[str, Any] | None = None
     payload: dict[str, Any]
     createdAt: str | None
     readAt: str | None

@@ -70,6 +70,7 @@ export function WorkspaceMembersPanel({
 	const [targetEmail, setTargetEmail] = useState("");
 	const [expiresInDays, setExpiresInDays] = useState(7);
 	const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+	const [inviteStatus, setInviteStatus] = useState<string | null>(null);
 	const [copyError, setCopyError] = useState<string | null>(null);
 	const [selectedProjectId, setSelectedProjectId] = useState(
 		projects[0]?.projectId ?? "",
@@ -151,10 +152,16 @@ export function WorkspaceMembersPanel({
 			}),
 		onSuccess: async (result) => {
 			setInviteUrl(new URL(result.invitationUrl, window.location.origin).href);
+			setInviteStatus(
+				result.notificationSent
+					? "已向对方发送站内邀请；对方接受后你会收到通知。"
+					: "邀请链接已生成。请复制并发送给对方；对方接受后你会收到通知。",
+			);
 			setCopyError(null);
 			await cache.invalidateQueries({
 				queryKey: ["workspace-invitations", workspaceId],
 			});
+			await cache.invalidateQueries({ queryKey: ["notifications"] });
 		},
 	});
 	const revokeInvitation = useMutation({
@@ -262,7 +269,11 @@ export function WorkspaceMembersPanel({
 			await navigator.clipboard.writeText(inviteUrl);
 			setCopyError(null);
 		} catch (error) {
-			setCopyError(errorText(error));
+			setCopyError(
+				navigator.clipboard
+					? `浏览器拒绝了自动复制（${errorText(error)}）。请点击链接框，按 Ctrl+A 后 Ctrl+C。`
+					: "当前网页不支持自动复制。请点击链接框，按 Ctrl+A 后 Ctrl+C。",
+			);
 		}
 	}
 
@@ -343,6 +354,7 @@ export function WorkspaceMembersPanel({
 							expiresInDays={expiresInDays}
 							setExpiresInDays={setExpiresInDays}
 							inviteUrl={inviteUrl}
+							inviteStatus={inviteStatus}
 							copyError={copyError}
 							copyInviteLink={() => void copyInviteLink()}
 							creating={createInvitation.isPending}
@@ -442,6 +454,7 @@ function WorkspaceScope({
 	expiresInDays,
 	setExpiresInDays,
 	inviteUrl,
+	inviteStatus,
 	copyError,
 	copyInviteLink,
 	creating,
@@ -463,6 +476,7 @@ function WorkspaceScope({
 	expiresInDays: number;
 	setExpiresInDays(value: number): void;
 	inviteUrl: string | null;
+	inviteStatus: string | null;
 	copyError: string | null;
 	copyInviteLink(): void;
 	creating: boolean;
@@ -530,9 +544,12 @@ function WorkspaceScope({
 					</form>
 					{inviteUrl && (
 						<div className="invite-link-card" role="status">
+							{inviteStatus && <p>{inviteStatus}</p>}
 							<div>
 								<strong>邀请链接已生成</strong>
-								<p>系统不会发送邮件，请复制链接发给目标邮箱对应的账号。</p>
+								<p>
+									请使用目标邮箱对应的账号接受邀请；已注册账号可直接在通知中加入，接受后你会收到反馈。
+								</p>
 							</div>
 							<div className="invite-link-row">
 								<input aria-label="邀请链接" readOnly value={inviteUrl} />

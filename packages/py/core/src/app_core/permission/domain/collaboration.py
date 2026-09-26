@@ -37,6 +37,17 @@ class CreatedWorkspaceInvitation:
 
 
 @dataclass(frozen=True)
+class WorkspaceInvitationNotice:
+    invitation_id: UUID
+    workspace_id: UUID
+    workspace_name: str
+    target_email: str
+    target_account_id: UUID | None
+    inviter_account_id: UUID
+    inviter_email: str
+
+
+@dataclass(frozen=True)
 class InvitationAcceptanceExpired:
     """An expired invitation was recorded and can now be committed."""
 

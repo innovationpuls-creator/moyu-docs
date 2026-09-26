@@ -5,8 +5,14 @@
 	"type": "object",
 	"additionalProperties": false,
 	"properties": {
-		"workspaceId": { "$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId" },
-		"targetEmail": { "type": "string", "format": "email", "maxLength": 255 },
+		"workspaceId": {
+			"$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId"
+		},
+		"targetEmail": {
+			"type": "string",
+			"format": "email",
+			"maxLength": 255
+		},
 		"expiresInDays": {
 			"type": "integer",
 			"minimum": 1,
@@ -27,13 +33,34 @@
 				"workspaceId": {
 					"$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId"
 				},
-				"targetEmail": { "type": "string", "format": "email" },
-				"role": { "const": "Member" },
-				"state": { "const": "Pending" },
-				"expiresAt": { "type": "string", "format": "date-time" },
-				"createdBy": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
-				"createdAt": { "type": "string", "format": "date-time" },
-				"invitationUrl": { "type": "string", "minLength": 1 }
+				"targetEmail": {
+					"type": "string",
+					"format": "email"
+				},
+				"role": {
+					"const": "Member"
+				},
+				"state": {
+					"const": "Pending"
+				},
+				"expiresAt": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"createdBy": {
+					"$ref": "../../ids/ids.schema.json#/$defs/UserId"
+				},
+				"createdAt": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"invitationUrl": {
+					"type": "string",
+					"minLength": 1
+				},
+				"notificationSent": {
+					"type": "boolean"
+				}
 			},
 			"required": [
 				"invitationId",

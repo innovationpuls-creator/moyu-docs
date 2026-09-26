@@ -2353,6 +2353,35 @@ paths:
         "503":
           $ref: "#/components/responses/ErrorEnvelopeResponse"
 
+  /v1/invitations/{invitationId}/accept:
+    post:
+      operationId: AcceptWorkspaceInvitationById
+      summary: Accept an in-app Workspace invitation for the matching Active Account
+      tags: [permission]
+      parameters:
+        - name: invitationId
+          in: path
+          required: true
+          schema:
+            $ref: "../ids/ids.schema.json#/$defs/InvitationId"
+      responses:
+        "200":
+          description: Workspace Member membership is granted atomically
+          content:
+            application/json:
+              schema:
+                $ref: "../commands/permission/accept-workspace-invitation-by-id.schema.json"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "403":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelopeResponse"
+
   /v1/workspaces/{workspaceId}/invitations/{invitationId}:
     parameters:
       - name: workspaceId

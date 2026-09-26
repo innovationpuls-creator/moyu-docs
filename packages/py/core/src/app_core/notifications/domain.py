@@ -20,6 +20,8 @@ class Notification:
     payload: dict
     created_at: datetime | None = None
     read_at: datetime | None = None
+    target_ref: dict | None = None
+    source_event_id: UUID | None = None
 
 
 def extract_mentioned_emails(body: str) -> list[str]:

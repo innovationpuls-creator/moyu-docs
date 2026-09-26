@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Annotated
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from app_contracts.commands.permission.accept_workspace_invitation import (
     AcceptWorkspaceInvitation as AcceptWorkspaceInvitationRequest,
@@ -11,6 +11,12 @@ from app_contracts.commands.permission.accept_workspace_invitation import (
 )
 from app_contracts.commands.permission.accept_workspace_invitation import (
     MembershipKind as AcceptedMembershipKind,
+)
+from app_contracts.commands.permission.accept_workspace_invitation_by_id import (
+    AcceptWorkspaceInvitationByIdResponse,
+)
+from app_contracts.commands.permission.accept_workspace_invitation_by_id import (
+    MembershipKind as AcceptedByIdMembershipKind,
 )
 from app_contracts.commands.permission.create_workspace_invitation import (
     CreateWorkspaceInvitation as CreateWorkspaceInvitationRequest,
@@ -109,17 +115,23 @@ from app_contracts.queries.permission.list_workspace_members import (
     MembershipKind as WorkspaceMembershipKind,
 )
 from app_core.common.exceptions import ConflictError
+from app_core.notifications.domain import Notification
 from app_core.permission.application.administration import PermissionAdministration
 from app_core.permission.domain.access_control import (
     PermissionCapability,
     PermissionRole,
 )
-from app_core.permission.domain.collaboration import InvitationAcceptanceExpired
+from app_core.permission.domain.collaboration import (
+    InvitationAcceptanceExpired,
+    WorkspaceInvitationNotice,
+)
 from app_core.session.domain.session import Session
+from app_infra.postgres.notification_repository import PostgresNotificationsRepository
 from fastapi import APIRouter, Depends, Header, status
 from fastapi.responses import JSONResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.dependencies.auth import get_current_session
+from api.dependencies.auth import get_current_session, get_db_session
 from api.dependencies.permission import get_permission_administration
 from api.middleware.error_handler import _build_envelope
 
@@ -163,6 +175,7 @@ async def create_workspace_invitation(
     use_case: Annotated[
         PermissionAdministration, Depends(get_permission_administration)
     ],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
     idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
 ) -> CreateWorkspaceInvitationResponse:
     if request.workspaceId != workspace_id:
@@ -177,6 +190,31 @@ async def create_workspace_invitation(
         request.expiresInDays or 7,
     )
     invitation = created.invitation
+    notice = await use_case.get_workspace_invitation_notice(invitation.invitation_id)
+    notification_sent = bool(
+        notice
+        and notice.target_account_id
+        and notice.target_account_id != current.account_id
+    )
+    if (
+        notification_sent
+        and notice is not None
+        and notice.target_account_id is not None
+    ):
+        await PostgresNotificationsRepository(session).save(
+            Notification(
+                notification_id=uuid4(),
+                account_id=notice.target_account_id,
+                kind="workspace.invitation.created",
+                payload={
+                    "workspaceId": str(notice.workspace_id),
+                    "workspaceName": notice.workspace_name,
+                    "inviterEmail": notice.inviter_email,
+                },
+                target_ref={"invitationId": str(notice.invitation_id)},
+                source_event_id=notice.invitation_id,
+            )
+        )
     return CreateWorkspaceInvitationResponse(
         invitationId=invitation.invitation_id,
         workspaceId=invitation.workspace_id,
@@ -187,6 +225,7 @@ async def create_workspace_invitation(
         createdBy=invitation.created_by,
         createdAt=invitation.created_at,
         invitationUrl=created.invitation_url,
+        notificationSent=notification_sent,
     )
 
 
@@ -258,7 +297,9 @@ async def accept_workspace_invitation(
     use_case: Annotated[
         PermissionAdministration, Depends(get_permission_administration)
     ],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> AcceptWorkspaceInvitationResponse | JSONResponse:
+    notice = await use_case.get_workspace_invitation_notice_by_token(request.token)
     member = await use_case.accept_workspace_invitation(
         current.account_id, request.token
     )
@@ -272,12 +313,77 @@ async def accept_workspace_invitation(
             status_code=status.HTTP_409_CONFLICT,
             content=envelope.model_dump(mode="json"),
         )
+    await _notify_inviter_of_acceptance(
+        session, notice, member.account_id, member.email
+    )
     return AcceptWorkspaceInvitationResponse(
         workspaceId=member.workspace_id,
         accountId=member.account_id,
         membershipKind=AcceptedMembershipKind(member.membership_kind),
         email=member.email,
         createdAt=member.created_at,
+    )
+
+
+@router.post(
+    "/invitations/{invitation_id}/accept",
+    response_model=AcceptWorkspaceInvitationByIdResponse,
+)
+async def accept_workspace_invitation_by_id(
+    invitation_id: UUID,
+    current: Annotated[Session, Depends(get_current_session)],
+    use_case: Annotated[
+        PermissionAdministration, Depends(get_permission_administration)
+    ],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AcceptWorkspaceInvitationByIdResponse | JSONResponse:
+    notice = await use_case.get_workspace_invitation_notice(invitation_id)
+    member = await use_case.accept_workspace_invitation_by_id(
+        current.account_id, invitation_id
+    )
+    if isinstance(member, InvitationAcceptanceExpired):
+        envelope = _build_envelope(
+            category="Conflict",
+            error_code="INVITATION_EXPIRED",
+            message="Invitation has expired.",
+        )
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content=envelope.model_dump(mode="json"),
+        )
+    await _notify_inviter_of_acceptance(
+        session, notice, member.account_id, member.email
+    )
+    return AcceptWorkspaceInvitationByIdResponse(
+        workspaceId=member.workspace_id,
+        accountId=member.account_id,
+        membershipKind=AcceptedByIdMembershipKind(member.membership_kind),
+        email=member.email,
+        createdAt=member.created_at,
+    )
+
+
+async def _notify_inviter_of_acceptance(
+    session: AsyncSession,
+    notice: WorkspaceInvitationNotice | None,
+    account_id: UUID,
+    email: str,
+) -> None:
+    if notice is None or notice.inviter_account_id == account_id:
+        return
+    await PostgresNotificationsRepository(session).save(
+        Notification(
+            notification_id=uuid4(),
+            account_id=notice.inviter_account_id,
+            kind="workspace.invitation.accepted",
+            payload={
+                "workspaceId": str(notice.workspace_id),
+                "workspaceName": notice.workspace_name,
+                "inviteeEmail": email,
+            },
+            target_ref={"invitationId": str(notice.invitation_id)},
+            source_event_id=notice.invitation_id,
+        )
     )
 
 

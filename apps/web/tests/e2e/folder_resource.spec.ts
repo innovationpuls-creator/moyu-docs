@@ -38,6 +38,21 @@ test("folder resources expand, list at their folder, and open by stable ID", asy
 	);
 	expect(project.status()).toBe(201);
 	const projectId = (await project.json()).projectId as string;
+	const backgroundProjectKey = crypto.randomUUID();
+	const backgroundProject = await page.request.post(
+		`/v1/workspaces/${workspaceId}/projects`,
+		{
+			headers: { "Idempotency-Key": backgroundProjectKey },
+			data: {
+				workspaceId,
+				name: "Background project",
+				idempotencyKey: backgroundProjectKey,
+			},
+		},
+	);
+	expect(backgroundProject.status()).toBe(201);
+	const backgroundProjectId = (await backgroundProject.json())
+		.projectId as string;
 
 	const folderKey = crypto.randomUUID();
 	const folder = await page.request.post(`/v1/projects/${projectId}/folders`, {
@@ -65,9 +80,24 @@ test("folder resources expand, list at their folder, and open by stable ID", asy
 	});
 	expect(resource.status()).toBe(201);
 	const resourceId = (await resource.json()).resourceId as string;
+	await page.route(
+		new RegExp(`/v1/projects/${backgroundProjectId}$`),
+		(route) =>
+			route.fulfill({
+				status: 503,
+				contentType: "application/json",
+				body: JSON.stringify({ detail: "TEMPORARILY_UNAVAILABLE" }),
+			}),
+	);
 
 	await page.goto(
 		`/workspace?workspaceId=${workspaceId}&projectId=${projectId}`,
+	);
+	await expect(
+		page.getByTestId(`project-load-error-${backgroundProjectId}`),
+	).toBeVisible();
+	await expect(page.getByTestId("console-empty-state")).toContainText(
+		"这里还没有资源",
 	);
 	await page.getByTestId("console-notifications").click();
 	await expect(page.getByRole("dialog", { name: "通知" })).toContainText(

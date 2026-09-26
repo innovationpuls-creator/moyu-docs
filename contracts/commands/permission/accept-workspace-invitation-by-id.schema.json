@@ -1,0 +1,21 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/permission/accept-workspace-invitation-by-id.schema.json",
+	"title": "AcceptWorkspaceInvitationByIdResponse",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"workspaceId": { "$ref": "../../ids/ids.schema.json#/$defs/WorkspaceId" },
+		"accountId": { "$ref": "../../ids/ids.schema.json#/$defs/UserId" },
+		"membershipKind": { "type": "string", "enum": ["Owner", "Member"] },
+		"email": { "type": "string" },
+		"createdAt": { "type": "string", "format": "date-time" }
+	},
+	"required": [
+		"workspaceId",
+		"accountId",
+		"membershipKind",
+		"email",
+		"createdAt"
+	]
+}

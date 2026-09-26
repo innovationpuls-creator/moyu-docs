@@ -94,6 +94,10 @@ test("offline edits survive refresh and converge with a concurrent online edit",
 			"离线内容将在重新验证会话后同步",
 			{ timeout: 10_000 },
 		);
+		await pageA.getByTestId("editor-save").click();
+		await expect(pageA.getByTestId("editor-save-status")).toHaveText(
+			"已保存在此设备。",
+		);
 
 		await fillEditor(pageB, "在线端并发提交的修改");
 		await expect(pageB.getByTestId("editor-offline-status")).toContainText(

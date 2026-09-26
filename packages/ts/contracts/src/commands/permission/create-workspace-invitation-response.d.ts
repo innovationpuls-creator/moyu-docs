@@ -18,4 +18,5 @@ export interface CreateWorkspaceInvitationResponse {
 	createdBy: UserId;
 	createdAt: string;
 	invitationUrl: string;
+	notificationSent?: boolean;
 }

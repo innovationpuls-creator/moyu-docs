@@ -1,23 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useNavigate } from "react-router";
 import { client } from "../../shared/api/client";
 import { ConsoleIcon } from "../../shared/ui/console-icons";
 import { formatConsoleDate } from "../../shared/ui/date";
 
-function notificationTarget(payload: unknown): string | null {
-	if (typeof payload !== "object" || payload === null) return null;
-	const resourceId = (payload as Record<string, unknown>).resourceId;
-	return typeof resourceId === "string" ? resourceId : null;
+function recordOf(payload: unknown): Record<string, unknown> {
+	if (typeof payload !== "object" || payload === null) return {};
+	return payload as Record<string, unknown>;
 }
 
-function notificationExcerpt(payload: unknown): string | null {
-	if (typeof payload !== "object" || payload === null) return null;
-	const excerpt = (payload as Record<string, unknown>).excerpt;
-	return typeof excerpt === "string" && excerpt.length > 0 ? excerpt : null;
+function stringField(payload: unknown, field: string): string | null {
+	const value = recordOf(payload)[field];
+	return typeof value === "string" && value.length > 0 ? value : null;
 }
 
 function notificationTitle(kind: string): string {
 	if (kind === "comment.mention") return "有人在评论中提到了你";
+	if (kind === "workspace.invitation.created") return "收到工作区邀请";
+	if (kind === "workspace.invitation.accepted") return "工作区邀请已被接受";
 	return "一条新通知";
 }
 
@@ -27,11 +28,14 @@ export function NotificationCenter({
 	onOpenResource(resourceId: string): void;
 }) {
 	const cache = useQueryClient();
+	const navigate = useNavigate();
 	const [open, setOpen] = useState(false);
 	const notifications = useQuery({
 		queryKey: ["notifications"],
 		queryFn: () => client.listNotifications(),
-		enabled: open,
+		refetchInterval: 30_000,
+		refetchIntervalInBackground: false,
+		refetchOnWindowFocus: true,
 	});
 	const readOne = useMutation({
 		mutationFn: (notificationId: string) =>
@@ -41,6 +45,20 @@ export function NotificationCenter({
 	const readAll = useMutation({
 		mutationFn: () => client.markAllNotificationsRead(),
 		onSuccess: () => cache.invalidateQueries({ queryKey: ["notifications"] }),
+	});
+	const acceptInvitation = useMutation({
+		mutationFn: (invitationId: string) =>
+			client.acceptWorkspaceInvitationById(invitationId),
+		onSuccess: async (result) => {
+			await Promise.all([
+				cache.invalidateQueries({ queryKey: ["notifications"] }),
+				cache.invalidateQueries({ queryKey: ["workspaces"] }),
+			]);
+			setOpen(false);
+			navigate(
+				`/workspace?workspaceId=${encodeURIComponent(result.workspaceId)}`,
+			);
+		},
 	});
 	const result = notifications.data;
 	const items = result?.items ?? [];
@@ -90,8 +108,23 @@ export function NotificationCenter({
 					)}
 					<ul className="notification-list">
 						{items.map((item) => {
-							const target = notificationTarget(item.payload);
-							const excerpt = notificationExcerpt(item.payload);
+							const payload = recordOf(item.payload);
+							const workspaceName = stringField(payload, "workspaceName");
+							const inviterEmail = stringField(payload, "inviterEmail");
+							const inviteeEmail = stringField(payload, "inviteeEmail");
+							const invitationId = item.targetRef?.invitationId;
+							const targetResourceId = item.targetRef?.resourceId;
+							const resourceId =
+								typeof targetResourceId === "string"
+									? targetResourceId
+									: stringField(payload, "resourceId");
+							const workspaceId = stringField(payload, "workspaceId");
+							const excerpt =
+								item.kind === "workspace.invitation.created"
+									? `${inviterEmail ?? "工作区成员"} 邀请你加入「${workspaceName ?? "工作区"}」`
+									: item.kind === "workspace.invitation.accepted"
+										? `${inviteeEmail ?? "受邀成员"} 已加入「${workspaceName ?? "工作区"}」`
+										: stringField(payload, "excerpt");
 							return (
 								<li
 									key={item.notificationId}
@@ -101,9 +134,17 @@ export function NotificationCenter({
 										type="button"
 										onClick={() => {
 											if (!item.readAt) readOne.mutate(item.notificationId);
-											if (target) {
+											if (resourceId) {
 												setOpen(false);
-												onOpenResource(target);
+												onOpenResource(resourceId);
+											} else if (
+												workspaceId &&
+												item.kind === "workspace.invitation.accepted"
+											) {
+												setOpen(false);
+												navigate(
+													`/workspace?workspaceId=${encodeURIComponent(workspaceId)}`,
+												);
 											}
 										}}
 									>
@@ -118,10 +159,29 @@ export function NotificationCenter({
 											<small>{formatConsoleDate(item.createdAt)}</small>
 										</span>
 									</button>
+									{item.kind === "workspace.invitation.created" &&
+										typeof invitationId === "string" && (
+											<button
+												className="notification-accept"
+												type="button"
+												disabled={acceptInvitation.isPending}
+												onClick={() => acceptInvitation.mutate(invitationId)}
+											>
+												{acceptInvitation.isPending ? "正在加入…" : "接受邀请"}
+											</button>
+										)}
 								</li>
 							);
 						})}
 					</ul>
+					{acceptInvitation.error && (
+						<p className="notification-empty" role="alert">
+							接受邀请失败：
+							{acceptInvitation.error instanceof Error
+								? acceptInvitation.error.message
+								: "请稍后重试。"}
+						</p>
+					)}
 				</section>
 			)}
 		</div>

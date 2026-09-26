@@ -20,6 +20,7 @@ router = APIRouter()
 class NotificationItem(BaseModel):
     notificationId: UUID
     kind: str
+    targetRef: dict
     payload: dict
     createdAt: str | None
     readAt: str | None
@@ -42,6 +43,7 @@ async def list_notifications(
             NotificationItem(
                 notificationId=n.notification_id,
                 kind=n.kind,
+                targetRef=n.target_ref or {},
                 payload=n.payload,
                 createdAt=n.created_at.isoformat() if n.created_at else None,
                 readAt=n.read_at.isoformat() if n.read_at else None,

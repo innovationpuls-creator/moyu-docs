@@ -162,6 +162,7 @@ export function EditorPage() {
 	const resourceId = params.get("resourceId") ?? params.get("resource");
 	const [replaced, setReplaced] = useState(false);
 	const sessionRevokedRef = useRef(false);
+	const authenticatedThisMount = useRef(false);
 	const [realtimeStatus, setRealtimeStatus] = useState("connecting");
 	const [browserOnline, setBrowserOnline] = useState(() => navigator.onLine);
 	const [cachedAccountId] = useState(() =>
@@ -169,17 +170,45 @@ export function EditorPage() {
 	);
 	const account = useQuery({
 		queryKey: ["account"],
-		queryFn: () => client.me(),
+		queryFn: async () => {
+			try {
+				const current = await client.meForSessionRecovery();
+				if (current) authenticatedThisMount.current = true;
+				return current;
+			} catch (error) {
+				if (
+					error instanceof DomApiError &&
+					error.errorCode === "SESSION_REPLACED" &&
+					!authenticatedThisMount.current
+				) {
+					return null;
+				}
+				throw error;
+			}
+		},
+		retry: (failureCount, error) =>
+			!(
+				error instanceof DomApiError && error.errorCode === "SESSION_REPLACED"
+			) && failureCount < 2,
 	});
+	const sessionReplacedByAuth =
+		authenticatedThisMount.current &&
+		account.error instanceof DomApiError &&
+		account.error.errorCode === "SESSION_REPLACED";
+	const sessionReplacementDetected = replaced || sessionReplacedByAuth;
+	const localAccountId = cachedAccountId ?? account.data?.accountId;
 	const serverAuthenticated =
 		!!account.data?.accountId && !account.isError && browserOnline;
 	const offlineIdentityAvailable =
 		!serverAuthenticated &&
-		!!cachedAccountId &&
-		(!browserOnline || account.error instanceof TypeError);
+		!!localAccountId &&
+		(!browserOnline ||
+			account.error instanceof TypeError ||
+			sessionReplacedByAuth ||
+			replaced);
 	const accountId =
 		account.data?.accountId ??
-		(offlineIdentityAvailable ? cachedAccountId : undefined);
+		(offlineIdentityAvailable ? localAccountId : undefined);
 
 	useEffect(() => {
 		const goOnline = () => {
@@ -275,7 +304,7 @@ export function EditorPage() {
 						opened={resource.data}
 						realtimeStatus={realtimeStatus}
 						serverAuthenticated={serverAuthenticated}
-						sessionReplaced={replaced}
+						sessionReplaced={sessionReplacementDetected}
 						sessionRevokedRef={sessionRevokedRef}
 						onBack={() => navigate("/workspace")}
 					/>
@@ -286,7 +315,9 @@ export function EditorPage() {
 					onBack={() => navigate("/workspace")}
 				/>
 			)}
-			{replaced && <EditorSessionDialog onLogin={() => navigate("/login")} />}
+			{sessionReplacementDetected && (
+				<EditorSessionDialog onLogin={() => navigate("/login")} />
+			)}
 		</div>
 	);
 }
@@ -657,6 +688,7 @@ function ResourceEditor({
 
 	useEffect(() => {
 		if (!sessionReplaced) return;
+		sessionRevokedRef.current = true;
 		syncRejectedRef.current = true;
 		setSyncRejected(true);
 		setSaveMessage("会话已被另一台设备替换；同步已暂停。");
@@ -665,7 +697,7 @@ function ResourceEditor({
 			window.clearTimeout(journalRetryTimer.current);
 			journalRetryTimer.current = null;
 		}
-	}, [sessionReplaced]);
+	}, [sessionReplaced, sessionRevokedRef]);
 
 	useEffect(() => {
 		if (!editorHost.current) return;
@@ -1032,7 +1064,7 @@ function ResourceEditor({
 			} else {
 				setLocalStatus("本地修改已保存。");
 			}
-			setSaveMessage("已保存");
+			setSaveMessage("已保存在此设备。");
 		} catch (error) {
 			setSaveMessage(
 				error instanceof Error ? error.message : "保存失败，请重试。",

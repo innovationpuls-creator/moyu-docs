@@ -15,15 +15,28 @@
 					"notificationId": {
 						"$ref": "../../ids/ids.schema.json#/$defs/UserId"
 					},
-					"kind": { "type": "string" },
-					"payload": { "type": "object" },
-					"createdAt": { "type": ["string", "null"] },
-					"readAt": { "type": ["string", "null"] }
+					"kind": {
+						"type": "string"
+					},
+					"targetRef": {
+						"type": "object"
+					},
+					"payload": {
+						"type": "object"
+					},
+					"createdAt": {
+						"type": ["string", "null"]
+					},
+					"readAt": {
+						"type": ["string", "null"]
+					}
 				},
 				"required": ["notificationId", "kind", "payload", "createdAt", "readAt"]
 			}
 		},
-		"unreadCount": { "type": "integer" }
+		"unreadCount": {
+			"type": "integer"
+		}
 	},
 	"required": ["items", "unreadCount"]
 }

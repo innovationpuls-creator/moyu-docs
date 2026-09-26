@@ -72,6 +72,11 @@ class NotifyMentionedUsers:
                         "author": str(author_id),
                         "excerpt": body[:120],
                     },
+                    target_ref={
+                        "resourceId": str(resource_id),
+                        "commentId": str(comment_id),
+                    },
+                    source_event_id=comment_id,
                 )
             )
             mentioned += 1

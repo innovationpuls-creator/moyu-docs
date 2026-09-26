@@ -382,12 +382,18 @@ export function SharePanel({ resourceId }: SharePanelProps) {
 	});
 
 	async function copyOneTimeUrl() {
+		if (!navigator.clipboard) {
+			setMessage("当前网页不支持自动复制。请点击链接框，按 Ctrl+A 后 Ctrl+C。");
+			return;
+		}
 		try {
 			await navigator.clipboard.writeText(oneTimeShareUrl(oneTimeUrl));
 			setMessage("链接已复制。请妥善保管；之后无法从列表中再次查看。");
 		} catch (error) {
 			setMessage(
-				error instanceof Error ? error.message : "复制失败，请手动复制链接。",
+				error instanceof Error
+					? `浏览器拒绝了自动复制（${error.message}）。请点击链接框，按 Ctrl+A 后 Ctrl+C。`
+					: "复制失败。请点击链接框，按 Ctrl+A 后 Ctrl+C。",
 			);
 		}
 	}

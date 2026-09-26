@@ -25,6 +25,9 @@ class ExpiredInvitationRepository:
     def __init__(self) -> None:
         self.expired_state_recorded = False
 
+    async def get_workspace_invitation_notice_by_token_hash(self, token_hash):
+        return None
+
     async def accept_workspace_invitation(self, actor_id, token_hash):
         self.expired_state_recorded = True
         return InvitationAcceptanceExpired()

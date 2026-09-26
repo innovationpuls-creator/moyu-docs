@@ -1,9 +1,14 @@
-# Root Task Runner for DOM Monorepo (justfile)
+# Root Task Runner for 墨屿 Monorepo (justfile)
 # See docs/architecture/26-Technology-Stack-Decision.md §53
 
 # 默认列出所有可用任务
 default:
     @just --list
+
+# Start the local API with the ignored, persistent root .env configuration.
+dev-api:
+    test -f .env || (echo "Create the root .env before starting the API." >&2; exit 1)
+    uv run --env-file .env --project services/api python -c 'import uvicorn; from api.main import create_app; uvicorn.run(create_app(debug=True), host="127.0.0.1", port=8000, log_level="info")'
 
 # 全局代码检查 (Python + Frontend JS/TS/JSON)
 lint: lint-py lint-js

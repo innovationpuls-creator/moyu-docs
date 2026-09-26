@@ -17,6 +17,7 @@ from app_core.permission.domain.collaboration import (
     InvitationAcceptanceExpired,
     ProjectMemberView,
     ResourcePermissionView,
+    WorkspaceInvitationNotice,
     WorkspaceInvitationView,
     WorkspaceMemberView,
 )
@@ -102,6 +103,28 @@ class PermissionAdministration:
             )
         token_hash = hashlib.sha256(token.encode()).hexdigest()
         return await self._repository.accept_workspace_invitation(actor_id, token_hash)
+
+    async def accept_workspace_invitation_by_id(
+        self, actor_id: UUID, invitation_id: UUID
+    ) -> WorkspaceMemberView | InvitationAcceptanceExpired:
+        return await self._repository.accept_workspace_invitation_by_id(
+            actor_id, invitation_id
+        )
+
+    async def get_workspace_invitation_notice(
+        self, invitation_id: UUID
+    ) -> WorkspaceInvitationNotice | None:
+        return await self._repository.get_workspace_invitation_notice(invitation_id)
+
+    async def get_workspace_invitation_notice_by_token(
+        self, token: str
+    ) -> WorkspaceInvitationNotice | None:
+        if not token:
+            return None
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        return await self._repository.get_workspace_invitation_notice_by_token_hash(
+            token_hash
+        )
 
     async def revoke_workspace_invitation(
         self,

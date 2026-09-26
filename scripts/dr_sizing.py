@@ -20,7 +20,7 @@ SCENARIOS = ("10k", "100k", "1m")
 SCALING_TABLES = (
     "core.resources",
     "core.folders",
-    "core.notifications",
+    "collab.notifications",
     "collab.resource_update_journal",
     "collab.resource_checkpoints",
     "collab.resource_comments",
