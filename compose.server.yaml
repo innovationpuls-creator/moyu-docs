@@ -189,6 +189,7 @@ services:
     build:
       context: .
       dockerfile: workers/maintenance/Dockerfile
+    command: ["python", "-m", "workers.maintenance.main", "--daemon", "--production", "--interval", "5"]
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-dom_app}:${POSTGRES_PASSWORD:?Run scripts/package-tencent-cvm.sh to generate server credentials}@postgres:5432/${POSTGRES_DB:-dom}
       S3_ASSET_ENDPOINT: http://minio:9000

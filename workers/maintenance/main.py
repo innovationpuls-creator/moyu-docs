@@ -3,7 +3,7 @@
 Assembles real infrastructure adapters into the task runtime and exposes
 `run_once()` (one claim cycle) and `sweep()` (run the maintenance enqueuers,
 then one claim cycle). The dev runner refuses to operate against non-isolated
-databases: DATABASE_URL must target the guarded test database.
+databases. The production daemon must opt in explicitly with `--production`.
 """
 
 from __future__ import annotations
@@ -590,9 +590,18 @@ async def _main() -> None:
     parser.add_argument("--once", action="store_true", help="run one claim cycle")
     parser.add_argument("--sweep", action="store_true", help="enqueue, then one cycle")
     parser.add_argument("--daemon", action="store_true", help="periodic claim loop")
+    parser.add_argument(
+        "--production",
+        action="store_true",
+        help="allow the daemon to use the configured production database",
+    )
     parser.add_argument("--interval", type=float, default=5.0, help="claim interval")
     args = parser.parse_args()
-    url = require_isolated(os.environ.get("DATABASE_URL", ""))
+    if args.production and not args.daemon:
+        parser.error("--production requires --daemon")
+    url = os.environ["DATABASE_URL"]
+    if not args.production:
+        url = require_isolated(url)
     engine = create_async_engine(url)
     factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
     try:
