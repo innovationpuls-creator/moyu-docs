@@ -1,6 +1,11 @@
 #!/bin/sh
 set -eu
 
+# Avoid packing macOS AppleDouble sidecars and resource-fork metadata into the
+# Linux deployment archive.
+COPYFILE_DISABLE=1
+export COPYFILE_DISABLE
+
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 ENV_FILE="$REPO_ROOT/deploy/tencent-cvm/server.env"
 OUTPUT_DIR="$REPO_ROOT/dist"
