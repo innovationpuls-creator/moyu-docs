@@ -1,11 +1,12 @@
-FROM node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6 AS builder
+ARG NODE_IMAGE=node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6
+FROM ${NODE_IMAGE} AS builder
 WORKDIR /app
 RUN corepack enable
 COPY . .
 RUN pnpm install --frozen-lockfile --filter @dom/realtime... \
     && pnpm install --frozen-lockfile --prod --filter @dom/realtime...
 
-FROM node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6 AS runtime
+FROM ${NODE_IMAGE} AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=builder --chown=node:node /app/node_modules /app/node_modules

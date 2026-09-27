@@ -2,7 +2,7 @@ name: dom-aliyun
 
 services:
   postgres:
-    image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+    image: m.daocloud.io/docker.io/library/postgres:18-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-dom_app}
       POSTGRES_DB: ${POSTGRES_DB:-dom}
@@ -55,7 +55,7 @@ services:
         max-file: "3"
 
   nats:
-    image: nats:2.10-alpine@sha256:b83efabe3e7def1e0a4a31ec6e078999bb17c80363f881df35edc70fcb6bb927
+    image: m.daocloud.io/docker.io/library/nats:2.10-alpine
     command: ["-js", "-m", "8222", "-sd", "/data"]
     volumes:
       - natsdata:/data
@@ -72,7 +72,7 @@ services:
         max-file: "3"
 
   valkey:
-    image: valkey/valkey:9-alpine@sha256:48332870af354a799964c0012ae1194a0bf2bf894eb508f945810596dc2d8d11
+    image: m.daocloud.io/docker.io/valkey/valkey:9-alpine
     command: ["valkey-server", "--save", "", "--appendonly", "no"]
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
@@ -91,6 +91,9 @@ services:
     build:
       context: .
       dockerfile: services/api/Dockerfile
+      args:
+        PYTHON_IMAGE: m.daocloud.io/docker.io/library/python:3.12-slim
+        UV_IMAGE: ghcr.m.daocloud.io/astral-sh/uv:python3.12-bookworm-slim
     command: ["alembic", "-c", "migrations/postgres/alembic.ini", "upgrade", "head"]
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-dom_app}:${POSTGRES_PASSWORD:?Run scripts/package-aliyun-cvm.sh on your computer first}@postgres:5432/${POSTGRES_DB:-dom}
@@ -109,6 +112,9 @@ services:
     build:
       context: .
       dockerfile: services/api/Dockerfile
+      args:
+        PYTHON_IMAGE: m.daocloud.io/docker.io/library/python:3.12-slim
+        UV_IMAGE: ghcr.m.daocloud.io/astral-sh/uv:python3.12-bookworm-slim
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-dom_app}:${POSTGRES_PASSWORD:?Run scripts/package-aliyun-cvm.sh on your computer first}@postgres:5432/${POSTGRES_DB:-dom}
       VALKEY_URL: redis://valkey:6379/14
@@ -156,6 +162,8 @@ services:
     build:
       context: .
       dockerfile: services/realtime/Dockerfile
+      args:
+        NODE_IMAGE: m.daocloud.io/docker.io/library/node:24-bookworm-slim
     environment:
       PORT: "8765"
       REALTIME_DATABASE_URL: postgresql://${POSTGRES_USER:-dom_app}:${POSTGRES_PASSWORD:?Run scripts/package-aliyun-cvm.sh on your computer first}@postgres:5432/${POSTGRES_DB:-dom}
@@ -189,6 +197,9 @@ services:
     build:
       context: .
       dockerfile: workers/maintenance/Dockerfile
+      args:
+        PYTHON_IMAGE: m.daocloud.io/docker.io/library/python:3.12-slim
+        UV_IMAGE: ghcr.m.daocloud.io/astral-sh/uv:python3.12-bookworm-slim
     command: ["python", "-m", "workers.maintenance.main", "--daemon", "--production", "--interval", "5"]
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-dom_app}:${POSTGRES_PASSWORD:?Run scripts/package-aliyun-cvm.sh on your computer first}@postgres:5432/${POSTGRES_DB:-dom}
@@ -214,6 +225,9 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      args:
+        NODE_IMAGE: m.daocloud.io/docker.io/library/node:24-bookworm-slim
+        NGINX_IMAGE: m.daocloud.io/docker.io/nginxinc/nginx-unprivileged:1.29-alpine
     depends_on:
       api:
         condition: service_healthy
@@ -232,7 +246,7 @@ services:
         max-file: "3"
 
   gateway:
-    image: nginx:stable-alpine@sha256:0985e772fb9f729e6fa0980da05fca5d9c468e870eed43071545afa9d2e27d94
+    image: m.daocloud.io/docker.io/library/nginx:stable-alpine
     command: ["/bin/sh", "/opt/aliyun/start-gateway.sh"]
     environment:
       PUBLIC_IP: ${PUBLIC_IP:?Run scripts/package-aliyun-cvm.sh on your computer first}
@@ -255,7 +269,7 @@ services:
         max-file: "3"
 
   certbot:
-    image: certbot/certbot:v5.4.0@sha256:c23159d30afdd9c97960578aa4654f5901de6cae394958f894074dedd55e599d
+    image: m.daocloud.io/docker.io/certbot/certbot:v5.4.0
     entrypoint: ["/bin/sh", "/opt/aliyun/certbot-loop.sh"]
     environment:
       PUBLIC_IP: ${PUBLIC_IP:?Run scripts/package-aliyun-cvm.sh on your computer first}
