@@ -166,6 +166,7 @@ services:
       dockerfile: services/realtime/Dockerfile
       args:
         NODE_IMAGE: m.daocloud.io/docker.io/library/node:24-bookworm-slim
+        NPM_REGISTRY: https://registry.npmmirror.com
     environment:
       PORT: "8765"
       REALTIME_DATABASE_URL: postgresql://${POSTGRES_USER:-dom_app}:${POSTGRES_PASSWORD:?Run scripts/package-aliyun-cvm.sh on your computer first}@postgres:5432/${POSTGRES_DB:-dom}
@@ -231,6 +232,7 @@ services:
       args:
         NODE_IMAGE: m.daocloud.io/docker.io/library/node:24-bookworm-slim
         NGINX_IMAGE: m.daocloud.io/docker.io/nginxinc/nginx-unprivileged:1.29-alpine
+        NPM_REGISTRY: https://registry.npmmirror.com
     depends_on:
       api:
         condition: service_healthy

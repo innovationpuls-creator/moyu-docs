@@ -1,6 +1,9 @@
 ARG NODE_IMAGE=node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6
 FROM ${NODE_IMAGE} AS builder
+ARG NPM_REGISTRY=https://registry.npmjs.org
 WORKDIR /app
+ENV COREPACK_NPM_REGISTRY=${NPM_REGISTRY} \
+    npm_config_registry=${NPM_REGISTRY}
 RUN corepack enable
 COPY . .
 RUN pnpm install --frozen-lockfile --filter @dom/realtime... \
