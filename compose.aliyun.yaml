@@ -94,6 +94,7 @@ services:
       args:
         PYTHON_IMAGE: m.daocloud.io/docker.io/library/python:3.12-slim
         UV_IMAGE: ghcr.m.daocloud.io/astral-sh/uv:python3.12-bookworm-slim
+        UV_LOCK_MIRROR_BASE: https://mirrors.aliyun.com/pypi
     command: ["alembic", "-c", "migrations/postgres/alembic.ini", "upgrade", "head"]
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-dom_app}:${POSTGRES_PASSWORD:?Run scripts/package-aliyun-cvm.sh on your computer first}@postgres:5432/${POSTGRES_DB:-dom}
@@ -115,6 +116,7 @@ services:
       args:
         PYTHON_IMAGE: m.daocloud.io/docker.io/library/python:3.12-slim
         UV_IMAGE: ghcr.m.daocloud.io/astral-sh/uv:python3.12-bookworm-slim
+        UV_LOCK_MIRROR_BASE: https://mirrors.aliyun.com/pypi
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-dom_app}:${POSTGRES_PASSWORD:?Run scripts/package-aliyun-cvm.sh on your computer first}@postgres:5432/${POSTGRES_DB:-dom}
       VALKEY_URL: redis://valkey:6379/14
@@ -200,6 +202,7 @@ services:
       args:
         PYTHON_IMAGE: m.daocloud.io/docker.io/library/python:3.12-slim
         UV_IMAGE: ghcr.m.daocloud.io/astral-sh/uv:python3.12-bookworm-slim
+        UV_LOCK_MIRROR_BASE: https://mirrors.aliyun.com/pypi
     command: ["python", "-m", "workers.maintenance.main", "--daemon", "--production", "--interval", "5"]
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-dom_app}:${POSTGRES_PASSWORD:?Run scripts/package-aliyun-cvm.sh on your computer first}@postgres:5432/${POSTGRES_DB:-dom}

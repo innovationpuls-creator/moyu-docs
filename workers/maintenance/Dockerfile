@@ -1,10 +1,17 @@
 ARG UV_IMAGE=ghcr.io/astral-sh/uv:python3.12-bookworm-slim@sha256:e5b65587bce7de595f299855d7385fe7fca39b8a74baa261ba1b7147afa78e58
 ARG PYTHON_IMAGE=python:3.12-slim@sha256:f77ac9e44ae96ef2c90b8053ea08c31f8be030f824196b0ae4db6d462c84e51f
 FROM ${UV_IMAGE} AS builder
+ARG UV_LOCK_MIRROR_BASE=
 WORKDIR /app
 COPY . .
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-editable --package maintenance-worker
+    if [ -n "$UV_LOCK_MIRROR_BASE" ]; then \
+        sed -i \
+            -e "s#https://pypi.org/simple#${UV_LOCK_MIRROR_BASE}/simple#g" \
+            -e "s#https://files.pythonhosted.org#${UV_LOCK_MIRROR_BASE}#g" \
+            uv.lock; \
+    fi \
+    && uv sync --frozen --no-dev --no-editable --package maintenance-worker
 
 FROM ${PYTHON_IMAGE} AS runtime
 ENV PATH="/app/.venv/bin:${PATH}" \
