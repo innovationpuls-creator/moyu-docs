@@ -1006,21 +1006,25 @@ non-root runtime
 
 ## 56. Orchestrator
 
-正式生产：
+正式多实例高可用生产：
 
 ```text
 Kubernetes
 ```
 
+单 CVM 第一阶段部署仅在 ADR 0053 范围内允许使用 Docker Compose；该配置不满足应用层多实例高可用基线。
+
 ---
 
 ## 57. Deployment Package
 
-使用：
+正式多实例高可用生产使用：
 
 ```text
 Helm
 ```
+
+ADR 0053 的单 CVM 第一阶段使用独立的 `compose.server.yaml`。
 
 ---
 
@@ -1197,7 +1201,8 @@ Yjs payload
 | JS Package Manager | pnpm |
 | Root Task Runner | just |
 | Local Infra | Docker Compose |
-| Production | Kubernetes + Helm + Terraform |
+| Production HA | Kubernetes + Helm + Terraform |
+| Single-CVM Stage 1 (ADR 0053) | Docker Compose + Caddy |
 | Edge | Gateway API + Envoy Gateway |
 | Secrets | External Secrets Operator |
 | CI/CD | GitHub Actions |
@@ -1221,6 +1226,6 @@ Yjs payload
 11. Binary Asset 使用 S3-compatible Object Storage。
 12. Contract 使用 JSON Schema 2020-12 + OpenAPI 3.1。
 13. OpenTelemetry 是统一遥测标准。
-14. Local 使用 Docker Compose；Production 使用 Kubernetes。
+14. Local 使用 Docker Compose；单 CVM 第一阶段仅按 ADR 0053 使用 Docker Compose；多实例高可用 Production 使用 Kubernetes + Helm + Terraform。
 15. Exact Patch Version 由 lockfile / image digest 固定。
 16. 修改本技术栈必须 ADR，不允许本地 AI 即兴换栈。

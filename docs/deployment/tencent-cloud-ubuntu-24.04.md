@@ -1,45 +1,45 @@
-# 腾讯云 Ubuntu 24.04 部署准备
+# 腾讯云 Ubuntu Server 24.04 单机部署
 
-状态：方案待确认；尚未连接或修改腾讯云资源。
+状态：服务器 Compose 与部署包脚本已准备；还没有真实 COS、PostgreSQL、域名或凭据，因此没有连接腾讯云资源。
 
-## 推荐方案
+## 已选方案
 
-如果第一阶段明确限定为一台腾讯云 CVM，建议把它作为应用主机，使用 Docker Compose 运行 Web、API、Realtime 和 Worker；大型文件存入腾讯云 COS，PostgreSQL 使用腾讯云高可用实例。该方案部署简单，适合先上线验证，但单台 CVM、单实例 NATS 和 Valkey 仍是可用性单点，不等同于高可用生产架构。
+目标主机是腾讯云 Ubuntu Server 24.04 LTS 64-bit。Web、API、Realtime、维护 Worker、NATS、Valkey 和 Caddy 由独立的 `compose.server.yaml` 运行。文件资产存入私有 COS，业务数据库使用腾讯云 PostgreSQL 高可用实例。Caddy 负责 HTTPS/WSS 和证书续期。
 
-项目当前冻结的生产部署目标是 Kubernetes + Helm + Terraform（`docs/architecture/26-Technology-Stack-Decision.md`）。因此，单 CVM Compose 只能作为明确批准的第一阶段例外。另一条路径是按冻结方案部署 Kubernetes 集群并使用 Helm；它支持横向扩展，但不再是把整套应用直接装到一台独立 Ubuntu 服务器上。
+该单机方案满足服务器端以 Docker Compose 管理应用的要求。CVM、应用入口、NATS 和 Valkey 仍是单点；CVM 故障期间应用与实时协作不可用。托管 PostgreSQL 与 COS 可减少数据库和文件对主机磁盘的依赖，但不会让应用主机变成高可用。多实例高可用部署仍按 Kubernetes + Helm + Terraform 路径执行；决策记录见 `docs/adr/0053-tencent-cvm-deployment.md`。
 
-| 选项 | 适用目标 | 主要代价 |
-| --- | --- | --- |
-| 单 CVM + Compose + COS + 托管 PostgreSQL | 先在指定 Ubuntu 服务器运行一套实例 | CVM、NATS、Valkey 单点；需要批准偏离当前生产部署约束 |
-| Kubernetes + Helm + Terraform + COS + 托管 PostgreSQL | 面向多实例与可用性要求的生产环境 | 需要集群、云资源配置和更完整的运维准备；不是单机部署 |
+本地 `compose.yaml` 继续使用 PostgreSQL 和 MinIO，不作为服务器文件。服务器 Compose 只发布 Caddy 的 TCP 80/443；PostgreSQL、NATS、Valkey 和 Web 不发布公网端口。NATS 使用命名卷，Valkey 作为可重建缓存且不做持久化。容器日志配置为每个文件最多 10 MB、保留 3 个文件。
 
-## 存储配置
+## 腾讯云资源
 
-- 本地 Compose 使用 MinIO；腾讯云环境使用私有 COS Bucket，不把用户文件保存在 CVM 系统盘。
-- COS 配置使用 `S3_ASSET_ENDPOINT=https://cos.<region>.myqcloud.com`、`S3_ASSET_REGION=<region>`、`S3_ASSET_BUCKET=<bucket>-<appid>` 和 `S3_ASSET_ADDRESSING_STYLE=virtual`。
-- 代码中的 S3 Asset Store 已支持 `path` 与 `virtual` 寻址。COS 新 Bucket 需要 virtual-hosted-style；本机 MinIO 的 path-style 上传、读取、删除已通过运行时回环验证。当前没有 COS Bucket 和凭据，因此尚未完成真实 COS 请求验证。
-- 使用仅授权目标 Bucket 的 CAM 子用户密钥；密钥只放在服务器的权限受限环境文件或密钥服务中，不提交到 Git。
-
-## 主机与网络准备
-
-- CVM 系统：Ubuntu Server 24.04 LTS 64-bit。先在实例上用 `uname -m` 确认 `x86_64` 或 `aarch64`，构建与运行镜像时保持同一架构。
-- 安装 Docker Engine 与 Compose 插件，使用 Docker 官方 Ubuntu 软件源；官方安装文档支持 Ubuntu Noble 24.04。
-- 域名、TLS 终止位置、地域、VPC、安全组和备份周期尚未提供，需在选定部署路径后确定。
-- 公网入口只开放实际使用的 SSH、HTTP、HTTPS 端口，并限制 SSH 来源；PostgreSQL、NATS、Valkey、COS 凭据和管理端口不暴露公网。
-- 当前 `compose.yaml` 是本地开发栈：包含本地 PostgreSQL 与 MinIO，Web 只绑定 `127.0.0.1:5180`。不要直接把它当作服务器生产配置。批准服务器路径后再创建独立服务器 Compose 或 Helm 配置。
-
-## 腾讯云资源清单
-
-| 资源 | 准备要求 |
+| 资源 | 配置要求 |
 | --- | --- |
-| CVM | Ubuntu 24.04 LTS 64-bit；确认 CPU 架构、CPU、内存和数据盘后再确定规格 |
-| COS | 与应用就近的地域；私有 Bucket；记录地域、Bucket 全名和 APPID；配置最小权限 CAM 密钥 |
-| PostgreSQL | 与 CVM 同地域、同 VPC 的 PostgreSQL 18 高可用实例；建立独立数据库与最小权限账号 |
-| 域名与 TLS | 准备域名及 DNS 管理权，确定由主机入口还是云负载均衡终止 TLS |
-| 部署凭据 | 服务器专用环境文件或密钥服务；不写入仓库、不放入 README |
+| CVM | Ubuntu Server 24.04 LTS 64-bit；Docker Engine 与 Compose 插件已安装；CVM 与 PostgreSQL、COS 尽量同地域 |
+| 安全组 | 公网开放 TCP 80/443；SSH 仅开放给管理端来源；不要开放数据库、NATS、Valkey 或应用内部端口 |
+| DNS | 将应用域名的 A 记录指向 CVM 公网 IP；如果没有配置 IPv6，不要发布错误的 AAAA 记录 |
+| TLS | Caddy 通过公网域名自动签发和续期证书；证书签发要求 DNS 指向该 CVM，外网可访问 TCP 80/443 |
+| PostgreSQL | 选择高可用实例；建独立数据库和应用账号；配置 VPC 网络与 SSL；数据库安全组只允许应用 CVM 访问 |
+| COS | 建立私有 Bucket；创建仅能访问目标 Bucket 的 CAM 凭据；环境变量使用 COS `virtual` 寻址 |
+| 邮件 | 提供支持 SMTP + STARTTLS 的邮件账号，用于邀请与账号邮件 |
 
-## 服务器配置仍需落实
+## 本地准备部署包
 
-批准单机 Compose 路径后，需要为服务器补充独立配置：外部 PostgreSQL、COS virtual 寻址、生产密钥、TLS 入口、容器资源限制、日志轮转、备份与恢复步骤。当前本地 `compose.yaml` 不包含这些生产设置。
+在本地仓库将 `deploy/tencent-cvm/server.env.example` 复制为 `deploy/tencent-cvm/server.env`，填写真实域名、PostgreSQL、COS 和 SMTP 参数。数据库连接串中的保留字符必须 URL 编码。两个加密密钥分别使用 `openssl rand -base64 32` 生成。`server.env` 已加入 `.gitignore`；不要把真实凭据提交到 Git。
 
-可参考：[Docker Engine Ubuntu 安装文档](https://docs.docker.com/engine/install/ubuntu/)、[Docker Compose Linux 安装文档](https://docs.docker.com/compose/install/linux/)、[腾讯云 COS S3 兼容配置](https://intl.cloud.tencent.com/document/product/436/34688?lang=en)、[COS 域名寻址说明](https://cloud.tencent.com/document/product/436/102489)、[腾讯云 PostgreSQL 高可用与版本说明](https://cloud.tencent.com/document/product/409/7562)。
+执行 `scripts/package-tencent-cvm.sh`。首次执行会创建环境文件模板并退出；填写完成后再次执行，会在 `dist/` 生成包含源码和环境文件的压缩部署包。部署包在本地设置为仅当前用户读写。将压缩包在本地解压，再通过文件传输工具把目录内容上传到服务器 `/opt/dom`；服务器上不需要输入解压、Git 或 Node/Python 构建命令。
+
+## 服务器部署命令
+
+前提是 Docker Engine / Compose 已安装，部署包已解压到 `/opt/dom`，`server.env` 中所有值有效，域名与安全组也已配置。随后服务器上只需运行这一条 Docker 命令：
+
+```sh
+docker compose --project-directory /opt/dom --env-file /opt/dom/deploy/tencent-cvm/server.env -f /opt/dom/compose.server.yaml up -d --build
+```
+
+Compose 会构建固定基础镜像上的应用镜像，等待 PostgreSQL 迁移完成，再启动 API、Realtime、Worker、Web 与 Caddy。Caddy 在域名和端口条件满足时自动申请证书。更新仍运行同一条命令；查看状态和日志、停止服务也使用同一组 `docker compose` 选项。停止时执行 `down`，不要加 `-v`，以保留 Caddy 证书与 NATS 数据卷。
+
+## 未验证项
+
+目前尚未使用真实腾讯云 PostgreSQL、COS Bucket、SMTP 或公网域名做端到端部署验证。Compose 配置与应用镜像构建可在本地验证；实际首次部署仍依赖这些资源的网络规则和凭据正确。
+
+参考：[Docker Engine Ubuntu 安装文档](https://docs.docker.com/engine/install/ubuntu/)、[Docker Compose Linux 安装文档](https://docs.docker.com/compose/install/linux/)、[Caddy 自动 HTTPS](https://caddyserver.com/docs/automatic-https)、[腾讯云 COS S3 兼容配置](https://intl.cloud.tencent.com/document/product/436/34688?lang=en)、[COS 域名寻址说明](https://cloud.tencent.com/document/product/436/102489)、[腾讯云 PostgreSQL 高可用与版本说明](https://cloud.tencent.com/document/product/409/7562)。

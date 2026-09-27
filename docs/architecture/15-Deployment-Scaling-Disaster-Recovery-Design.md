@@ -2895,9 +2895,22 @@ Planned Failback
 
 ---
 
-## 125. 第一版建议部署阶段
+## 125. 部署阶段
 
-### Stage 1
+### Stage 0：单 CVM 第一阶段例外（ADR 0053）
+
+当用户明确指定单台 Ubuntu CVM 并要求通过 Docker Compose 部署时，可以先使用：
+
+```text
+Single CVM + Docker Compose
+Managed PostgreSQL HA
+Managed Object Storage
+Caddy TLS Edge
+```
+
+此阶段应用、NATS JetStream 与 Valkey 均存在 CVM 单点。CVM 故障期间应用入口和实时协作不可用；此配置不满足下一阶段的多实例高可用基线。NATS 数据使用持久卷；PostgreSQL 与 Asset 数据分别依赖托管数据库和对象存储恢复。
+
+### Stage 1：正式生产基线
 
 ```text
 Single Region
@@ -3524,7 +3537,7 @@ History Check
 20. 第一阶段采用 Single Region Multi-AZ + Cross Region DR，不做 Multi-Region Active-Active。
 21. 生产上线前必须明确并记录 RPO / RTO SLO；当前文档中的数值只作为容量与演练规划参考，不作为 Architecture Constitution 的固定业务承诺。
 22. RPO / RTO 目标变化不得要求重写 Resource / Persistence 核心模型，应通过 HA、Backup、PITR、跨区域副本与 Runbook 能力调整。
-23. 正常单节点故障依靠 HA，目标接近零数据损失。
+23. Stage 1 正式生产的正常单节点故障依靠 HA，目标接近零数据损失；Stage 0 单 CVM 例外明确接受应用主机中断。
 24. Backup 必须独立、加密、可验证，并定期 Restore Drill。
 25. Search Index / Cache 等派生数据应优先可重建，不作为最高级 Backup 目标。
 26. Rollout 必须支持 Rolling / Canary / Rollback。

@@ -1,0 +1,206 @@
+name: dom-server
+
+services:
+  caddy:
+    image: caddy:2-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in deploy/tencent-cvm/server.env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/tencent-cvm/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  nats:
+    image: nats:2.10-alpine@sha256:b83efabe3e7def1e0a4a31ec6e078999bb17c80363f881df35edc70fcb6bb927
+    command: ["-js", "-m", "8222", "-sd", "/data"]
+    volumes:
+      - natsdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  valkey:
+    image: valkey/valkey:9-alpine@sha256:48332870af354a799964c0012ae1194a0bf2bf894eb508f945810596dc2d8d11
+    command: ["valkey-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  migrate:
+    image: dom-server-api:local
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    command: ["alembic", "-c", "migrations/postgres/alembic.ini", "upgrade", "head"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in deploy/tencent-cvm/server.env}
+    restart: "on-failure:5"
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  api:
+    image: dom-server-api:local
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in deploy/tencent-cvm/server.env}
+      VALKEY_URL: redis://valkey:6379/14
+      NATS_URL: nats://nats:4222
+      CONTRACTS_DIR: /app/contracts
+      MAILER_PROVIDER: smtp
+      SMTP_HOST: ${SMTP_HOST:?Set SMTP_HOST in deploy/tencent-cvm/server.env}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:?Set SMTP_FROM in deploy/tencent-cvm/server.env}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-1}
+      MAIL_LINK_BASE_URL: https://${DOMAIN:?Set DOMAIN in deploy/tencent-cvm/server.env}
+      INVITATION_IDEMPOTENCY_ENCRYPTION_KEY: ${INVITATION_IDEMPOTENCY_ENCRYPTION_KEY:?Set INVITATION_IDEMPOTENCY_ENCRYPTION_KEY in deploy/tencent-cvm/server.env}
+      SHARE_LINK_IDEMPOTENCY_ENCRYPTION_KEY: ${SHARE_LINK_IDEMPOTENCY_ENCRYPTION_KEY:?Set SHARE_LINK_IDEMPOTENCY_ENCRYPTION_KEY in deploy/tencent-cvm/server.env}
+      S3_ASSET_ENDPOINT: ${S3_ASSET_ENDPOINT:?Set S3_ASSET_ENDPOINT in deploy/tencent-cvm/server.env}
+      S3_ASSET_REGION: ${S3_ASSET_REGION:?Set S3_ASSET_REGION in deploy/tencent-cvm/server.env}
+      S3_ASSET_ACCESS_KEY: ${S3_ASSET_ACCESS_KEY:?Set S3_ASSET_ACCESS_KEY in deploy/tencent-cvm/server.env}
+      S3_ASSET_SECRET_KEY: ${S3_ASSET_SECRET_KEY:?Set S3_ASSET_SECRET_KEY in deploy/tencent-cvm/server.env}
+      S3_ASSET_BUCKET: ${S3_ASSET_BUCKET:?Set S3_ASSET_BUCKET in deploy/tencent-cvm/server.env}
+      S3_ASSET_ADDRESSING_STYLE: virtual
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      valkey:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  realtime:
+    build:
+      context: .
+      dockerfile: services/realtime/Dockerfile
+    environment:
+      PORT: "8765"
+      REALTIME_DATABASE_URL: ${REALTIME_DATABASE_URL:?Set REALTIME_DATABASE_URL in deploy/tencent-cvm/server.env}
+      VALKEY_URL: redis://valkey:6379/14
+      NATS_URL: nats://nats:4222
+      REALTIME_API_BASE_URL: http://api:8000
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      api:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8765/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    stop_grace_period: 30s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  maintenance-worker:
+    build:
+      context: .
+      dockerfile: workers/maintenance/Dockerfile
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in deploy/tencent-cvm/server.env}
+      S3_ASSET_ENDPOINT: ${S3_ASSET_ENDPOINT:?Set S3_ASSET_ENDPOINT in deploy/tencent-cvm/server.env}
+      S3_ASSET_REGION: ${S3_ASSET_REGION:?Set S3_ASSET_REGION in deploy/tencent-cvm/server.env}
+      S3_ASSET_ACCESS_KEY: ${S3_ASSET_ACCESS_KEY:?Set S3_ASSET_ACCESS_KEY in deploy/tencent-cvm/server.env}
+      S3_ASSET_SECRET_KEY: ${S3_ASSET_SECRET_KEY:?Set S3_ASSET_SECRET_KEY in deploy/tencent-cvm/server.env}
+      S3_ASSET_BUCKET: ${S3_ASSET_BUCKET:?Set S3_ASSET_BUCKET in deploy/tencent-cvm/server.env}
+      S3_ASSET_ADDRESSING_STYLE: virtual
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    depends_on:
+      api:
+        condition: service_healthy
+      realtime:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+volumes:
+  caddy_data: {}
+  caddy_config: {}
+  natsdata: {}

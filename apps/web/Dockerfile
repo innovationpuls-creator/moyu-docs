@@ -1,11 +1,11 @@
-FROM node:24-bookworm-slim AS builder
+FROM node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6 AS builder
 WORKDIR /app
 RUN corepack enable
 COPY . .
 RUN pnpm install --frozen-lockfile --filter @dom/web... \
     && pnpm --filter @dom/web build
 
-FROM nginxinc/nginx-unprivileged:1.29-alpine AS runtime
+FROM nginxinc/nginx-unprivileged:1.29-alpine@sha256:0c79d56aee561a1d81c63f00eee5fb5fe29279560cdc55e91425133104c7fbe6 AS runtime
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
 EXPOSE 8080

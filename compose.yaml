@@ -2,7 +2,7 @@ name: dom-local
 
 services:
   postgres:
-    image: postgres:18-alpine
+    image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
     environment:
       POSTGRES_USER: dom_local
       POSTGRES_DB: dom_workspace_lifecycle_test
@@ -19,7 +19,7 @@ services:
     restart: unless-stopped
 
   valkey:
-    image: valkey/valkey:9-alpine
+    image: valkey/valkey:9-alpine@sha256:48332870af354a799964c0012ae1194a0bf2bf894eb508f945810596dc2d8d11
     command: ["valkey-server", "--save", "", "--appendonly", "no"]
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
@@ -29,7 +29,7 @@ services:
     restart: unless-stopped
 
   nats:
-    image: nats:2.10-alpine
+    image: nats:2.10-alpine@sha256:b83efabe3e7def1e0a4a31ec6e078999bb17c80363f881df35edc70fcb6bb927
     command: ["-js", "-m", "8222", "-sd", "/data"]
     volumes:
       - natsdata:/data

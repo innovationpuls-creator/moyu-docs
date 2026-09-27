@@ -19,6 +19,7 @@ def configured_asset_store() -> AssetStore:
     access = os.environ.get("S3_ASSET_ACCESS_KEY", "")
     secret = os.environ.get("S3_ASSET_SECRET_KEY", "")
     bucket = os.environ.get("S3_ASSET_BUCKET", "")
+    addressing_style = os.environ.get("S3_ASSET_ADDRESSING_STYLE", "path")
     configured = [endpoint, region, access, secret, bucket]
     if any(configured) and not all(configured):
         raise S3StoreError("partial S3 asset configuration; set all S3_ASSET_*")
@@ -29,6 +30,7 @@ def configured_asset_store() -> AssetStore:
             access_key=access,
             secret_key=secret,
             bucket=bucket,
+            addressing_style=addressing_style,
         )
     return LocalDiskAssetStore(Path(tempfile.gettempdir()) / "dom-assets")
 
