@@ -45,7 +45,20 @@ chmod 600 "$ENV_FILE"
 TMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/dom-cvm-deploy.XXXXXX")
 trap 'rm -rf "$TMP_DIR"' EXIT HUP INT TERM
 
-git -C "$REPO_ROOT" archive --format=tar HEAD | tar -xf - -C "$TMP_DIR"
+git -C "$REPO_ROOT" archive --format=tar HEAD -- . \
+	':(glob,exclude)**/README*' \
+	':(glob,exclude)**/AGENTS.md' \
+	':(exclude)docs/**' \
+	':(exclude)tests/**' \
+	':(top,exclude)index.html' \
+	':(top,exclude)dom-architecture.html' \
+	':(top,exclude)df-contracts.html' \
+	':(top,exclude)lc-task.html' \
+	':(top,exclude)seq-keystroke.html' \
+	':(exclude).vscode/**' \
+	':(exclude).superpowers/**' \
+	':(exclude).dsh/**' \
+	':(exclude).workbuddy/**' | tar -xf - -C "$TMP_DIR"
 install -m 600 "$ENV_FILE" "$TMP_DIR/.env"
 install -m 644 "$TMP_DIR/compose.server.yaml" "$TMP_DIR/compose.yaml"
 mkdir -p "$OUTPUT_DIR"
