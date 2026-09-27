@@ -28,6 +28,8 @@ OneTree 已占用宿主机 80/443。DOM 的 Web 容器加入现有 deploy_defaul
 
 Compose 会构建应用、启动本机数据库和对象存储、创建 MinIO 私有 Bucket、运行数据库迁移，再启动网站服务。以后更新部署包后仍运行同一条命令。
 
+部署包还提供 Ubuntu systemd 定时任务，每 5 分钟检查 Docker 数据目录所在磁盘的可用空间。空间降到 2 GiB 时，它会清理一次未使用的 Docker 构建缓存；空间恢复到 2 GiB 以上后重新待命。任务只运行 `docker builder prune --all`，不会删除容器、数据库、对象存储或 Docker 数据卷。首次安装由 `scripts/install-dom-docker-cache-cleanup.sh` 完成。
+
 查看容器状态可运行 docker compose ps；查看日志可运行 docker compose logs -f。停止服务可运行 docker compose down；不要添加 -v，否则会删除 DOM 数据卷。
 
 ## 邮件与数据恢复
