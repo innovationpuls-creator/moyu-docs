@@ -14,7 +14,8 @@ from app_core.import_export.ports import (
     ImportExportSessionRepository,
     ResourceExportSnapshotRepository,
 )
-from app_core.resource.domain import Checkpoint, Resource, ResourceLifecycle
+from app_core.resource.domain import Resource, ResourceContent, ResourceLifecycle
+from app_core.resource.ports import ResourceContentPort
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -221,25 +222,19 @@ class PostgresImportExportSessionRepository(ImportExportSessionRepository):
 
 
 class PostgresResourceExportSnapshotRepository(ResourceExportSnapshotRepository):
-    """Read Resource metadata and its latest checkpoint in one SQL statement."""
+    """Read Resource metadata and its Realtime-owned semantic content."""
 
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, content: ResourceContentPort) -> None:
         self._session = session
+        self._content = content
 
-    async def read(
-        self, resource_id: UUID
-    ) -> tuple[Resource, Checkpoint | None] | None:
+    async def read(self, resource_id: UUID) -> tuple[Resource, ResourceContent] | None:
         row = (
             (
                 await self._session.execute(
                     text(
-                        "SELECT r.*, c.checkpoint_seq, c.base_journal_seq, c.snapshot, "
-                        "c.created_at AS checkpoint_created_at "
-                        "FROM core.resources AS r "
-                        "LEFT JOIN LATERAL (SELECT checkpoint_seq,base_journal_seq,"
-                        "snapshot,created_at FROM collab.resource_checkpoints "
-                        "WHERE resource_id=r.resource_id ORDER BY checkpoint_seq DESC "
-                        "LIMIT 1) AS c ON TRUE WHERE r.resource_id=:resource_id"
+                        "SELECT r.* FROM core.resources AS r "
+                        "WHERE r.resource_id=:resource_id"
                     ),
                     {"resource_id": resource_id},
                 )
@@ -250,16 +245,8 @@ class PostgresResourceExportSnapshotRepository(ResourceExportSnapshotRepository)
         if row is None:
             return None
         resource = _resource_from_row(row)
-        checkpoint = None
-        if row["checkpoint_seq"] is not None:
-            checkpoint = Checkpoint(
-                resource_id=resource_id,
-                checkpoint_seq=row["checkpoint_seq"],
-                base_journal_seq=row["base_journal_seq"],
-                snapshot=dict(row["snapshot"]),
-                created_at=row["checkpoint_created_at"],
-            )
-        return resource, checkpoint
+        content = await self._content.read(resource_id)
+        return resource, content
 
 
 def _import_params(session: ImportSession) -> dict[str, Any]:

@@ -50,11 +50,8 @@ from app_core.resource.application import ExportResource as ExportResourceUseCas
 from app_core.resource.application import ReadCurrentResourceContent
 from app_core.resource.domain import ResourcePermissionDeniedError
 from app_core.session.domain.session import Session
+from app_infra.nats.resource_content_gateway import ResourceContentGatewayError
 from app_infra.postgres.asset_repository import PostgresAssetRepository
-from app_infra.postgres.resource.checkpoint_repository import (
-    PostgresCheckpointRepository,
-)
-from app_infra.postgres.resource.journal_repository import PostgresJournalRepository
 from app_infra.postgres.resource.resource_repository import PostgresResourceRepository
 from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
 from fastapi.responses import StreamingResponse
@@ -63,6 +60,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.dependencies.auth import get_current_session, get_db_session
 from api.dependencies.share_links import get_share_link_administration
 from api.infra.asset_storage import get_asset_store, safe_original_name
+from api.infra.broadcast import get_resource_content_gateway
 
 router = APIRouter()
 _ANONYMOUS_SHARE_ACTOR_ID = UUID(int=0)
@@ -220,6 +218,7 @@ async def open_public_shared_resource(
         ShareLinkAdministration, Depends(get_share_link_administration)
     ],
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    content: Annotated[object, Depends(get_resource_content_gateway)],
 ) -> OpenPublicSharedResourceResponse:
     response.headers["Cache-Control"] = "no-store"
     response.headers["Pragma"] = "no-cache"
@@ -232,17 +231,21 @@ async def open_public_shared_resource(
         )
     use_case = ExportResourceUseCase(
         PostgresResourceRepository(session),
-        PostgresCheckpointRepository(session),
+        content,
         _AnonymousShareReadOnlyOwnership(grant),
     )
     try:
-        document = await use_case.execute(
-            _ANONYMOUS_SHARE_ACTOR_ID, grant.resource_id
-        )
+        document = await use_case.execute(_ANONYMOUS_SHARE_ACTOR_ID, grant.resource_id)
     except (LookupError, ResourcePermissionDeniedError):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="SHARE_LINK_NOT_FOUND",
+            headers={"Cache-Control": "no-store", "Pragma": "no-cache"},
+        )
+    except ResourceContentGatewayError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="RESOURCE_CONTENT_UNAVAILABLE",
             headers={"Cache-Control": "no-store", "Pragma": "no-cache"},
         )
     return OpenPublicSharedResourceResponse(
@@ -263,6 +266,7 @@ async def download_public_shared_asset(
         ShareLinkAdministration, Depends(get_share_link_administration)
     ],
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    content: Annotated[object, Depends(get_resource_content_gateway)],
 ) -> StreamingResponse:
     response.headers["Cache-Control"] = "no-store"
     response.headers["Pragma"] = "no-cache"
@@ -275,8 +279,7 @@ async def download_public_shared_asset(
         )
     current = ReadCurrentResourceContent(
         PostgresResourceRepository(session),
-        PostgresJournalRepository(session),
-        PostgresCheckpointRepository(session),
+        content,
         _AnonymousShareReadOnlyOwnership(grant),
     )
     try:
@@ -290,6 +293,12 @@ async def download_public_shared_asset(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="SHARED_ASSET_NOT_FOUND",
+            headers={"Cache-Control": "no-store", "Pragma": "no-cache"},
+        )
+    except ResourceContentGatewayError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="RESOURCE_CONTENT_UNAVAILABLE",
             headers={"Cache-Control": "no-store", "Pragma": "no-cache"},
         )
     media_type = asset.mime or "application/octet-stream"

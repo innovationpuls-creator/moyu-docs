@@ -11,9 +11,6 @@ import pytest_asyncio
 from alembic import command
 from alembic.config import Config
 from app_core.operations.task import CreateTask
-from app_infra.postgres.resource.checkpoint_repository import (
-    PostgresCheckpointRepository,
-)
 from app_infra.postgres.resource.journal_repository import PostgresJournalRepository
 from app_infra.postgres.resource.resource_repository import (
     PostgresResourceRepository,
@@ -75,7 +72,23 @@ async def db_session(
 @pytest.mark.asyncio
 async def test_runner_assembles_consumers_and_sweeps(db_session: AsyncSession) -> None:
     """The runner registers History Restore and executes it through real repos."""
-    registry = build_registry(db_session)
+    from app_core.resource.domain import ResourceContent, ResourceContentMutation
+
+    class _Content:
+        def __init__(self) -> None:
+            self.replacements: list[dict] = []
+
+        async def read(self, _resource_id, *, at_journal_seq=None):
+            return ResourceContent({"text": "before"}, at_journal_seq or 2)
+
+        async def replace(self, resource_id, snapshot, **kwargs):
+            self.replacements.append(
+                {"resource_id": resource_id, "snapshot": snapshot, **kwargs}
+            )
+            return ResourceContentMutation(3)
+
+    content = _Content()
+    registry = build_registry(db_session, resource_content=content)
     for task_type in (
         "resource.checkpoint",
         "resource.purge",
@@ -131,9 +144,7 @@ async def test_runner_assembles_consumers_and_sweeps(db_session: AsyncSession) -
             resource.resource_id, account_id
         )
         journal = PostgresJournalRepository(db_session)
-        checkpoints = PostgresCheckpointRepository(db_session)
         await journal.append_op(resource.resource_id, 1, 1, b'{"text":"before"}', "h1")
-        await checkpoints.write(resource.resource_id, 1, {"text": "before"})
         await journal.append_op(resource.resource_id, 2, 1, b'{"text":"after"}', "h2")
 
         task_repo = PostgresTaskRepository(db_session)
@@ -160,10 +171,16 @@ async def test_runner_assembles_consumers_and_sweeps(db_session: AsyncSession) -
         await task_repo.finish(
             task.task_id, claim.attempt_id, claim.execution_epoch, True
         )
-        latest = await checkpoints.latest(resource.resource_id)
-        assert latest is not None
-        assert latest.base_journal_seq == 3
-        assert latest.snapshot["text"] == "before"
+        assert content.replacements == [
+            {
+                "resource_id": resource.resource_id,
+                "snapshot": {"text": "before"},
+                "operation_id": task.task_id,
+                "created_by": account_id,
+                "reason": "history-restore",
+                "restore_target_seq": 1,
+            }
+        ]
         completed = await task_repo.get(task.task_id)
         assert completed is not None
         assert completed.state.value == "Succeeded"

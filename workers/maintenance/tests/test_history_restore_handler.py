@@ -57,7 +57,7 @@ class _Ownership:
 
 class _Restore:
     def __init__(self) -> None:
-        self.calls: list[tuple[UUID, int, UUID | None]] = []
+        self.calls: list[tuple[UUID, int, UUID | None, UUID | None]] = []
 
     async def execute(
         self,
@@ -65,9 +65,10 @@ class _Restore:
         target_seq: int,
         *,
         actor_id: UUID | None,
+        operation_id: UUID | None = None,
         on_progress=None,
     ) -> tuple[int, object]:
-        self.calls.append((resource_id, target_seq, actor_id))
+        self.calls.append((resource_id, target_seq, actor_id, operation_id))
         if on_progress is not None:
             await on_progress("materializing", None, None)
             await on_progress("replaying", 0, 0)
@@ -173,7 +174,7 @@ async def test_handler_applies_restore_as_initiating_actor() -> None:
     await handler.execute(context)
 
     assert context.checkpoints == 2
-    assert restore.calls == [(resource_id, 7, actor_id)]
+    assert restore.calls == [(resource_id, 7, actor_id, context.task.task_id)]
     assert [progress[0] for progress in context.progress] == [
         "preparing",
         "materializing",

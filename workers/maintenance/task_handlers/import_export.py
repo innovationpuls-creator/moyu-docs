@@ -131,7 +131,9 @@ class ImportResourceTaskHandler:
             current=2,
             total=3,
         )
-        seq, _checkpoint = await self._importer.execute(actor_id, resource_id, document)
+        seq, _receipt = await self._importer.execute(
+            actor_id, resource_id, document, operation_id=import_id
+        )
         await context.checkpoint()
         updated = replace(
             session,

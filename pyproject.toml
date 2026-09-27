@@ -37,6 +37,7 @@ dev = [
 members = [
     "packages/py/*",
     "services/api",
+    "workers/maintenance",
 ]
 
 [tool.uv.sources]
@@ -45,6 +46,7 @@ app-contracts = { workspace = true }
 app-core = { workspace = true }
 app-infrastructure = { workspace = true }
 api-service = { workspace = true }
+task-runtime = { workspace = true }
 
 [tool.pytest.ini_options]
 minversion = "8.0"

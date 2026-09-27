@@ -1,24 +1,20 @@
-# Realtime gateway image (arch 15 §3): Node 22 + pnpm workspace.
-FROM node:22-bookworm-slim AS builder
+FROM node:24-bookworm-slim AS builder
 WORKDIR /app
 RUN corepack enable
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY packages/ts/realtime-client/package.json packages/ts/realtime-client/
-COPY services/realtime/package.json services/realtime/
-COPY packages/ts/contracts/package.json packages/ts/contracts/
-RUN pnpm install --frozen-lockfile
-COPY packages/ts/realtime-client/src packages/ts/realtime-client/src
-COPY packages/ts/contracts/src packages/ts/contracts/src
-COPY services/realtime/src services/realtime/src
+COPY . .
+RUN pnpm install --frozen-lockfile --filter @dom/realtime... \
+    && pnpm install --frozen-lockfile --prod --filter @dom/realtime...
 
-FROM node:22-bookworm-slim
-WORKDIR /app
+FROM node:24-bookworm-slim AS runtime
 ENV NODE_ENV=production
-COPY --from=builder /app/node_modules node_modules
-COPY --from=builder /app/packages node_modules/../../packages
-COPY --from=builder /app/services/realtime services/realtime
-COPY --from=builder /app/packages/ts/realtime-client packages/ts/realtime-client
-COPY --from=builder /app/packages/ts/contracts packages/ts/contracts
-EXPOSE 8765
+WORKDIR /app
+COPY --from=builder --chown=node:node /app/node_modules /app/node_modules
+COPY --from=builder --chown=node:node /app/services/realtime /app/services/realtime
+COPY --from=builder --chown=node:node /app/packages/ts/contracts /app/packages/ts/contracts
+COPY --from=builder --chown=node:node /app/packages/ts/realtime-protocol /app/packages/ts/realtime-protocol
+USER node
 WORKDIR /app/services/realtime
-CMD ["node", "src/server/main.ts"]
+EXPOSE 8765
+HEALTHCHECK --interval=15s --timeout=3s --start-period=15s --retries=5 \
+    CMD node -e "fetch('http://127.0.0.1:8765/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+CMD ["node", "--import=tsx", "src/server/main.ts"]

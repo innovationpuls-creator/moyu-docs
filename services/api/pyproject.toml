@@ -8,6 +8,7 @@ dependencies = [
     "app-infrastructure",
     "app-contracts",
     "fastapi>=0.111",
+    "alembic>=1.13",
     "uvicorn>=0.30",
     "httpx>=0.27",
     "redis>=5.0.4",

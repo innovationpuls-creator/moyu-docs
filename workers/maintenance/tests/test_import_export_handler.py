@@ -128,12 +128,17 @@ class _Ownership:
 
 class _Importer:
     def __init__(self) -> None:
-        self.calls: list[tuple[UUID, UUID, dict[str, Any]]] = []
+        self.calls: list[tuple[UUID, UUID, dict[str, Any], UUID | None]] = []
 
     async def execute(
-        self, actor_id: UUID, resource_id: UUID, document: dict[str, Any]
+        self,
+        actor_id: UUID,
+        resource_id: UUID,
+        document: dict[str, Any],
+        *,
+        operation_id: UUID | None = None,
     ) -> tuple[int, object]:
-        self.calls.append((actor_id, resource_id, document))
+        self.calls.append((actor_id, resource_id, document, operation_id))
         return 11, object()
 
 
@@ -218,7 +223,7 @@ async def test_import_handler_revalidates_and_persists_result_as_actor() -> None
 
     await handler.execute(context)
 
-    assert importer.calls == [(actor_id, resource_id, document)]
+    assert importer.calls == [(actor_id, resource_id, document, session.import_id)]
     assert ownership.calls == [(actor_id, resource_id, "resource.update")]
     assert sessions.import_session is not None
     assert sessions.import_session.stage is ImportSessionStage.COMPLETED

@@ -1,0 +1,28 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/queries/resource/read-resource-content.schema.json",
+	"title": "ReadResourceContent",
+	"description": "Internal Realtime query. Read the semantic projection of the latest durable Yjs Resource state, or the state at a historical Journal sequence.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/ResourceId" },
+		"atJournalSeq": { "type": "integer", "minimum": 0 }
+	},
+	"required": ["resourceId"],
+	"$defs": {
+		"ReadResourceContentResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/ResourceId" },
+				"journalSeq": { "type": "integer", "minimum": 0 },
+				"snapshot": {
+					"$ref": "./open-resource.schema.json#/$defs/ContentSnapshot"
+				}
+			},
+			"required": ["resourceId", "journalSeq", "snapshot"],
+			"title": "ReadResourceContentResponse"
+		}
+	}
+}

@@ -38,10 +38,8 @@ import {
 	ValkeyYjsBacklogStore,
 } from "../backlog/yjs_backlog_store.js";
 import { SessionInvalidator } from "../connection/session_invalidator.js";
-import {
-	type CurrentResourceStateProvider,
-	PostgresCurrentResourceStateProvider,
-} from "../persistence/current_resource_state.js";
+import type { CurrentResourceStateProvider } from "../persistence/current_resource_state.js";
+import { PostgresResourceContentService } from "../persistence/resource_content.js";
 import {
 	decodeRealtimeBinaryFrame,
 	encodeRealtimeBinaryFrame,
@@ -143,9 +141,11 @@ export function startRealtimeServer({
 	const postgres = process.env.REALTIME_DATABASE_URL
 		? new Pool({ connectionString: process.env.REALTIME_DATABASE_URL })
 		: null;
+	const resourceContentService = postgres
+		? new PostgresResourceContentService(postgres)
+		: undefined;
 	const currentResourceState =
-		injectedCurrentResourceState ??
-		(postgres ? new PostgresCurrentResourceStateProvider(postgres) : undefined);
+		injectedCurrentResourceState ?? resourceContentService;
 	const invalidator = new SessionInvalidator(valkey);
 	const server = createServer();
 	const wss = new WebSocketServer({ noServer: true });
@@ -475,6 +475,7 @@ export function startRealtimeServer({
 		backlogStore,
 		presenceStore,
 		currentResourceState,
+		resourceContentService,
 	});
 	relayHost.startRelay().catch((error: unknown) => {
 		console.error("[dom/realtime] relay start failed:", error);
@@ -488,6 +489,7 @@ export function startRealtimeServer({
 		// down; otherwise a still-pending subscribe would be flushed with the
 		// disconnect error (rejection noise / missed unsubscribe).
 		await ready.catch(() => {});
+		await relayHost.stopRelay();
 		await invalidator.close();
 		await new Promise<void>((resolve) => {
 			wss.close(() => resolve());

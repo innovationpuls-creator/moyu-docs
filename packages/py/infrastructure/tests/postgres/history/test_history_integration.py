@@ -11,7 +11,6 @@ from alembic.config import Config
 from app_core.history.application import (
     CreateNamedVersion,
     ListVersions,
-    RestoreAtVersion,
 )
 from app_core.history.domain import VersionKind
 from app_infra.postgres.engine import engine
@@ -167,7 +166,7 @@ async def _seed(session: AsyncSession) -> tuple[str, object]:
 
 
 @pytest.mark.asyncio
-async def test_history_timeline_restore_and_named_version() -> None:
+async def test_history_timeline_projects_restore_and_named_version() -> None:
     connection = await engine.connect()
     session = AsyncSession(connection)
     try:
@@ -182,17 +181,17 @@ async def test_history_timeline_restore_and_named_version() -> None:
         async with session.begin():
             for seq in range(1, 6):
                 await journal.append_op(resource.resource_id, seq, 1, b"op", f"h{seq}")
+            await checkpoints.write(resource.resource_id, 4, {"v": "automatic"})
             await checkpoints.write(resource.resource_id, 5, {"v": "base"})
-        restore = RestoreAtVersion(
-            history,
-            PostgresResourceRepository(session),
-            journal,
-            checkpoints,
-            apply=lambda state, op: {**state, "seq": op.journal_seq},
-        )
         async with session.begin():
-            node = await restore.execute(resource.resource_id, 5, actor_id=account_id)
-        assert node.kind == VersionKind.RESTORE
+            await session.execute(
+                text(
+                    "UPDATE collab.resource_update_journal SET "
+                    "mutation_kind='history-restore',restore_target_seq=2 "
+                    "WHERE resource_id=:rid AND journal_seq=5"
+                ),
+                {"rid": resource.resource_id},
+            )
         async with session.begin():
             await CreateNamedVersion(history).execute(
                 resource.resource_id,
@@ -207,9 +206,11 @@ async def test_history_timeline_restore_and_named_version() -> None:
         assert VersionKind.RESTORE in kinds
         assert VersionKind.AUTOMATIC in kinds
         assert nodes[0].base_journal_seq >= 6  # newest first
+        restored = next(node for node in nodes if node.kind is VersionKind.RESTORE)
+        assert restored.label == "restore to v2"
         async with session.begin():
             base = await checkpoints.latest(resource.resource_id)
-        assert base is not None and base.base_journal_seq == 6
+        assert base is not None and base.base_journal_seq == 5
     finally:
         await session.close()
         await connection.close()

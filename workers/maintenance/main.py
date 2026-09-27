@@ -29,12 +29,13 @@ from app_core.import_export.domain import EXPORT_TASK_TYPE, IMPORT_TASK_TYPE
 from app_core.import_export.ports import TemporaryAssetStore
 from app_core.operations.task import CreateTask
 from app_core.resource.application import ImportResource
+from app_core.resource.ports import ResourceContentPort
 from app_core.resource.purge import PurgeResource
 from app_core.webhook.application import DeliverWebhook
 from app_core.webhook.ports import WebhookTransporter
 from app_core.workspace.application.purge import PurgeWorkspace
+from app_infra.nats.resource_content_gateway import NatsResourceContentGateway
 from app_infra.postgres.audit.audit_repository import PostgresAuditRepository
-from app_infra.postgres.history.history_repository import PostgresHistoryRepository
 from app_infra.postgres.import_export_repository import (
     PostgresImportExportSessionRepository,
     PostgresResourceExportSnapshotRepository,
@@ -95,7 +96,6 @@ from workers.maintenance.task_handlers.history_restore import (
 )
 from workers.maintenance.task_handlers.history_restore import (
     HistoryRestoreHandler,
-    apply_history_op,
 )
 from workers.maintenance.task_handlers.import_export import (
     ExportResourceTaskHandler,
@@ -110,6 +110,8 @@ from workers.maintenance.task_handlers.webhook_deliver import (
     TASK_TYPE as WEBHOOK_TASK_TYPE,
 )
 from workers.maintenance.task_handlers.webhook_deliver import WebhookDeliverHandler
+
+_RESOURCE_CONTENT_GATEWAY = NatsResourceContentGateway()
 
 
 def require_isolated(url: str) -> str:
@@ -205,12 +207,55 @@ class _TransactionReleasingTemporaryAssetStore:
             await self._transaction.resume_after_external_io()
 
 
+class _TransactionReleasingResourceContent:
+    def __init__(
+        self,
+        content: ResourceContentPort,
+        transaction: _ExecutionTransaction,
+    ) -> None:
+        self._content = content
+        self._transaction = transaction
+
+    async def read(self, resource_id: UUID, *, at_journal_seq: int | None = None):
+        await self._transaction.release_before_external_io()
+        try:
+            return await self._content.read(resource_id, at_journal_seq=at_journal_seq)
+        finally:
+            await self._transaction.resume_after_external_io()
+
+    async def replace(
+        self,
+        resource_id: UUID,
+        snapshot: dict,
+        *,
+        operation_id: UUID,
+        created_by: UUID | None,
+        reason: str,
+        expected_journal_seq: int | None = None,
+        restore_target_seq: int | None = None,
+    ):
+        await self._transaction.release_before_external_io()
+        try:
+            return await self._content.replace(
+                resource_id,
+                snapshot,
+                operation_id=operation_id,
+                created_by=created_by,
+                reason=reason,
+                expected_journal_seq=expected_journal_seq,
+                restore_target_seq=restore_target_seq,
+            )
+        finally:
+            await self._transaction.resume_after_external_io()
+
+
 def build_registry(
     session: AsyncSession,
     *,
     webhook_session_factory: async_sessionmaker[AsyncSession] | None = None,
     execution_transaction: _ExecutionTransaction | None = None,
     temporary_assets: TemporaryAssetStore | None = None,
+    resource_content: ResourceContentPort | None = None,
 ) -> HandlerRegistry:
     registry = HandlerRegistry()
     effects = PostgresTaskEffectRepository(session)
@@ -219,6 +264,11 @@ def build_registry(
     resources = PostgresResourceRepository(session)
     projects = PostgresProjectRepository(session)
     ownership = PostgresResourceOwnershipRepository(session)
+    resource_content = resource_content or _RESOURCE_CONTENT_GATEWAY
+    if execution_transaction is not None:
+        resource_content = _TransactionReleasingResourceContent(
+            resource_content, execution_transaction
+        )
     import_export_sessions = PostgresImportExportSessionRepository(session)
     temporary_assets = temporary_assets or ImportExportTemporaryAssetStore(
         configured_asset_store()
@@ -263,11 +313,8 @@ def build_registry(
                 ownership,
                 journal,
                 RestoreAtVersion(
-                    PostgresHistoryRepository(session),
                     resources,
-                    journal,
-                    checkpoints,
-                    apply_history_op,
+                    resource_content,
                 ),
             ),
         )
@@ -281,7 +328,7 @@ def build_registry(
                 resources,
                 projects,
                 ownership,
-                ImportResource(resources, journal, checkpoints, ownership),
+                ImportResource(resources, resource_content, ownership),
             ),
         )
     )
@@ -295,7 +342,8 @@ def build_registry(
                 projects,
                 ownership,
                 ExportResourceSnapshot(
-                    PostgresResourceExportSnapshotRepository(session), ownership
+                    PostgresResourceExportSnapshotRepository(session, resource_content),
+                    ownership,
                 ),
             ),
         )

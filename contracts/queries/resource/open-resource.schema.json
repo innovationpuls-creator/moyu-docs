@@ -35,5 +35,82 @@
 		"lifecycle",
 		"journalSeq",
 		"snapshot"
-	]
+	],
+	"$defs": {
+		"TextNode": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"kind": { "const": "text" },
+				"text": { "type": "string" },
+				"marks": {
+					"type": "array",
+					"items": { "type": "string", "enum": ["bold", "italic", "code"] },
+					"uniqueItems": true
+				}
+			},
+			"required": ["kind", "text"]
+		},
+		"ParagraphNode": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"kind": { "const": "paragraph" },
+				"children": { "type": "array", "items": { "$ref": "#/$defs/TextNode" } }
+			},
+			"required": ["kind"]
+		},
+		"HeadingNode": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"kind": { "const": "heading" },
+				"level": { "type": "integer", "enum": [1, 2, 3] },
+				"children": { "type": "array", "items": { "$ref": "#/$defs/TextNode" } }
+			},
+			"required": ["kind", "level"]
+		},
+		"ListNode": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"kind": { "const": "list" },
+				"ordered": { "type": "boolean" },
+				"children": {
+					"type": "array",
+					"items": { "$ref": "#/$defs/ParagraphNode" }
+				}
+			},
+			"required": ["kind"]
+		},
+		"AssetNode": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"kind": { "type": "string", "enum": ["image", "attachment"] },
+				"nodeId": { "type": "string", "minLength": 1 },
+				"assetId": { "type": "string", "minLength": 1 },
+				"label": { "type": "string" }
+			},
+			"required": ["kind", "nodeId", "assetId", "label"]
+		},
+		"ContentNode": {
+			"oneOf": [
+				{ "$ref": "#/$defs/TextNode" },
+				{ "$ref": "#/$defs/ParagraphNode" },
+				{ "$ref": "#/$defs/HeadingNode" },
+				{ "$ref": "#/$defs/ListNode" },
+				{ "$ref": "#/$defs/AssetNode" }
+			]
+		},
+		"ContentSnapshot": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"text": { "type": "string" },
+				"nodes": { "type": "array", "items": { "$ref": "#/$defs/ContentNode" } }
+			},
+			"required": ["text", "nodes"]
+		}
+	}
 }

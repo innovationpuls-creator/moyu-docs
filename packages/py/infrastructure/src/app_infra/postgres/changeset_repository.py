@@ -21,8 +21,9 @@ class PostgresChangeSetRepository:
                     text(
                         "INSERT INTO collab.ai_changesets "
                         "(changeset_id,resource_id,task_id,instruction,status,"
-                        "ops,created_by) "
-                        "VALUES (:cid,:rid,:tid,:inst,:status,:ops,:by) RETURNING *"
+                        "ops,created_by,base_journal_seq) "
+                        "VALUES (:cid,:rid,:tid,:inst,:status,:ops,:by,:base_seq) "
+                        "RETURNING *"
                     ),
                     {
                         "cid": changeset.changeset_id,
@@ -32,6 +33,7 @@ class PostgresChangeSetRepository:
                         "status": changeset.status.value,
                         "ops": json.dumps(changeset.ops, default=str),
                         "by": changeset.created_by,
+                        "base_seq": changeset.base_journal_seq,
                     },
                 )
             )
@@ -53,13 +55,19 @@ class PostgresChangeSetRepository:
         )
         return None if row is None else _to_changeset(row)
 
-    async def mark_applied(self, changeset_id: UUID, *, applied_at: datetime) -> None:
+    async def mark_applied(
+        self,
+        changeset_id: UUID,
+        *,
+        applied_at: datetime,
+        journal_seq: int,
+    ) -> None:
         await self._session.execute(
             text(
                 "UPDATE collab.ai_changesets SET status='Applied',"
-                "applied_at=:at WHERE changeset_id=:id"
+                "applied_at=:at,applied_journal_seq=:seq WHERE changeset_id=:id"
             ),
-            {"at": applied_at, "id": changeset_id},
+            {"at": applied_at, "seq": journal_seq, "id": changeset_id},
         )
 
 
@@ -74,4 +82,6 @@ def _to_changeset(row: Any) -> ChangeSet:
         created_by=row["created_by"],
         created_at=row["created_at"],
         applied_at=row["applied_at"],
+        base_journal_seq=row.get("base_journal_seq"),
+        applied_journal_seq=row.get("applied_journal_seq"),
     )

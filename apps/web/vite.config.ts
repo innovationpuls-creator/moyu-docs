@@ -12,6 +12,16 @@ export default defineConfig({
 		strictPort: true,
 		host: "0.0.0.0",
 		proxy: {
+			"/v1/realtime": {
+				target: "ws://127.0.0.1:8765",
+				ws: true,
+				changeOrigin: false,
+			},
+			"/public-share": {
+				target: "ws://127.0.0.1:8765",
+				ws: true,
+				changeOrigin: false,
+			},
 			"/v1": {
 				target: "http://127.0.0.1:8000",
 				changeOrigin: false,

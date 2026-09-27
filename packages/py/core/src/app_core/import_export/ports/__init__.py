@@ -5,7 +5,7 @@ from typing import Protocol
 from uuid import UUID
 
 from app_core.import_export.domain import ExportSession, ImportSession
-from app_core.resource.domain import Checkpoint, Resource
+from app_core.resource.domain import Resource, ResourceContent
 
 
 class ImportExportSessionRepository(Protocol):
@@ -57,4 +57,4 @@ class TemporaryAssetStore(Protocol):
 class ResourceExportSnapshotRepository(Protocol):
     async def read(
         self, resource_id: UUID
-    ) -> tuple[Resource, Checkpoint | None] | None: ...
+    ) -> tuple[Resource, ResourceContent] | None: ...

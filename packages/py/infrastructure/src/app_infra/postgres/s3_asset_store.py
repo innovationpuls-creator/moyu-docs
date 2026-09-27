@@ -11,7 +11,7 @@ import hashlib
 import hmac
 from datetime import UTC, datetime
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit, urlunsplit
 
 import httpx
 
@@ -59,27 +59,41 @@ class S3AssetStore:
         access_key: str,
         secret_key: str,
         bucket: str,
+        addressing_style: str = "path",
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         if not all((endpoint_url, region, access_key, secret_key, bucket)):
             raise S3StoreError("S3 asset store requires endpoint/credentials/bucket")
+        if addressing_style not in {"path", "virtual"}:
+            raise S3StoreError("S3 addressing style must be 'path' or 'virtual'")
         self._endpoint = endpoint_url.rstrip("/")
         self._region = region
         self._access = access_key
         self._secret = secret_key
         self._bucket = bucket
+        self._addressing_style = addressing_style
         self._transport = transport
 
-    def _url(self, storage_key: str) -> str:
-        return f"{self._endpoint}/{self._bucket}/{quote(storage_key, safe='/')}"
+    def _target(self, storage_key: str) -> tuple[str, str, str]:
+        endpoint = urlsplit(self._endpoint)
+        encoded_key = quote(storage_key, safe="/")
+        if self._addressing_style == "virtual":
+            host = f"{self._bucket}.{endpoint.netloc}"
+            path = f"{endpoint.path.rstrip('/')}/{encoded_key}"
+        else:
+            host = endpoint.netloc
+            path = f"{endpoint.path.rstrip('/')}/{self._bucket}/{encoded_key}"
+        return urlunsplit((endpoint.scheme, host, path, "", "")), path, host
 
-    def _auth_headers(self, method: str, path: str, body: bytes) -> dict[str, str]:
+    def _auth_headers(
+        self, method: str, path: str, body: bytes, host: str
+    ) -> dict[str, str]:
         payload_hash = _sha256_hex(body)
         now = datetime.now(UTC)
         amz_date = now.strftime("%Y%m%dT%H%M%SZ")
         date_stamp = now.strftime("%Y%m%d")
         headers = {
-            "host": self._endpoint.removeprefix("https://").removeprefix("http://"),
+            "host": host,
             "x-amz-content-sha256": payload_hash,
             "x-amz-date": amz_date,
         }
@@ -119,10 +133,9 @@ class S3AssetStore:
     async def _request(
         self, method: str, storage_key: str, body: bytes | None
     ) -> httpx.Response:
-        url = self._url(storage_key)
-        path = url.split(self._endpoint, 1)[1] or "/"
+        url, path, host = self._target(storage_key)
         payload = body if body is not None else b""
-        headers = self._auth_headers(method, path, payload)
+        headers = self._auth_headers(method, path, payload, host)
         client_options: dict[str, Any] = {"timeout": 30.0}
         if self._transport is not None:
             client_options["transport"] = self._transport

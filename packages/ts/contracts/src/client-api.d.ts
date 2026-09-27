@@ -1989,6 +1989,43 @@ export interface components {
 			acceptedWatermark: number;
 			durableWatermark: number;
 		};
+		TextNode: {
+			/** @constant */
+			kind: "text";
+			text: string;
+			marks?: ("bold" | "italic" | "code")[];
+		};
+		ParagraphNode: {
+			/** @constant */
+			kind: "paragraph";
+			children?: components["schemas"]["TextNode"][];
+		};
+		HeadingNode: {
+			/** @constant */
+			kind: "heading";
+			/** @enum {integer} */
+			level: 1 | 2 | 3;
+			children?: components["schemas"]["TextNode"][];
+		};
+		ListNode: {
+			/** @constant */
+			kind: "list";
+			ordered?: boolean;
+			children?: components["schemas"]["ParagraphNode"][];
+		};
+		AssetNode: {
+			/** @enum {string} */
+			kind: "image" | "attachment";
+			nodeId: string;
+			assetId: string;
+			label: string;
+		};
+		ContentNode:
+			| components["schemas"]["TextNode"]
+			| components["schemas"]["ParagraphNode"]
+			| components["schemas"]["HeadingNode"]
+			| components["schemas"]["ListNode"]
+			| components["schemas"]["AssetNode"];
 		/**
 		 * OpenResourceResponse
 		 * @description FR-RC-001/006. Read one authorized Resource's metadata and latest materialized snapshot (checkpoint). Authority: resource ownership (Permission). 404 when the Resource is trashed/purged or not authorized.
@@ -2004,6 +2041,49 @@ export interface components {
 			lifecycle: "Active" | "Trashed" | "Purging" | "Purged";
 			journalSeq: number;
 			snapshot: Record<string, never> | null;
+			$defs: {
+				TextNode: {
+					/** @constant */
+					kind: "text";
+					text: string;
+					marks?: ("bold" | "italic" | "code")[];
+				};
+				ParagraphNode: {
+					/** @constant */
+					kind: "paragraph";
+					children?: components["schemas"]["TextNode"][];
+				};
+				HeadingNode: {
+					/** @constant */
+					kind: "heading";
+					/** @enum {integer} */
+					level: 1 | 2 | 3;
+					children?: components["schemas"]["TextNode"][];
+				};
+				ListNode: {
+					/** @constant */
+					kind: "list";
+					ordered?: boolean;
+					children?: components["schemas"]["ParagraphNode"][];
+				};
+				AssetNode: {
+					/** @enum {string} */
+					kind: "image" | "attachment";
+					nodeId: string;
+					assetId: string;
+					label: string;
+				};
+				ContentNode:
+					| components["schemas"]["TextNode"]
+					| components["schemas"]["ParagraphNode"]
+					| components["schemas"]["HeadingNode"]
+					| components["schemas"]["ListNode"]
+					| components["schemas"]["AssetNode"];
+				ContentSnapshot: {
+					text: string;
+					nodes: components["schemas"]["ContentNode"][];
+				};
+			};
 		};
 		/**
 		 * RenameResource

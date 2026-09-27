@@ -11,6 +11,7 @@ from app_core.resource.domain import (
     JournalOp,
     JournalSequenceConflictError,
     Resource,
+    ResourceContentMutation,
     ResourceLifecycle,
     ResourceNameConflictError,
     ResourceNotFoundError,
@@ -22,6 +23,7 @@ from app_core.resource.ports import (
     JournalIdempotencyPort,
     JournalRepository,
     ReadOnlyResourceOwnershipPort,
+    ResourceContentPort,
     ResourceEventPublisher,
     ResourceRepository,
 )
@@ -262,11 +264,11 @@ class ExportResource:
     def __init__(
         self,
         resources: ResourceRepository,
-        checkpoints: CheckpointRepository,
+        content: ResourceContentPort,
         ownership: ReadOnlyResourceOwnershipPort,
     ) -> None:
         self._resources = resources
-        self._checkpoints = checkpoints
+        self._content = content
         self._ownership = ownership
 
     async def execute(self, actor_id: UUID, resource_id: UUID) -> dict:
@@ -275,7 +277,7 @@ class ExportResource:
         current = await self._resources.get(resource_id)
         if current is None:
             raise LookupError("resource not found")
-        latest = await self._checkpoints.latest(resource_id)
+        content = await self._content.read(resource_id)
         return {
             "kind": "dom.resource.export.v1",
             "schemaVersion": "1.0.0",
@@ -285,8 +287,8 @@ class ExportResource:
                 "name": current.name,
             },
             "content": {
-                "snapshot": latest.snapshot if latest is not None else None,
-                "journalSeq": latest.base_journal_seq if latest is not None else 0,
+                "snapshot": content.snapshot,
+                "journalSeq": content.journal_seq,
             },
         }
 
@@ -298,13 +300,11 @@ class ImportResource:
     def __init__(
         self,
         resources: ResourceRepository,
-        journal: JournalRepository,
-        checkpoints: CheckpointRepository,
+        content: ResourceContentPort,
         ownership: ReadOnlyResourceOwnershipPort,
     ) -> None:
         self._resources = resources
-        self._journal = journal
-        self._checkpoints = checkpoints
+        self._content = content
         self._ownership = ownership
 
     async def execute(
@@ -312,7 +312,9 @@ class ImportResource:
         actor_id: UUID,
         resource_id: UUID,
         document: dict,
-    ) -> tuple[int, Checkpoint]:
+        *,
+        operation_id: UUID,
+    ) -> tuple[int, ResourceContentMutation]:
         if document.get("kind") != "dom.resource.export.v1":
             raise ValueError("IMPORT_DOCUMENT_INVALID")
         if not await self._ownership.authorize(
@@ -322,20 +324,22 @@ class ImportResource:
         current = await self._resources.get(resource_id)
         if current is None:
             raise LookupError("resource not found")
-        payload = __import__("json").dumps(document, default=str).encode()
-        seq = (await self._journal.max_seq(resource_id)) + 1
-        await self._journal.append_op(
+        content = document.get("content")
+        if not isinstance(content, dict):
+            raise ValueError("IMPORT_DOCUMENT_INVALID")
+        snapshot = content.get("snapshot")
+        if snapshot is None:
+            snapshot = {"text": "", "nodes": []}
+        if not isinstance(snapshot, dict):
+            raise ValueError("IMPORT_DOCUMENT_INVALID")
+        receipt = await self._content.replace(
             resource_id,
-            seq,
-            1,
-            payload,
-            __import__("hashlib").sha256(payload).hexdigest(),
+            snapshot,
+            operation_id=operation_id,
+            created_by=actor_id,
+            reason="import",
         )
-        snapshot = (document.get("content") or {}).get("snapshot")
-        checkpoint = await self._checkpoints.write(
-            resource_id, seq, snapshot if snapshot is not None else {"imported": True}
-        )
-        return seq, checkpoint
+        return receipt.journal_seq, receipt
 
 
 class ReadJournal:
@@ -354,13 +358,11 @@ class ReadCurrentResourceContent:
     def __init__(
         self,
         resources: ResourceRepository,
-        journal: JournalRepository,
-        checkpoints: CheckpointRepository,
+        content: ResourceContentPort,
         ownership: ReadOnlyResourceOwnershipPort,
     ) -> None:
         self._resources = resources
-        self._journal = journal
-        self._checkpoints = checkpoints
+        self._content = content
         self._ownership = ownership
 
     async def execute(self, actor_id: UUID, resource_id: UUID) -> dict:
@@ -369,16 +371,14 @@ class ReadCurrentResourceContent:
         resource = await self._resources.get(resource_id)
         if resource is None or resource.lifecycle != ResourceLifecycle.ACTIVE:
             raise LookupError("resource not found")
-        checkpoint = await self._checkpoints.latest(resource_id)
+        content = await self._content.read(resource_id)
         return {
             "resourceId": str(resource.resource_id),
             "name": resource.name,
             "resourceType": resource.resource_type,
-            "snapshot": checkpoint.snapshot if checkpoint is not None else None,
-            "checkpointJournalSeq": (
-                checkpoint.base_journal_seq if checkpoint is not None else 0
-            ),
-            "journalSeq": await self._journal.max_seq(resource_id),
+            "snapshot": content.snapshot,
+            "checkpointJournalSeq": content.journal_seq,
+            "journalSeq": content.journal_seq,
         }
 
 

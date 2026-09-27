@@ -30,10 +30,12 @@
 		"./commands/auth/verify-email": "./src/commands/auth/verify-email.d.ts",
 		"./commands/auth/verify-email-response": "./src/commands/auth/verify-email-response.d.ts",
 		"./commands/auth/cancel-account-deletion": "./src/commands/auth/cancel-account-deletion.d.ts",
+		"./commands/resource/replace-resource-content": "./src/commands/resource/replace-resource-content.d.ts",
 		"./realtime/*": "./src/realtime/*.d.ts",
 		"./queries/auth/get-account-status": "./src/queries/auth/get-account-status.d.ts",
 		"./queries/auth/get-current-account": "./src/queries/auth/get-current-account.d.ts",
 		"./queries/auth/get-current-session": "./src/queries/auth/get-current-session.d.ts",
+		"./queries/resource/read-resource-content": "./src/queries/resource/read-resource-content.d.ts",
 		"./errors/error-envelope": "./src/errors/error-envelope.d.ts"
 	}
 }

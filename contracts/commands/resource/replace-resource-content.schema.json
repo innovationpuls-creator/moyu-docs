@@ -1,0 +1,37 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://contracts.dom.internal/commands/resource/replace-resource-content.schema.json",
+	"title": "ReplaceResourceContent",
+	"description": "Internal Realtime command. Replace semantic Resource content by applying a valid Yjs update to the current Y.Doc, durably append it, and broadcast it.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/ResourceId" },
+		"operationId": {
+			"$ref": "../../ids/ids.schema.json#/$defs/IdempotencyKey"
+		},
+		"expectedJournalSeq": { "type": "integer", "minimum": 0 },
+		"createdBy": { "type": ["string", "null"], "format": "uuid" },
+		"reason": {
+			"type": "string",
+			"enum": ["import", "history-restore", "ai-changeset"]
+		},
+		"restoreTargetSeq": { "type": "integer", "minimum": 1 },
+		"snapshot": {
+			"$ref": "../../queries/resource/open-resource.schema.json#/$defs/ContentSnapshot"
+		}
+	},
+	"required": ["resourceId", "operationId", "createdBy", "reason", "snapshot"],
+	"$defs": {
+		"ReplaceResourceContentResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"resourceId": { "$ref": "../../ids/ids.schema.json#/$defs/ResourceId" },
+				"journalSeq": { "type": "integer", "minimum": 1 }
+			},
+			"required": ["resourceId", "journalSeq"],
+			"title": "ReplaceResourceContentResponse"
+		}
+	}
+}

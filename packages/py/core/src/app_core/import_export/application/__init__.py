@@ -299,7 +299,7 @@ class ExportResourceSnapshot:
         view = await self._snapshots.read(resource_id)
         if view is None:
             raise ImportExportNotFoundError("resource not found")
-        resource, checkpoint = view
+        resource, content = view
         if resource.lifecycle is not ResourceLifecycle.ACTIVE:
             raise ImportExportNotFoundError("resource is not active")
         return {
@@ -311,8 +311,8 @@ class ExportResourceSnapshot:
                 "name": resource.name,
             },
             "content": {
-                "snapshot": checkpoint.snapshot if checkpoint is not None else None,
-                "journalSeq": checkpoint.base_journal_seq if checkpoint else 0,
+                "snapshot": content.snapshot,
+                "journalSeq": content.journal_seq,
             },
         }
 

@@ -4,7 +4,7 @@ import {
 	type ResourceRealtimeClient,
 } from "@dom/realtime-client";
 
-const defaultRealtimeUrl = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.hostname}:8765/v1/realtime`;
+const defaultRealtimeUrl = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/v1/realtime`;
 const REALTIME_URL = import.meta.env.VITE_REALTIME_URL ?? defaultRealtimeUrl;
 const publicShareRealtimeUrl = new URL(REALTIME_URL);
 publicShareRealtimeUrl.pathname = "/public-share";

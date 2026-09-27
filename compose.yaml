@@ -1,60 +1,175 @@
-# DOM dev-stack orchestration (docs/architecture/15 §2 local model).
-# Mirrors the harness topology: Postgres 16 (:5432), Valkey (:6379), NATS
-# JetStream (:4222). Healthchecks gate each service.
-name: dom
+name: dom-local
+
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     environment:
-      POSTGRES_USER: torch
-      POSTGRES_DB: dom_dev
-      # 官方 postgres 镜像在未设密码时拒绝启动；本栈的 DATABASE_URL 全部为
-      # 无密码连接（postgresql+psycopg://torch@…），故采用 trust 认证而非
-      # 设置密码（后者需同步改 API/worker/Playwright/justfile 全部 URL）。
-      POSTGRES_HOST_AUTH_METHOD: trust
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: dom_local
+      POSTGRES_DB: dom_workspace_lifecycle_test
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run scripts/compose-local.sh to initialize local secrets}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U torch -d dom_dev"]
+      test: ["CMD-SHELL", "pg_isready -U dom_local -d dom_workspace_lifecycle_test"]
       interval: 5s
       timeout: 3s
-      retries: 5
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
   valkey:
-    image: valkey/valkey:8-alpine
-    command: ["valkey-server", "--save", "''"]
-    ports:
-      - "6379:6379"
-    volumes:
-      - vkdata:/data
+    image: valkey/valkey:9-alpine
+    command: ["valkey-server", "--save", "", "--appendonly", "no"]
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
       interval: 5s
       timeout: 3s
-      retries: 5
+      retries: 10
+    restart: unless-stopped
+
   nats:
     image: nats:2.10-alpine
-    command: ["-js"]
-    ports:
-      - "4222:4222"
-      - "8222:8222"
+    command: ["-js", "-m", "8222", "-sd", "/data"]
+    volumes:
+      - natsdata:/data
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8222/healthz || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8222/healthz"]
       interval: 5s
       timeout: 3s
-      retries: 5
+      retries: 10
+    restart: unless-stopped
+
+  minio:
+    image: cgr.dev/chainguard/minio@sha256:bd014394a80898e68c149f2311fdf8d5a2c2f3bb2c33b9327ae6d02b4b065ae1
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Run scripts/compose-local.sh to initialize local secrets}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Run scripts/compose-local.sh to initialize local secrets}
+    volumes:
+      - miniodata:/data
+    restart: unless-stopped
+
+  minio-init:
+    image: cgr.dev/chainguard/minio-client@sha256:b8b144ab34694ecea25aa352c4be9de4c26ee2a02701521dce02ee5593c57338
+    depends_on:
+      minio:
+        condition: service_started
+    environment:
+      MC_HOST_local: http://${MINIO_ROOT_USER:?Run scripts/compose-local.sh to initialize local secrets}:${MINIO_ROOT_PASSWORD:?Run scripts/compose-local.sh to initialize local secrets}@minio:9000
+    entrypoint: ["/usr/bin/mc"]
+    command: ["mb", "--ignore-existing", "local/dom-local-assets"]
+    restart: "on-failure:10"
+
+  migrate:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    command: ["alembic", "-c", "migrations/postgres/alembic.ini", "upgrade", "head"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://dom_local:${POSTGRES_PASSWORD:?Run scripts/compose-local.sh to initialize local secrets}@postgres:5432/dom_workspace_lifecycle_test
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg://dom_local:${POSTGRES_PASSWORD:?Run scripts/compose-local.sh to initialize local secrets}@postgres:5432/dom_workspace_lifecycle_test
+      VALKEY_URL: redis://valkey:6379/14
+      NATS_URL: nats://nats:4222
+      CONTRACTS_DIR: /app/contracts
+      MAILER_PROVIDER: logging
+      MAIL_LINK_BASE_URL: http://localhost:${DOM_WEB_PORT:-5180}
+      INVITATION_IDEMPOTENCY_ENCRYPTION_KEY: ${INVITATION_IDEMPOTENCY_ENCRYPTION_KEY:?Run scripts/compose-local.sh to initialize local secrets}
+      SHARE_LINK_IDEMPOTENCY_ENCRYPTION_KEY: ${SHARE_LINK_IDEMPOTENCY_ENCRYPTION_KEY:?Run scripts/compose-local.sh to initialize local secrets}
+      S3_ASSET_ENDPOINT: http://minio:9000
+      S3_ASSET_REGION: us-east-1
+      S3_ASSET_ACCESS_KEY: ${MINIO_ROOT_USER:?Run scripts/compose-local.sh to initialize local secrets}
+      S3_ASSET_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?Run scripts/compose-local.sh to initialize local secrets}
+      S3_ASSET_BUCKET: dom-local-assets
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      valkey:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  realtime:
+    build:
+      context: .
+      dockerfile: services/realtime/Dockerfile
+    environment:
+      PORT: "8765"
+      REALTIME_DATABASE_URL: postgresql://dom_local:${POSTGRES_PASSWORD:?Run scripts/compose-local.sh to initialize local secrets}@postgres:5432/dom_workspace_lifecycle_test
+      VALKEY_URL: redis://valkey:6379/14
+      NATS_URL: nats://nats:4222
+      REALTIME_API_BASE_URL: http://api:8000
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      valkey:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8765/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+
   maintenance-worker:
     build:
       context: .
       dockerfile: workers/maintenance/Dockerfile
     environment:
-      DATABASE_URL: postgresql+psycopg://torch@postgres:5432/dom_dev
+      DATABASE_URL: postgresql+psycopg://dom_local:${POSTGRES_PASSWORD:?Run scripts/compose-local.sh to initialize local secrets}@postgres:5432/dom_workspace_lifecycle_test
+      S3_ASSET_ENDPOINT: http://minio:9000
+      S3_ASSET_REGION: us-east-1
+      S3_ASSET_ACCESS_KEY: ${MINIO_ROOT_USER:?Run scripts/compose-local.sh to initialize local secrets}
+      S3_ASSET_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?Run scripts/compose-local.sh to initialize local secrets}
+      S3_ASSET_BUCKET: dom-local-assets
     depends_on:
-      postgres:
-        condition: service_healthy
-    command: ["python", "-m", "workers.maintenance.main", "--daemon", "--interval", "5"]
+      migrate:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
     restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "127.0.0.1:${DOM_WEB_PORT:-5180}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+      realtime:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
 volumes:
   pgdata: {}
-  vkdata: {}
+  natsdata: {}
+  miniodata: {}

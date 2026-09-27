@@ -17,6 +17,8 @@ from app_core.history.domain import (
 from app_core.history.ports import HistoryRepository
 from app_core.resource.domain import (
     Resource,
+    ResourceContent,
+    ResourceContentMutation,
     ResourceLifecycle,
 )
 
@@ -55,44 +57,20 @@ class _History(HistoryRepository):
         return label in self.labels
 
 
-class _Journal:
+class _Content:
     def __init__(self) -> None:
-        self.seq = 0
+        self.reads: list[tuple[object, int | None]] = []
+        self.replacements: list[dict] = []
 
-    async def max_seq(self, resource_id):
-        return self.seq
+    async def read(self, resource_id, *, at_journal_seq=None):
+        self.reads.append((resource_id, at_journal_seq))
+        return ResourceContent({"nodes": [{"kind": "paragraph"}]}, at_journal_seq or 9)
 
-    async def append_op(self, resource_id, seq, epoch, update_bytes, update_hash):
-        from app_core.resource.domain import JournalOp
-
-        self.seq = seq
-        return JournalOp(resource_id, seq, epoch, update_bytes, update_hash)
-
-    async def read_cursor(self, resource_id, after_seq, *, limit=200):
-        return []
-
-
-class _Checkpoints:
-    def __init__(self) -> None:
-        self.latest_ck = None
-
-    async def write(self, resource_id, base_journal_seq, snapshot, created_by=None):
-        ck = type(
-            "CK",
-            (),
-            {
-                "resource_id": resource_id,
-                "base_journal_seq": base_journal_seq,
-                "snapshot": dict(snapshot),
-                "created_at": None,
-                "checkpoint_seq": 1,
-            },
-        )()
-        self.latest_ck = ck
-        return ck
-
-    async def latest(self, resource_id):
-        return self.latest_ck
+    async def replace(self, resource_id, snapshot, **kwargs):
+        self.replacements.append(
+            {"resource_id": resource_id, "snapshot": snapshot, **kwargs}
+        )
+        return ResourceContentMutation(10)
 
 
 class _Resources:
@@ -125,35 +103,38 @@ async def test_create_named_version_and_label_conflict() -> None:
 
 @pytest.mark.asyncio
 async def test_restore_is_a_new_modification_not_a_rewind() -> None:
-    history = _History()
-    journal = _Journal()
-    checkpoints = _Checkpoints()
     resources = _Resources()
-    restore = RestoreAtVersion(
-        history,
-        resources,
-        journal,
-        checkpoints,
-        apply=lambda state, op: {**state, "seq": op.journal_seq},
-    )
+    content = _Content()
+    restore = RestoreAtVersion(resources, content)
     progress: list[tuple[str, int | None, int | None]] = []
 
     async def report(stage: str, current: int | None, total: int | None) -> None:
         progress.append((stage, current, total))
 
+    actor_id = uuid4()
+    operation_id = uuid4()
     node = await restore.execute(
         resources.row.resource_id,
         target_seq=8,
-        actor_id=uuid4(),
+        actor_id=actor_id,
+        operation_id=operation_id,
         on_progress=report,
     )
     assert node.kind == VersionKind.RESTORE
-    assert node.base_journal_seq == 1  # new current (9th seq -> max+1 in real chain)
+    assert node.base_journal_seq == 10
     assert node.summary and "restored" in node.summary
-    # previous current remains accessible: latest checkpoint before restore kept
-    assert checkpoints.latest_ck is not None
+    assert content.reads == [(resources.row.resource_id, 8)]
+    assert content.replacements == [
+        {
+            "resource_id": resources.row.resource_id,
+            "snapshot": {"nodes": [{"kind": "paragraph"}]},
+            "operation_id": operation_id,
+            "created_by": actor_id,
+            "reason": "history-restore",
+            "restore_target_seq": 8,
+        }
+    ]
     assert progress == [
         ("materializing", None, None),
-        ("replaying", 0, 0),
         ("saving", None, None),
     ]

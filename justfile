@@ -10,6 +10,19 @@ dev-api:
     test -f .env || (echo "Create the root .env before starting the API." >&2; exit 1)
     uv run --env-file .env --project services/api python -c 'import uvicorn; from api.main import create_app; uvicorn.run(create_app(debug=True), host="127.0.0.1", port=8000, log_level="info")'
 
+# Docker Compose 本地全栈：凭据写入被 Git 忽略的 .env.docker.local。
+docker-up:
+    ./scripts/compose-local.sh up --detach --build
+
+docker-down:
+    ./scripts/compose-local.sh down
+
+docker-ps:
+    ./scripts/compose-local.sh ps
+
+docker-logs:
+    ./scripts/compose-local.sh logs --tail 100
+
 # 全局代码检查 (Python + Frontend JS/TS/JSON)
 lint: lint-py lint-js
 

@@ -3,11 +3,11 @@
 
 from __future__ import annotations
 
-from enum import Enum
-from typing import Any
+from enum import Enum, IntEnum
+from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, constr
 
 
 class ResourceType(Enum):
@@ -36,3 +36,73 @@ class OpenResourceResponse(BaseModel):
     lifecycle: Lifecycle
     journalSeq: int
     snapshot: dict[str, Any] | None
+
+
+class Mark(Enum):
+    bold = "bold"
+    italic = "italic"
+    code = "code"
+
+
+class TextNode(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    kind: Literal["text"]
+    text: str
+    marks: list[Mark] | None = None
+
+
+class ParagraphNode(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    kind: Literal["paragraph"]
+    children: list[TextNode] | None = None
+
+
+class Level(IntEnum):
+    integer_1 = 1
+    integer_2 = 2
+    integer_3 = 3
+
+
+class HeadingNode(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    kind: Literal["heading"]
+    level: Level
+    children: list[TextNode] | None = None
+
+
+class ListNode(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    kind: Literal["list"]
+    ordered: bool | None = None
+    children: list[ParagraphNode] | None = None
+
+
+class Kind(Enum):
+    image = "image"
+    attachment = "attachment"
+
+
+class AssetNode(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    kind: Kind
+    nodeId: constr(min_length=1)
+    assetId: constr(min_length=1)
+    label: str
+
+
+class ContentSnapshot(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    text: str
+    nodes: list[TextNode | ParagraphNode | HeadingNode | ListNode | AssetNode]

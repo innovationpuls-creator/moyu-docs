@@ -57,7 +57,7 @@ export function toProseMirror(nodes: ContentNode[]): ProseMirrorJson {
 					};
 				case "list":
 					return {
-						type: "bulletList",
+						type: node.ordered ? "orderedList" : "bulletList",
 						content: (node.children ?? []).map((child) => ({
 							type: "listItem",
 							content: [
@@ -125,8 +125,10 @@ function pmNodeToCanonical(item: ProseMirrorJson): ContentNode {
 			};
 		}
 		case "bulletList":
+		case "orderedList":
 			return {
 				kind: "list",
+				...(item.type === "orderedList" ? { ordered: true } : {}),
 				children: (item.content ?? []).map((listItem) => {
 					if (listItem.type !== "listItem") {
 						throw new ContentNodeError(

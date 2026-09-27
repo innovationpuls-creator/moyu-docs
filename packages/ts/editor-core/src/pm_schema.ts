@@ -35,6 +35,12 @@ export const schema = new Schema({
 			parseDOM: [{ tag: "ul" }],
 			toDOM: () => ["ul", 0],
 		},
+		orderedList: {
+			content: "listItem+",
+			group: "block",
+			parseDOM: [{ tag: "ol" }],
+			toDOM: () => ["ol", 0],
+		},
 		listItem: {
 			content: "paragraph block*",
 			parseDOM: [{ tag: "li" }],

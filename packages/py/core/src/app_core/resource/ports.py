@@ -8,6 +8,8 @@ from app_core.resource.domain import (
     Checkpoint,
     JournalOp,
     Resource,
+    ResourceContent,
+    ResourceContentMutation,
 )
 
 
@@ -66,6 +68,24 @@ class CheckpointRepository(Protocol):
     async def list_recent(
         self, resource_id: UUID, *, limit: int = 10
     ) -> list[Checkpoint]: ...
+
+
+class ResourceContentPort(Protocol):
+    async def read(
+        self, resource_id: UUID, *, at_journal_seq: int | None = None
+    ) -> ResourceContent: ...
+
+    async def replace(
+        self,
+        resource_id: UUID,
+        snapshot: dict,
+        *,
+        operation_id: UUID,
+        created_by: UUID | None,
+        reason: str,
+        expected_journal_seq: int | None = None,
+        restore_target_seq: int | None = None,
+    ) -> ResourceContentMutation: ...
 
 
 class ReadOnlyResourceOwnershipPort(Protocol):

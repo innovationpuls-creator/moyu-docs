@@ -12,6 +12,8 @@ import { connect, type JetStreamClient } from "nats";
 import type { PresenceStore } from "../backlog/presence_store.js";
 import type { YjsBacklogStore } from "../backlog/yjs_backlog_store.js";
 import type { CurrentResourceStateProvider } from "../persistence/current_resource_state.js";
+import type { PostgresResourceContentService } from "../persistence/resource_content.js";
+import { ResourceContentCommandServer } from "../persistence/resource_content_commands.js";
 import {
 	type OpEnvelope,
 	ResourceSubscriptionManager,
@@ -29,6 +31,7 @@ export interface RelayHostOptions {
 	/** Presence roster store (arch 05); default in-memory. */
 	presenceStore?: PresenceStore;
 	currentResourceState?: CurrentResourceStateProvider;
+	resourceContentService?: PostgresResourceContentService;
 }
 
 export interface PublicShareGrant {
@@ -46,9 +49,13 @@ export class GatewayRelayHost {
 	private readonly connections = new Map<string, (envelope: unknown) => void>();
 	private relay: NatsBroadcastRelay | null = null;
 	private readonly currentResourceState?: CurrentResourceStateProvider;
+	private readonly resourceContentService?: PostgresResourceContentService;
+	private contentCommands: ResourceContentCommandServer | null = null;
+	private connection: Awaited<ReturnType<typeof connect>> | null = null;
 
 	constructor(private readonly options: RelayHostOptions) {
 		this.currentResourceState = options.currentResourceState;
+		this.resourceContentService = options.resourceContentService;
 		this.manager = new ResourceSubscriptionManager(
 			{
 				authorizeResource: async (actorId, resourceId) =>
@@ -188,6 +195,14 @@ export class GatewayRelayHost {
 			}
 		}
 		if (nc === null) throw new Error("nats connection unavailable");
+		this.connection = nc;
+		if (this.resourceContentService) {
+			this.contentCommands = new ResourceContentCommandServer(
+				nc,
+				this.resourceContentService,
+			);
+			this.contentCommands.start();
+		}
 		const js: JetStreamClient = nc.jetstream();
 		this.relay = new NatsBroadcastRelay(js, {
 			dispatch: (resourceId, envelope) => {
@@ -213,7 +228,11 @@ export class GatewayRelayHost {
 	}
 
 	async stopRelay(): Promise<void> {
+		await this.contentCommands?.stop();
+		this.contentCommands = null;
 		await this.relay?.stop();
 		this.relay = null;
+		await this.connection?.close();
+		this.connection = null;
 	}
 }

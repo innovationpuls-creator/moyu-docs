@@ -16,13 +16,10 @@ from app_core.history.domain import NamedVersionLabelConflictError, VersionNode
 from app_core.operations.task import CreateTask
 from app_core.resource.domain import ResourceLifecycle, ResourcePermissionDeniedError
 from app_core.session.domain.session import Session
+from app_infra.nats.resource_content_gateway import ResourceContentGatewayError
 from app_infra.postgres.history.history_repository import (
     PostgresHistoryRepository,
 )
-from app_infra.postgres.resource.checkpoint_repository import (
-    PostgresCheckpointRepository,
-)
-from app_infra.postgres.resource.journal_repository import PostgresJournalRepository
 from app_infra.postgres.resource.resource_repository import (
     PostgresResourceRepository,
 )
@@ -35,6 +32,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.dependencies.auth import get_current_session, get_db_session
+from api.infra.broadcast import get_resource_content_gateway
 from api.routes.tasks import _task_summary
 
 router = APIRouter()
@@ -112,6 +110,7 @@ async def restore_version(
     body: RestoreRequest,
     current: Annotated[Session, Depends(get_current_session)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    content: Annotated[object, Depends(get_resource_content_gateway)],
 ) -> RestoreResponse:
     try:
         await PostgresResourceOwnershipRepository(session).authorize(
@@ -120,21 +119,15 @@ async def restore_version(
     except ResourcePermissionDeniedError:
         raise HTTPException(status_code=403, detail="RESOURCE_PERMISSION_DENIED")
 
-    def apply(state: dict, op: object) -> dict:
-        from app_core.history.reduce import reduce_ops
-
-        return reduce_ops(state, [op])  # type: ignore[list-item]
-
     try:
         node = await RestoreAtVersion(
-            PostgresHistoryRepository(session),
             PostgresResourceRepository(session),
-            PostgresJournalRepository(session),
-            PostgresCheckpointRepository(session),
-            apply,
+            content,
         ).execute(resource_id, body.baseJournalSeq, actor_id=current.account_id)
     except LookupError:
         raise HTTPException(status_code=404, detail="RESOURCE_NOT_FOUND")
+    except ResourceContentGatewayError:
+        raise HTTPException(status_code=503, detail="RESOURCE_CONTENT_UNAVAILABLE")
     return RestoreResponse(
         resourceId=resource_id,
         newSeq=node.base_journal_seq,

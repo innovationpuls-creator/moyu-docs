@@ -316,6 +316,38 @@ contracts:
     ownerModule: packages/py/core/resource
     status: active
 
+  - logicalName: ReadResourceContent
+    kind: Query
+    domain: resource
+    version: "1.0.0"
+    schemaPath: contracts/queries/resource/read-resource-content.schema.json
+    requestRef: contracts/queries/resource/read-resource-content.schema.json
+    responseRef: contracts/queries/resource/read-resource-content.schema.json#/$defs/ReadResourceContentResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: none
+    errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_CONTENT_UNAVAILABLE]
+    ownerDocument: docs/architecture/06-Persistence-Design.md
+    ownerModule: services/realtime/persistence
+    status: active
+
+  - logicalName: ReplaceResourceContent
+    kind: Command
+    domain: resource
+    version: "1.0.0"
+    schemaPath: contracts/commands/resource/replace-resource-content.schema.json
+    requestRef: contracts/commands/resource/replace-resource-content.schema.json
+    responseRef: contracts/commands/resource/replace-resource-content.schema.json#/$defs/ReplaceResourceContentResponse
+    requestBody: required
+    permissionCapability: none
+    authRequirement: Authenticated
+    idempotencyRequirement: required
+    errorCodes: [RESOURCE_NOT_FOUND, RESOURCE_JOURNAL_SEQUENCE_CONFLICT, IDEMPOTENCY_KEY_CONFLICT, RESOURCE_CONTENT_UNAVAILABLE]
+    ownerDocument: docs/architecture/06-Persistence-Design.md
+    ownerModule: services/realtime/persistence
+    status: active
+
   - logicalName: RestoreResource
     kind: Command
     domain: resource

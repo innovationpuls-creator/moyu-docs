@@ -7,7 +7,7 @@ import os
 from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import httpx
 import pytest
@@ -16,11 +16,11 @@ from alembic import command
 from alembic.config import Config
 from api.dependencies.auth import get_current_session
 from api.main import create_app
+from app_infra.nats.resource_content_gateway import NatsResourceContentGateway
 from app_infra.postgres.engine import engine
 from app_infra.postgres.resource.checkpoint_repository import (
     PostgresCheckpointRepository,
 )
-from app_infra.postgres.resource.journal_repository import PostgresJournalRepository
 from app_infra.postgres.resource.resource_repository import PostgresResourceRepository
 from app_infra.postgres.resource_ownership_repository import (
     PostgresResourceOwnershipRepository,
@@ -34,6 +34,27 @@ from sqlalchemy.ext.asyncio import AsyncSession
 DATABASE_URL = "postgresql+psycopg://torch@localhost:5432/dom_workspace_lifecycle_test"
 
 
+async def _write_resource_content(
+    resource_id: UUID,
+    actor_id: UUID,
+    snapshot: dict,
+    *,
+    operation_id: UUID | None = None,
+) -> int:
+    gateway = NatsResourceContentGateway()
+    try:
+        receipt = await gateway.replace(
+            resource_id,
+            snapshot,
+            operation_id=operation_id or uuid4(),
+            created_by=actor_id,
+            reason="import",
+        )
+        return receipt.journal_seq
+    finally:
+        await gateway.close()
+
+
 @pytest_asyncio.fixture(scope="module", autouse=True)
 async def migrated_database() -> None:
     database_url = require_isolated_database(os.environ["DATABASE_URL"])
@@ -41,6 +62,23 @@ async def migrated_database() -> None:
     config = Config(str(Path("migrations/postgres/alembic.ini")))
     config.set_main_option("sqlalchemy.url", database_url)
     command.upgrade(config, "head")
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def reset_broadcast_client() -> None:
+    import sys
+
+    import api.infra.broadcast as broadcast
+
+    broadcast._client = None
+    yield
+    if broadcast._client is not None:
+        await broadcast._client.close()
+        broadcast._client = None
+    worker_main = sys.modules.get("workers.maintenance.main")
+    if worker_main is not None:
+        await worker_main._RESOURCE_CONTENT_GATEWAY.close()
+        worker_main._RESOURCE_CONTENT_GATEWAY = NatsResourceContentGateway()
 
 
 @pytest.mark.asyncio
@@ -94,11 +132,9 @@ async def test_open_resource_route_returns_snapshot_for_owner() -> None:
             await PostgresResourceOwnershipRepository(session).grant(
                 resource.resource_id, account_id
             )
-        journal = PostgresJournalRepository(session)
-        checkpoints = PostgresCheckpointRepository(session)
-        async with session.begin():
-            await journal.append_op(resource.resource_id, 1, 1, b"op", "h")
-            await checkpoints.write(resource.resource_id, 1, {"text": "hello"})
+        await _write_resource_content(
+            resource.resource_id, account_id, {"text": "hello"}
+        )
         app: FastAPI = create_app(debug=True)
         app.dependency_overrides[get_current_session] = lambda: SimpleNamespace(
             account_id=account_id
@@ -111,7 +147,12 @@ async def test_open_resource_route_returns_snapshot_for_owner() -> None:
         body = response.json()
         assert body["resourceType"] == "document"
         assert body["journalSeq"] == 1
-        assert body["snapshot"] == {"text": "hello"}
+        assert body["snapshot"] == {
+            "text": "hello",
+            "nodes": [
+                {"kind": "paragraph", "children": [{"kind": "text", "text": "hello"}]}
+            ],
+        }
         # non-owner denied
         other = uuid4()
         async with session.begin():
@@ -249,8 +290,6 @@ async def test_create_and_append_journal_route_chain() -> None:
                 },
             )
             assert stale.status_code == 409, stale.text
-            reopened = await client.get(f"/v1/resources/{resource_id}")
-            assert reopened.status_code == 200
     finally:
         await session.close()
         await connection.close()
@@ -1140,7 +1179,7 @@ async def test_high_risk_ops_write_audit_entries() -> None:
 
 @pytest.mark.asyncio
 async def test_export_import_round_trip() -> None:
-    """FR-IE-001/002: export the snapshot; import it back as a new checkpoint."""
+    """FR-IE-001/002: export and import round-trip the durable content."""
     connection = await engine.connect()
     session = AsyncSession(connection)
     try:
@@ -1199,11 +1238,9 @@ async def test_export_import_round_trip() -> None:
             await PostgresResourceOwnershipRepository(session).grant(
                 resource.resource_id, account_id
             )
-            journal = PostgresJournalRepository(session)
-            await journal.append_op(resource.resource_id, 1, 1, b"op", "h")
-            await PostgresCheckpointRepository(session).write(
-                resource.resource_id, 1, {"text": "可导出的内容"}
-            )
+        await _write_resource_content(
+            resource.resource_id, account_id, {"text": "可导出的内容"}
+        )
         from api.infra.broadcast import get_broadcast_publisher
 
         class _StubPublisher:
@@ -1222,7 +1259,13 @@ async def test_export_import_round_trip() -> None:
             assert exported.status_code == 200, exported.text
             doc = exported.json()
             assert doc["kind"] == "dom.resource.export.v1"
-            assert doc["content"]["snapshot"] == {"text": "可导出的内容"}
+            assert doc["content"]["snapshot"]["text"] == "可导出的内容"
+            assert doc["content"]["snapshot"]["nodes"] == [
+                {
+                    "kind": "paragraph",
+                    "children": [{"kind": "text", "text": "可导出的内容"}],
+                }
+            ]
             imported = await client.post(
                 f"/v1/resources/{resource.resource_id}/import",
                 headers={"Idempotency-Key": f"{uuid4()}"},
@@ -1236,6 +1279,44 @@ async def test_export_import_round_trip() -> None:
             task_response = imported.json()
             assert task_response["taskId"]
             assert task_response["task"]["state"] == "Queued"
+            from uuid import UUID
+
+            from app_infra.postgres.task.task_repository import PostgresTaskRepository
+            from task_runtime.runtime import HandlerContext
+
+            from workers.maintenance.main import build_registry
+            from workers.maintenance.task_handlers.import_export import IMPORT_TASK_TYPE
+
+            task_repository = PostgresTaskRepository(session)
+            imported_task_id = UUID(task_response["taskId"])
+            claim = await task_repository.claim(imported_task_id, "import-test", 30)
+            assert claim is not None
+            task = await task_repository.get(imported_task_id)
+            assert task is not None
+            handler = (
+                build_registry(session)
+                .resolve(IMPORT_TASK_TYPE, task.schema_version)
+                .handler
+            )
+            await handler.execute(
+                HandlerContext(
+                    task,
+                    claim.attempt_id,
+                    claim.execution_epoch,
+                    task_repository,
+                )
+            )
+            await task_repository.finish(
+                task.task_id,
+                claim.attempt_id,
+                claim.execution_epoch,
+                True,
+            )
+            await session.commit()
+            reopened = await client.get(f"/v1/resources/{resource.resource_id}")
+            assert reopened.status_code == 200, reopened.text
+            assert reopened.json()["journalSeq"] == 2
+            assert reopened.json()["snapshot"] == doc["content"]["snapshot"]
         # outsider denied export
         app.dependency_overrides[get_current_session] = lambda: SimpleNamespace(
             account_id=outsider
@@ -1452,6 +1533,11 @@ async def test_ai_changeset_propose_then_apply() -> None:
             applied = await client.post(f"/v1/changesets/{changeset_id}/apply")
             assert applied.status_code == 200, applied.text
             assert applied.json()["journalSeq"] == 1
+            opened = await client.get(f"/v1/resources/{resource.resource_id}")
+            assert opened.status_code == 200, opened.text
+            snapshot = opened.json()["snapshot"]
+            assert snapshot["text"]
+            assert snapshot["nodes"]
         async with session.begin():
             status = await session.scalar(
                 text("SELECT status FROM collab.ai_changesets WHERE changeset_id=:id"),
@@ -1714,11 +1800,8 @@ async def test_history_timeline_and_restore_routes() -> None:
             await PostgresResourceOwnershipRepository(session).grant(
                 resource.resource_id, account_id
             )
-            journal = PostgresJournalRepository(session)
-            await journal.append_op(resource.resource_id, 1, 1, b"op", "h")
-            await PostgresCheckpointRepository(session).write(
-                resource.resource_id, 1, {"text": "v1"}
-            )
+        await _write_resource_content(resource.resource_id, account_id, {"text": "v1"})
+        await _write_resource_content(resource.resource_id, account_id, {"text": "v2"})
         from api.infra.broadcast import get_broadcast_publisher
 
         class _StubPublisher:
@@ -1736,13 +1819,17 @@ async def test_history_timeline_and_restore_routes() -> None:
             timeline = await client.get(f"/v1/resources/{resource.resource_id}/history")
             assert timeline.status_code == 200, timeline.text
             items = timeline.json()["items"]
-            assert items and items[0]["seq"] == 1
+            assert items and items[0]["seq"] == 2
+            assert any(item["seq"] == 1 for item in items)
             restored = await client.post(
                 f"/v1/resources/{resource.resource_id}/history/restore",
                 json={"baseJournalSeq": 1},
             )
             assert restored.status_code == 200, restored.text
-            assert restored.json()["newSeq"] == 2
+            assert restored.json()["newSeq"] == 3
+            opened = await client.get(f"/v1/resources/{resource.resource_id}")
+            assert opened.status_code == 200, opened.text
+            assert opened.json()["snapshot"]["text"] == "v1"
             after = await client.get(f"/v1/resources/{resource.resource_id}/history")
             kinds = [i["kind"] for i in after.json()["items"]]
             assert "Restore" in kinds
@@ -1803,12 +1890,9 @@ async def test_version_restore_task_is_idempotent_and_queryable() -> None:
             await PostgresResourceOwnershipRepository(session).grant(
                 resource.resource_id, account_id
             )
-            await PostgresJournalRepository(session).append_op(
-                resource.resource_id, 1, 1, b"op", "h"
-            )
-            await PostgresCheckpointRepository(session).write(
-                resource.resource_id, 1, {"text": "target"}
-            )
+        await _write_resource_content(
+            resource.resource_id, account_id, {"text": "target"}
+        )
 
         app: FastAPI = create_app(debug=True)
         app.dependency_overrides[get_current_session] = lambda: SimpleNamespace(
@@ -1883,6 +1967,9 @@ async def test_version_restore_task_is_idempotent_and_queryable() -> None:
                 item["kind"] == "Restore" and item["seq"] == 2
                 for item in timeline.json()["items"]
             )
+            opened = await client.get(f"/v1/resources/{resource.resource_id}")
+            assert opened.status_code == 200, opened.text
+            assert opened.json()["snapshot"]["text"] == "target"
 
             app.dependency_overrides[get_current_session] = lambda: SimpleNamespace(
                 account_id=uuid4()
@@ -2438,8 +2525,8 @@ async def test_resource_diff_reports_snapshot_changes() -> None:
 
 
 @pytest.mark.asyncio
-async def test_restore_materializes_text_from_ops() -> None:
-    """Arch 08: restore replays JSON-text ops into a NEW checkpoint."""
+async def test_restore_materializes_text_from_yjs_content() -> None:
+    """Arch 08: restore writes historical semantic content as new Yjs state."""
     connection = await engine.connect()
     session = AsyncSession(connection)
     try:
@@ -2489,25 +2576,12 @@ async def test_restore_materializes_text_from_ops() -> None:
             await PostgresResourceOwnershipRepository(session).grant(
                 resource.resource_id, account_id
             )
-            journal = PostgresJournalRepository(session)
-            # newer text ops beyond the target revision
-            await journal.append_op(
-                resource.resource_id,
-                1,
-                1,
-                '{"text": "\u7248\u672c\u4e00"}'.encode(),
-                "h1",
-            )
-            await journal.append_op(
-                resource.resource_id,
-                2,
-                1,
-                '{"text": "\u7248\u672c\u4e8c"}'.encode(),
-                "h2",
-            )
-            await PostgresCheckpointRepository(session).write(
-                resource.resource_id, 2, {"text": "版本二"}
-            )
+        await _write_resource_content(
+            resource.resource_id, account_id, {"text": "版本一"}
+        )
+        await _write_resource_content(
+            resource.resource_id, account_id, {"text": "版本二"}
+        )
         from api.infra.broadcast import get_broadcast_publisher
 
         class _StubPublisher:
@@ -3821,8 +3895,7 @@ async def test_resource_created_enqueues_webhook_delivery() -> None:
 
 @pytest.mark.asyncio
 async def test_checkpoint_content_nodes_round_trip_and_restore() -> None:
-    """Arch 02/06: snapshot nodes persist in the JSONB checkpoint and survive
-    restore-at-version (op replay rewrites text, keeps nodes)."""
+    """Content nodes survive Yjs persistence, reopening, and history restore."""
     connection = await engine.connect()
     session = AsyncSession(connection)
     try:
@@ -3872,44 +3945,32 @@ async def test_checkpoint_content_nodes_round_trip_and_restore() -> None:
             await PostgresResourceOwnershipRepository(session).grant(
                 resource.resource_id, account_id
             )
-            from app_core.resource.checkpoint.snapshot import build_snapshot
-            from app_infra.postgres.resource.checkpoint_repository import (
-                PostgresCheckpointRepository,
-            )
-
-            await PostgresCheckpointRepository(session).write(
-                resource.resource_id,
-                1,
-                build_snapshot(
-                    "标题\\n正文",
-                    [
-                        {"kind": "heading", "level": 1},
-                        {
-                            "kind": "paragraph",
-                            "children": [{"kind": "text", "text": "正文"}],
-                        },
-                    ],
-                ),
-                account_id,
-            )
-            # restore-equivalent guarantee: op replay rewrites only the text
-            # and keeps the nodes (checked against the reducer directly)
-            from app_core.history.reduce import reduce_ops
-
-            state = build_snapshot("标题\\n正文", [{"kind": "heading", "level": 1}])
-            op_payload = {"kind": "set", "text": "重写后的正文"}
-            reduced = reduce_ops(
-                state,
-                [
-                    SimpleNamespace(
-                        journal_seq=2,
-                        update_bytes=__import__("json").dumps(op_payload).encode(),
-                        update_hash="h",
-                    )
-                ],
-            )
-            assert reduced["text"] == "重写后的正文"
-            assert reduced["nodes"][0]["kind"] == "heading"
+        original = {
+            "text": "标题\n正文",
+            "nodes": [
+                {
+                    "kind": "heading",
+                    "level": 1,
+                    "children": [{"kind": "text", "text": "标题"}],
+                },
+                {
+                    "kind": "paragraph",
+                    "children": [{"kind": "text", "text": "正文"}],
+                },
+            ],
+        }
+        changed = {
+            "text": "重写后的正文",
+            "nodes": [
+                {
+                    "kind": "heading",
+                    "level": 1,
+                    "children": [{"kind": "text", "text": "重写后的正文"}],
+                }
+            ],
+        }
+        await _write_resource_content(resource.resource_id, account_id, original)
+        await _write_resource_content(resource.resource_id, account_id, changed)
         from api.infra.broadcast import get_broadcast_publisher
 
         class _StubPublisher:
@@ -3927,9 +3988,19 @@ async def test_checkpoint_content_nodes_round_trip_and_restore() -> None:
             opened = await client.get(f"/v1/resources/{resource.resource_id}")
             assert opened.status_code == 200, opened.text
             snapshot = opened.json()["snapshot"]
-            assert snapshot["text"] == "标题\\n正文"
+            assert snapshot["text"] == "重写后的正文"
             assert snapshot["nodes"][0]["kind"] == "heading"
-            # (the restore-keeps-nodes invariant is proven above via reduce_ops)
+            restored = await client.post(
+                f"/v1/resources/{resource.resource_id}/history/restore",
+                json={"baseJournalSeq": 1},
+            )
+            assert restored.status_code == 200, restored.text
+            assert restored.json()["newSeq"] == 3
+            reopened = await client.get(f"/v1/resources/{resource.resource_id}")
+            assert reopened.status_code == 200, reopened.text
+            restored_snapshot = reopened.json()["snapshot"]
+            assert restored_snapshot["text"] == "标题\n正文"
+            assert restored_snapshot["nodes"][0]["kind"] == "heading"
     finally:
         await session.close()
         await connection.close()

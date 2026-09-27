@@ -100,6 +100,7 @@ class HistoryRestoreHandler:
             resource_id,
             target_seq,
             actor_id=actor_id,
+            operation_id=context.task.task_id,
             on_progress=report_progress,
         )
 

@@ -20,13 +20,12 @@ from app_contracts.commands.ai.propose_changeset import (
 )
 from app_core.ai.application import ApplyChangeSet, ProposeChangeSet
 from app_core.ai.domain import ChangesetError
+from app_core.resource.domain import JournalSequenceConflictError
+from app_core.resource.ports import ResourceContentPort
 from app_core.session.domain.session import Session
 from app_infra.ai.dev_changeset_provider import DevChangeProvider
+from app_infra.nats.resource_content_gateway import ResourceContentGatewayError
 from app_infra.postgres.changeset_repository import PostgresChangeSetRepository
-from app_infra.postgres.resource.checkpoint_repository import (
-    PostgresCheckpointRepository,
-)
-from app_infra.postgres.resource.journal_repository import PostgresJournalRepository
 from app_infra.postgres.resource.resource_repository import PostgresResourceRepository
 from app_infra.postgres.resource_ownership_repository import (
     PostgresResourceOwnershipRepository,
@@ -35,6 +34,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.dependencies.auth import get_current_session, get_db_session
+from api.infra.broadcast import get_resource_content_gateway
 
 router = APIRouter()
 
@@ -44,10 +44,12 @@ async def propose_changeset(
     body: ProposeChangeSetRequest,
     current: Annotated[Session, Depends(get_current_session)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    content: Annotated[ResourceContentPort, Depends(get_resource_content_gateway)],
 ) -> ProposeChangeSetResponse:
     use_case = ProposeChangeSet(
         PostgresChangeSetRepository(session),
         PostgresResourceRepository(session),
+        content,
         DevChangeProvider(),
         PostgresResourceOwnershipRepository(session),
     )
@@ -55,6 +57,8 @@ async def propose_changeset(
         changeset = await use_case.execute(
             current.account_id, body.resourceId, instruction=body.instruction
         )
+    except ResourceContentGatewayError:
+        raise HTTPException(status_code=503, detail="RESOURCE_CONTENT_UNAVAILABLE")
     except ChangesetError:
         raise HTTPException(status_code=403, detail="RESOURCE_PERMISSION_DENIED")
     except LookupError:
@@ -73,18 +77,23 @@ async def apply_changeset(
     changeset_id: UUID,
     current: Annotated[Session, Depends(get_current_session)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    content: Annotated[ResourceContentPort, Depends(get_resource_content_gateway)],
 ) -> ApplyChangeSetResponse:
     use_case = ApplyChangeSet(
         PostgresChangeSetRepository(session),
-        PostgresResourceRepository(session),
-        PostgresJournalRepository(session),
-        PostgresCheckpointRepository(session),
+        content,
         PostgresResourceOwnershipRepository(session),
     )
     try:
         seq = await use_case.execute(current.account_id, changeset_id)
     except ChangesetError:
         raise HTTPException(status_code=403, detail="RESOURCE_PERMISSION_DENIED")
+    except JournalSequenceConflictError:
+        raise HTTPException(
+            status_code=409, detail="RESOURCE_JOURNAL_SEQUENCE_CONFLICT"
+        )
+    except ResourceContentGatewayError:
+        raise HTTPException(status_code=503, detail="RESOURCE_CONTENT_UNAVAILABLE")
     except LookupError:
         raise HTTPException(status_code=404, detail="CHANGESET_NOT_FOUND")
     return ApplyChangeSetResponse(

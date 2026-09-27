@@ -30,6 +30,7 @@ from app_core.import_export.domain import (
 from app_core.resource.application import ExportResource as ExportResourceUseCase
 from app_core.resource.domain import ResourcePermissionDeniedError
 from app_core.session.domain.session import Session
+from app_infra.nats.resource_content_gateway import ResourceContentGatewayError
 from app_infra.postgres.import_export_repository import (
     PostgresImportExportSessionRepository,
 )
@@ -40,9 +41,6 @@ from app_infra.postgres.import_export_storage import (
     configured_asset_store,
 )
 from app_infra.postgres.project_repository import PostgresProjectRepository
-from app_infra.postgres.resource.checkpoint_repository import (
-    PostgresCheckpointRepository,
-)
 from app_infra.postgres.resource.resource_repository import (
     PostgresResourceRepository,
 )
@@ -54,6 +52,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.dependencies.auth import get_current_session, get_db_session
+from api.infra.broadcast import get_resource_content_gateway
 
 router = APIRouter()
 
@@ -87,10 +86,11 @@ async def export_resource(
     resource_id: UUID,
     current: Annotated[Session, Depends(get_current_session)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    content: Annotated[object, Depends(get_resource_content_gateway)],
 ) -> ExportResourceResponse:
     use_case = ExportResourceUseCase(
         PostgresResourceRepository(session),
-        PostgresCheckpointRepository(session),
+        content,
         PostgresResourceOwnershipRepository(session),
     )
     try:
@@ -99,6 +99,8 @@ async def export_resource(
         raise HTTPException(status_code=403, detail="RESOURCE_PERMISSION_DENIED")
     except LookupError:
         raise HTTPException(status_code=404, detail="RESOURCE_NOT_FOUND")
+    except ResourceContentGatewayError:
+        raise HTTPException(status_code=503, detail="RESOURCE_CONTENT_UNAVAILABLE")
     return ExportResourceResponse(
         kind=doc["kind"],
         schemaVersion=doc["schemaVersion"],

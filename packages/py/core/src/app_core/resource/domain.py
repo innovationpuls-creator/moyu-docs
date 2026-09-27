@@ -91,6 +91,17 @@ class JournalOp:
 
 
 @dataclass(frozen=True)
+class ResourceContent:
+    snapshot: dict[str, Any]
+    journal_seq: int
+
+
+@dataclass(frozen=True)
+class ResourceContentMutation:
+    journal_seq: int
+
+
+@dataclass(frozen=True)
 class Checkpoint:
     resource_id: UUID
     checkpoint_seq: int

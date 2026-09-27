@@ -28,3 +28,5 @@ class ChangeSet:
     created_by: UUID | None = None
     created_at: datetime | None = None
     applied_at: datetime | None = None
+    base_journal_seq: int | None = None
+    applied_journal_seq: int | None = None
