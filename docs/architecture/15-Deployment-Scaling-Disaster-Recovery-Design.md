@@ -2897,18 +2897,20 @@ Planned Failback
 
 ## 125. 部署阶段
 
-### Stage 0：单 CVM 第一阶段例外（ADR 0053）
+### Stage 0：单 CVM 自托管例外（ADR 0054）
 
-当用户明确指定单台 Ubuntu CVM 并要求通过 Docker Compose 部署时，可以先使用：
+当用户明确指定一台已运行 OneTree 的 Ubuntu CVM，并要求通过 Docker Compose 部署时，可以先使用：
 
 ```text
 Single CVM + Docker Compose
-Managed PostgreSQL HA
-Managed Object Storage
-Caddy TLS Edge
+Self-hosted PostgreSQL 18 + Docker volume
+Self-hosted MinIO + private bucket + Docker volume
+Existing OneTree Nginx + Certbot TLS Edge
 ```
 
-此阶段应用、NATS JetStream 与 Valkey 均存在 CVM 单点。CVM 故障期间应用入口和实时协作不可用；此配置不满足下一阶段的多实例高可用基线。NATS 数据使用持久卷；PostgreSQL 与 Asset 数据分别依赖托管数据库和对象存储恢复。
+DOM 使用独立的 PostgreSQL 与 MinIO 容器及卷，不复用 OneTree 数据库或数据卷。只有 DOM Web 加入 OneTree 的 Nginx 网络；数据库和对象存储不发布宿主机端口。OneTree Nginx 继续独占 80/443，并复用现有 Certbot 续期流程。
+
+此阶段应用、PostgreSQL、MinIO、NATS JetStream 与 Valkey 均存在 CVM 单点。CVM 故障期间应用入口和实时协作不可用；此配置不满足下一阶段的多实例高可用基线。PostgreSQL、MinIO 与 NATS 数据使用命名卷，需纳入 CVM 外的备份与恢复计划。
 
 ### Stage 1：正式生产基线
 

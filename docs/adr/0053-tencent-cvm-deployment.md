@@ -1,6 +1,6 @@
 # ADR 0053: 腾讯云 Ubuntu 单机部署路径
 
-状态：Accepted。
+状态：Superseded for the existing Tencent CVM by ADR 0054; retained as history.
 
 ## Context
 

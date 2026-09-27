@@ -19,7 +19,7 @@ from app_infra.postgres.token_repository import PostgresTokenRepository
 
 def build_registration_use_case(
     session: AsyncSession,
-    mailer: VerificationMailer,
+    mailer: VerificationMailer | None = None,
     *,
     now: Callable[[], datetime],
     require_verification: bool = True,

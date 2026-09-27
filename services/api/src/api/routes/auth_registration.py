@@ -82,7 +82,6 @@ async def register(
     response: Response,
     session: AsyncSession = Depends(get_db_session),
     device_id: str = Depends(get_device_id),
-    mailer: VerificationMailer = Depends(get_mailer),
     rate_limiter: RateLimiter = Depends(get_rate_limiter),
 ) -> RegisterWithEmailResponse:
     # Register rate limiting (USER RULING mitigation (a), MANDATORY): checked
@@ -94,7 +93,7 @@ async def register(
     # 产品决策（2026-09）：停用邮箱验证，注册即 Active（require_verification=False）。
     # VerifyEmail/ResendVerificationEmail 端点保留为兼容层，不再有常规触发路径。
     use_case = build_registration_use_case(
-        session, mailer, now=utc_now, require_verification=False
+        session, now=utc_now, require_verification=False
     )
     result = await use_case.execute(body.email, body.password, device_id)
     await rate_limiter.record_register_attempt(identifier)

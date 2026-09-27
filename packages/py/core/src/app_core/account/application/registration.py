@@ -50,7 +50,7 @@ class RegisterAccount:
         sessions,
         tokens,
         audit,
-        mailer,
+        mailer: VerificationMailer | None,
         *,
         now=lambda: datetime.now(timezone.utc),
         idempotency=None,
@@ -73,6 +73,11 @@ class RegisterAccount:
         *,
         idempotency_key: str | None = None,
     ) -> RegistrationResult:
+        mailer = self._mailer
+        if self._require_verification and mailer is None:
+            raise RuntimeError(
+                "email verification requires a configured verification mailer"
+            )
         if idempotency_key:
             if self._idempotency is None:
                 raise IdempotencyConflictError("PERSISTENT_IDEMPOTENCY_REQUIRED")
@@ -141,7 +146,8 @@ class RegisterAccount:
             await self._tokens.save(token)
             failed = False
             try:
-                await self._mailer.send_verification(account.primary_email, secret)
+                assert mailer is not None
+                await mailer.send_verification(account.primary_email, secret)
             except MailDeliveryError:
                 failed = True
                 await self._audit.append(
