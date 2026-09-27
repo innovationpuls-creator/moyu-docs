@@ -2135,7 +2135,7 @@ export interface components {
 		ResourceId: string;
 		/**
 		 * ExportResourceResponse
-		 * @description FR-IE-001. Export one Resource as a versioned DOM exchange document (metadata + latest snapshot).
+		 * @description FR-IE-001. Export one Resource as a versioned Moyu Docs exchange document (metadata + latest snapshot).
 		 */
 		"export-resource.schema": {
 			/** @constant */

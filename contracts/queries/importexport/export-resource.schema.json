@@ -2,7 +2,7 @@
 	"$schema": "https://json-schema.org/draft/2020-12/schema",
 	"$id": "https://contracts.dom.internal/queries/importexport/export-resource.schema.json",
 	"title": "ExportResourceResponse",
-	"description": "FR-IE-001. Export one Resource as a versioned DOM exchange document (metadata + latest snapshot).",
+	"description": "FR-IE-001. Export one Resource as a versioned Moyu Docs exchange document (metadata + latest snapshot).",
 	"type": "object",
 	"additionalProperties": false,
 	"properties": {

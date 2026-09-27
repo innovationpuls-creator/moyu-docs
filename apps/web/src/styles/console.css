@@ -2306,6 +2306,12 @@ body.console-surface #app {
 	min-height: 16px;
 }
 
+.editor-status-line[data-testid="editor-sync-rejected-actions"] {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
 .editor-drawer-backdrop {
 	display: none;
 }

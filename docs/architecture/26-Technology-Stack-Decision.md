@@ -768,9 +768,9 @@ MinIO
 
 ## 41. Production
 
-Stage 0 单 CVM 例外使用本机 MinIO；多实例生产继续使用以下托管 S3 兼容存储（ADR 0054）。
+Stage 0 单 CVM 例外使用本机 MinIO；多实例生产继续使用以下托管 S3 兼容存储（ADR 0054、0055）。
 
-单 CVM Stage 0 使用本机 MinIO，例外范围见 ADR 0054。
+单 CVM Stage 0 使用本机 MinIO，例外范围见 ADR 0054、0055。
 
 使用：
 
@@ -1016,7 +1016,7 @@ non-root runtime
 Kubernetes
 ```
 
-单 CVM Stage 0部署仅在 ADR 0054 范围内允许使用 Docker Compose；该配置不满足应用层多实例高可用基线。
+单 CVM Stage 0部署仅在 ADR 0054、0055 范围内允许使用 Docker Compose；该配置不满足应用层多实例高可用基线。
 
 ---
 
@@ -1028,7 +1028,7 @@ Kubernetes
 Helm
 ```
 
-ADR 0054 的单 CVM Stage 0使用独立的 `compose.server.yaml`。
+腾讯云 OneTree 主机的 ADR 0054 使用独立的 `compose.server.yaml`；独立阿里云主机的 ADR 0055 使用 `compose.aliyun.yaml`。
 
 ---
 
@@ -1207,6 +1207,7 @@ Yjs payload
 | Local Infra | Docker Compose |
 | Production HA | Kubernetes + Helm + Terraform |
 | Single-CVM Stage 0 (ADR 0054) | Docker Compose + existing OneTree Nginx/Certbot |
+| Single-CVM Stage 0 (ADR 0055) | Docker Compose + independent Nginx/Certbot with short-lived IP certificate |
 | Edge | Gateway API + Envoy Gateway |
 | Secrets | External Secrets Operator |
 | CI/CD | GitHub Actions |
@@ -1230,6 +1231,6 @@ Yjs payload
 11. Binary Asset 使用 S3-compatible Object Storage。
 12. Contract 使用 JSON Schema 2020-12 + OpenAPI 3.1。
 13. OpenTelemetry 是统一遥测标准。
-14. Local 使用 Docker Compose；单 CVM Stage 0仅按 ADR 0054 使用 Docker Compose；多实例高可用 Production 使用 Kubernetes + Helm + Terraform。
+14. Local 使用 Docker Compose；单 CVM Stage 0仅按 ADR 0054、0055 使用 Docker Compose；多实例高可用 Production 使用 Kubernetes + Helm + Terraform。
 15. Exact Patch Version 由 lockfile / image digest 固定。
 16. 修改本技术栈必须 ADR，不允许本地 AI 即兴换栈。

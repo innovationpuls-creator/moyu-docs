@@ -69,13 +69,13 @@ function syncRejectionMessage(error: DomApiError): string {
 		case "SESSION_EXPIRED":
 		case "SESSION_REPLACED":
 		case "SESSION_NOT_AUTHORIZED":
-			return "会话已失效，服务器拒绝同步；本地 Yjs 修改已保留。请重新登录后再重试。";
+			return "登录状态已失效，请重新登录后重试同步。";
 		case "RESOURCE_PERMISSION_DENIED":
-			return "当前账号没有此资源的写入权限；本地 Yjs 修改已保留。确认权限恢复后可重试或导出。";
+			return "你没有编辑这份文档的权限。恢复权限后可重试同步。";
 		case "RESOURCE_NOT_FOUND":
-			return "资源已不存在或不可访问；本地 Yjs 修改已保留，可导出草稿。";
+			return "这份文档目前无法访问。确认它仍存在且你有权查看后，可重试同步。";
 		default:
-			return `服务器拒绝同步（${error.errorCode}）；本地 Yjs 修改已保留，可检查后重试或导出。`;
+			return "同步失败，服务器未接收这次修改。";
 	}
 }
 
@@ -459,9 +459,7 @@ function ResourceEditor({
 		syncRejectedRef.current = true;
 		setSyncRejected(true);
 		setSaveMessage(message);
-		setLocalStatus(
-			"本地 Yjs 修改已保留在此设备；确认会话和资源权限后可手动重试或导出。",
-		);
+		setLocalStatus("修改已保存在这台设备，尚未同步到服务器。");
 		if (journalRetryTimer.current !== null) {
 			window.clearTimeout(journalRetryTimer.current);
 			journalRetryTimer.current = null;
@@ -754,9 +752,7 @@ function ResourceEditor({
 								changeGeneration: documentChangeGenerationRef.current,
 							};
 							if (isSyncPaused()) {
-								setLocalStatus(
-									"本地 Yjs 修改已保存；服务器拒绝同步，请确认权限后手动重试或导出。",
-								);
+								setLocalStatus("修改已保存在这台设备，尚未同步到服务器。");
 							} else {
 								setLocalStatus("本地修改已保存，正在同步到服务器…");
 								runPendingJournal.current();
@@ -819,9 +815,7 @@ function ResourceEditor({
 			},
 			onStatus: (state) => {
 				if (state === "denied") {
-					pauseSync(
-						"服务器拒绝了此资源的协同访问；本地 Yjs 修改已保留，请确认权限后重试或导出。",
-					);
+					pauseSync("当前无法同步这份文档。请重新登录或检查编辑权限后重试。");
 				}
 			},
 		});
@@ -1323,14 +1317,14 @@ function ResourceEditor({
 								data-testid="editor-sync-rejected-actions"
 							>
 								<button type="button" onClick={exportLocalYjsDraft}>
-									导出本地 Yjs 草稿
+									下载本地备份
 								</button>
 								{!sessionReplaced && (
 									<button
 										type="button"
 										onClick={() => void retryRejectedSync()}
 									>
-										确认权限已恢复后重试同步
+										重试同步
 									</button>
 								)}
 							</div>

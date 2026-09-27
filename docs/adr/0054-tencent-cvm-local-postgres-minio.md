@@ -1,6 +1,6 @@
 # ADR 0054: 腾讯云单机使用本机 PostgreSQL 与 MinIO
 
-状态：Accepted。
+状态：对当前生产主机由 ADR 0055 取代；保留为腾讯云历史部署决策。
 
 适用范围：用户现有的腾讯云 Ubuntu Server 24.04 CVM；本决策针对这台已运行 OneTree 的主机，并取代 ADR 0053 对该主机的部署选择。
 

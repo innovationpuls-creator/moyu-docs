@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: DOM Client API
+  title: Moyu Docs Client API
   version: 1.0.0
   description: >
     Official client HTTP contract for Account/Auth/Session and Workspace/Project/Folder

@@ -16,7 +16,7 @@ export interface ImportResource {
 	idempotencyKey: IdempotencyKey;
 }
 /**
- * FR-IE-001. Export one Resource as a versioned DOM exchange document (metadata + latest snapshot).
+ * FR-IE-001. Export one Resource as a versioned Moyu Docs exchange document (metadata + latest snapshot).
  */
 export interface ExportResourceResponse {
 	kind: "dom.resource.export.v1";
