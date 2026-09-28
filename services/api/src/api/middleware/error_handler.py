@@ -23,7 +23,6 @@ import logging
 import uuid
 from collections.abc import Mapping
 from functools import lru_cache
-from pathlib import Path
 from typing import Any
 
 import yaml
@@ -38,12 +37,10 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from api.config import settings
 from api.middleware.request_context import redact_sensitive_path
 
 logger = logging.getLogger("dom.api.error")
-
-# services/api/src/api/middleware/error_handler.py -> repo root.
-_REPO_ROOT = Path(__file__).resolve().parents[5]
 
 _CATEGORY_STATUS: dict[str, int] = {
     "Validation": 422,
@@ -80,8 +77,11 @@ _FIELD_ERROR_CODES: dict[str, str] = {
 @lru_cache(maxsize=1)
 def _error_code_catalog() -> dict[str, dict[str, Any]]:
     """Canonical error-code registry (contracts/errors/error-codes.yaml,
-    doc 28 §28). Loaded once; a missing file fails loudly (no fallback)."""
-    path = _REPO_ROOT / "contracts" / "errors" / "error-codes.yaml"
+    doc 28 §28). Loaded once; a missing file fails loudly (no fallback).
+    The contracts directory comes from configured ``CONTRACTS_DIR`` (api
+    settings), so the registry resolves identically in source checkout and
+    wheel-installed deployment images — never from ``__file__`` path math."""
+    path = settings.contracts_dir / "errors" / "error-codes.yaml"
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
     return {code: meta for code, meta in raw["codes"].items()}
 
