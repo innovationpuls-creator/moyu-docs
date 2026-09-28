@@ -10,6 +10,36 @@
 
 想直接跑起来？跳到文末「本地运行」。
 
+## 页面实拍
+
+### 1. 登录并进入工作区
+
+登录页是系统入口：已有账号直接登录，首次使用先注册，登录成功后进入工作区。
+
+![墨屿登录页面](README-login.png)
+
+### 2. 用工作区整理项目和文档
+
+工作区是内容的顶层容器：一个工作区放多个项目，项目里再用文件夹整理资源。左侧选中项目或文件夹后，右侧显示对应内容；在有操作权限的项目里，可以用「新建文件夹」整理内容，或点「新建文档」创建资源——资源类型包括文档、Markdown、代码和文本，填好名称创建后进入编辑器。截图中的本地测试项目当前为空。
+
+![墨屿工作区](README-workspace.jpg)
+
+### 3. 编辑内容并查看保存状态
+
+编辑器提供富文本与源码两种模式。修改先在本地生效，点「保存」后进入同步与落盘；界面会分别显示本地保存与服务器同步状态——这两者不是一回事：「本地已保存」不等于「服务器已落盘」，机制见下文「协同怎么工作」。
+
+![墨屿编辑器演示页：编辑区与自动保存记录](README-editor-demo.jpg)
+
+*图为本地原型演示：历史面板展示自动保存点，正文区域是界面占位，非真实文档内容。*
+
+### 4. 与成员协作
+
+协作者打开同一篇文档即可同时编辑，修改实时同步，编辑器会显示实时连接状态。工作区里的「成员与权限」用于查看和管理工作区、项目、文档三级的访问权限。
+
+![墨屿协作演示页：在线成员与实时同步状态](README-collaboration-demo.jpg)
+
+*图为本地原型演示：展示在线成员与 CRDT 同步状态；人数与内容为演示数据。*
+
 ## 协同怎么工作
 
 一次编辑要经过哪些环节？下面这条时间线回答三个问题：谁先看到修改、什么时候算「服务器已收到」、什么时候算「已落盘」。先约定几个词：
@@ -68,7 +98,7 @@ flowchart LR
     W -->|索引 · 检查点 · 清理| DB
 ```
 
-图外的支撑组件：**Valkey** 提供缓存与会话（已在使用）；**S3 兼容对象存储**承载附件（已有实现）；**OpenSearch** 搜索是技术栈里的设计目标，目前尚未落地——当前检索由 PostgreSQL 承担。
+图外的支撑组件：**Valkey** 提供缓存与会话；**S3 兼容对象存储**承载附件（本地一键环境里就是 MinIO）；**OpenSearch** 搜索是技术栈里的设计目标，目前尚未落地——当前检索由 PostgreSQL 承担。
 
 ## 数据结构
 
@@ -102,49 +132,35 @@ PostgreSQL 存账号、权限、工作区、项目、资源等业务信息；文
 - **数据与后台**：PostgreSQL 是业务数据的事实来源；Valkey 管缓存与会话；NATS JetStream 分发后台任务；附件放 S3 兼容对象存储。OpenSearch 搜索尚未落地，当前检索由 PostgreSQL 承担。
 - **契约与代码生成**：`/contracts` 是机器契约的唯一源头，生成 TypeScript 与 Python 两套强类型；生成物进 CI 漂移检查，手改会被下一次生成覆盖。
 
-本地 Compose 只启动 PostgreSQL、Valkey、NATS 和维护 Worker；Web、API 与实时服务按下面的命令单独启动。
-
 ## 本地运行
 
-需要 Node.js 24、pnpm 12、Python 3.12、uv、Docker Compose 和 just。首次安装依赖：
+需要 Node.js 24、pnpm 12、Python 3.12、uv、Docker Compose、just，以及 `openssl`（首次生成本地密钥用）。
+
+**一键起整套（先用这个跑起来）**：`just docker-up` 会自动生成本地专用密钥文件 `.env.docker.local`（已被 git 忽略），然后构建并启动 PostgreSQL、Valkey、NATS、MinIO、数据库迁移、API、实时协同服务、维护 Worker 和 Web：
+
+```sh
+just docker-up
+```
+
+浏览器打开 <http://localhost:5180>，注册后即可进入工作区（端口可用 `DOM_WEB_PORT` 覆盖）。配套命令：`just docker-ps` 看状态、`just docker-logs` 看日志、`just docker-down` 停止。
+
+**改代码时用本机进程**：这条路径下三个服务各自起在本机，需要你自己提供能连到的 PostgreSQL、Valkey 与 NATS，地址写在仓库根目录 `.env` 里（`just dev-api` 会先检查这个文件是否存在）。
+
+```sh
+just dev-api                      # API：http://127.0.0.1:8000
+```
+
+```sh
+pnpm --filter @dom/realtime dev   # 实时协同服务：ws://localhost:8765
+```
+
+```sh
+pnpm --filter @dom/web dev        # Web：http://localhost:5173
+```
+
+Web 开发服务器会把 `/v1` 代理到 API、把实时连接代理到实时协同服务，所以浏览器只需访问 <http://localhost:5173>。首次在新机器上装依赖：
 
 ```sh
 pnpm install --frozen-lockfile
 uv sync --all-packages --locked
 ```
-
-在仓库根目录创建 `.env`，设置本地数据库和 Valkey 地址：
-
-```dotenv
-DATABASE_URL=postgresql+psycopg://torch@localhost:5432/dom_dev
-VALKEY_URL=redis://localhost:6379/14
-```
-
-先启动 PostgreSQL、Valkey 和 NATS，再初始化数据库：
-
-```sh
-docker compose up -d postgres valkey nats
-uv run --env-file .env alembic -c migrations/postgres/alembic.ini upgrade head
-```
-
-数据库初始化后，再启动维护 Worker：
-
-```sh
-docker compose up -d maintenance-worker
-```
-
-再分别在三个终端启动 API、实时协同服务和 Web（`just dev-api` 会先检查根目录 `.env` 是否存在）：
-
-```sh
-just dev-api
-```
-
-```sh
-REALTIME_DATABASE_URL=postgresql://torch@localhost:5432/dom_dev pnpm --filter @dom/realtime dev
-```
-
-```sh
-pnpm --filter @dom/web dev
-```
-
-打开 <http://localhost:5173>，注册后即可进入工作区。

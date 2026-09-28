@@ -105,11 +105,11 @@ ehthumbs.db
 # 原型/演示 HTML（不提交，apps 顶层合规；27§3 顶层 allow-list 禁止根级新增目录）
 apps/web/demohtml/
 
-# 根目录交互演示页和 README 截图，仅用于本地演示
+# 根目录交互演示页，仅用于本地演示
 /index.html
 /df-contracts.html
 /dom-architecture.html
 /lc-task.html
 /seq-keystroke.html
-/README-login.png
-/README-*.jpg
+
+# README 截图随仓库分发（README.md「页面实拍」会引用）
