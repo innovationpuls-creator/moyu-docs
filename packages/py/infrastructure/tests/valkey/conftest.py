@@ -6,8 +6,8 @@ import pytest_asyncio
 from redis.asyncio import Redis
 
 # Dedicated Valkey database for the account/auth rate limiter and session-cache
-# adapter tests. It runs against the real local Valkey (docker container
-# dom-valkey) and is wiped before/after every test; nothing here is mocked.
+# adapter tests. It runs against the real local Valkey service and is wiped
+# before/after every test; nothing here is mocked.
 VALKEY_URL = "redis://localhost:6379/14"
 
 

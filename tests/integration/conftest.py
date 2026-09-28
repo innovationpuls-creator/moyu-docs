@@ -5,7 +5,7 @@ transactions (unlike the savepoint-rolled-back db_session in tests/conftest.py
 which is preserved for the existing integration tests). This conftest adds:
 
 - ``migrated_database``: dom_dev brought to head once per session.
-- ``valkey_client``: real local Valkey (docker dom-valkey, db 14), flushed
+- ``valkey_client``: real local Valkey (dom-valkey, db 14), flushed
   before and after every test.
 - ``cleanup_accounts``: records committed test emails and removes every row
   the test created (audit, outbox, then the account — cascading to sessions /

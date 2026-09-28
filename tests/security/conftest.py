@@ -1,8 +1,8 @@
 """Shared fixtures for the Phase 9 security tests (plan Task 28).
 
 Mirrors services/api/tests/conftest.py: the ASGI app under test runs against
-the REAL local PostgreSQL (dom_dev) and the REAL local Valkey (docker
-dom-valkey, db 14). The DB session is a savepoint-wrapped transaction rolled
+the REAL local PostgreSQL (dom_dev) and the REAL local Valkey (dom-valkey,
+db 14). The DB session is a savepoint-wrapped transaction rolled
 back after every test; the Valkey database is FLUSHDB'd before and after every
 test. Nothing is mocked beyond dependency overrides that point the app at
 these test resources. ``db_session`` is inherited from tests/conftest.py

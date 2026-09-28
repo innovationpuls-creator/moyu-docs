@@ -1,8 +1,0 @@
-[Unit]
-Description=Clean unused Docker build cache when disk space is low
-Requires=docker.service
-After=docker.service
-
-[Service]
-Type=oneshot
-ExecStart=/usr/local/sbin/dom-docker-cache-cleanup

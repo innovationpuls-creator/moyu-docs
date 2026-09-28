@@ -1,7 +1,7 @@
 /**
  * Task 25: WebSocket handshake session authentication (plan Task 25 §3-§5).
  *
- * Integration tests against the REAL local Valkey (docker dom-valkey, db 15,
+ * Integration tests against the REAL local Valkey service (db 15,
  * FLUSHDB per test) — no mocks for the cache path.
  *
  * - a handshake with a valid seeded ``dom_session`` cookie opens the socket;

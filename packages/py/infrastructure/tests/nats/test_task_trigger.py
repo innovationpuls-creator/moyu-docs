@@ -1,10 +1,6 @@
 from __future__ import annotations
 
-import asyncio
 import json
-import socket
-import subprocess
-import time
 from uuid import uuid4
 
 import pytest
@@ -34,44 +30,14 @@ def test_task_trigger_envelope_contains_identity_only() -> None:
 
 
 @pytest_asyncio.fixture(scope="module")
-async def nats_server():
-    container = "dom-nats-test"
-    subprocess.run(["docker", "rm", "-f", container], check=False, capture_output=True)
+async def nats_server() -> str:
+    probe = NATS()
     try:
-        subprocess.run(
-            [
-                "docker",
-                "run",
-                "-d",
-                "--name",
-                container,
-                "-p",
-                "4222:4222",
-                "-p",
-                "8222:8222",
-                "nats:2.10-alpine",
-                "-js",
-            ],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-    except (OSError, subprocess.CalledProcessError) as exc:
-        pytest.skip(f"NATS Docker startup unavailable: {exc}")
-    deadline = time.monotonic() + 15
-    while time.monotonic() < deadline:
-        with socket.socket() as probe:
-            probe.settimeout(0.2)
-            try:
-                probe.connect(("127.0.0.1", 4222))
-                break
-            except OSError:
-                await asyncio.sleep(0.2)
-    else:
-        subprocess.run(["docker", "rm", "-f", container], check=False)
-        pytest.skip("NATS Docker container did not open port 4222")
+        await probe.connect(NATS_URL, connect_timeout=1, allow_reconnect=False)
+    except Exception as exc:
+        pytest.skip(f"NATS unavailable at {NATS_URL}: {exc}")
+    await probe.drain()
     yield NATS_URL
-    subprocess.run(["docker", "rm", "-f", container], check=False, capture_output=True)
 
 
 @pytest.mark.asyncio

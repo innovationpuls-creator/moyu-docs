@@ -134,16 +134,6 @@ PostgreSQL 存账号、权限、工作区、项目、资源等业务信息；文
 
 ## 本地运行
 
-需要 Node.js 24、pnpm 12、Python 3.12、uv、Docker Compose、just，以及 `openssl`（首次生成本地密钥用）。
-
-**一键起整套（先用这个跑起来）**：`just docker-up` 会自动生成本地专用密钥文件 `.env.docker.local`（已被 git 忽略），然后构建并启动 PostgreSQL、Valkey、NATS、MinIO、数据库迁移、API、实时协同服务、维护 Worker 和 Web：
-
-```sh
-just docker-up
-```
-
-浏览器打开 <http://localhost:5180>，注册后即可进入工作区（端口可用 `DOM_WEB_PORT` 覆盖）。配套命令：`just docker-ps` 看状态、`just docker-logs` 看日志、`just docker-down` 停止。
-
 **改代码时用本机进程**：这条路径下三个服务各自起在本机，需要你自己提供能连到的 PostgreSQL、Valkey 与 NATS，地址写在仓库根目录 `.env` 里（`just dev-api` 会先检查这个文件是否存在）。
 
 ```sh

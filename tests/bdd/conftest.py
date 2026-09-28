@@ -1,7 +1,7 @@
 """Shared fixtures for the Phase 9 BDD suite (plan Task 29).
 
 The BDD suite drives the REAL FastAPI app (services/api) against the REAL
-local PostgreSQL (dom_dev) and the REAL local Valkey (docker dom-valkey,
+local PostgreSQL (dom_dev) and the REAL local Valkey (dom-valkey,
 db 14), mirroring services/api/tests and tests/security.
 
 Design note: pytest-bdd 8.x never awaits ``async def`` step functions (its

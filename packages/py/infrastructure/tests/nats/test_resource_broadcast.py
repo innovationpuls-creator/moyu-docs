@@ -1,10 +1,8 @@
-"""Real-NATS broadcast evidence (Docker nats:2.10-alpine + JetStream)."""
+"""Real-NATS broadcast evidence against a separately managed NATS service."""
 
 from __future__ import annotations
 
 import json
-import socket
-import subprocess
 import time
 from uuid import uuid4
 
@@ -24,61 +22,10 @@ async def nats_server() -> str:
     probe = NATS()
     try:
         await probe.connect(NATS_URL, connect_timeout=1, allow_reconnect=False)
-    except Exception:
-        container_name = f"dom-nats-test-{uuid4().hex[:12]}"
-        try:
-            subprocess.run(
-                [
-                    "docker",
-                    "run",
-                    "-d",
-                    "--name",
-                    container_name,
-                    "-p",
-                    "127.0.0.1:4222:4222",
-                    "nats:2.10-alpine",
-                    "-js",
-                ],
-                check=True,
-                capture_output=True,
-            )
-        except (FileNotFoundError, subprocess.CalledProcessError) as exc:
-            pytest.skip(f"NATS unavailable and Docker could not start it: {exc}")
-        deadline = time.time() + 20
-        while time.time() < deadline:
-            try:
-                with socket.create_connection(("127.0.0.1", 4222), timeout=1):
-                    break
-            except OSError:
-                time.sleep(0.5)
-        else:
-            subprocess.run(
-                ["docker", "rm", "-f", container_name],
-                check=False,
-                capture_output=True,
-            )
-            pytest.skip("NATS Docker container did not become ready")
-        try:
-            await probe.connect(NATS_URL, connect_timeout=1, allow_reconnect=False)
-        except Exception as exc:
-            subprocess.run(
-                ["docker", "rm", "-f", container_name],
-                check=False,
-                capture_output=True,
-            )
-            pytest.skip(f"NATS Docker container did not accept connections: {exc}")
-        await probe.drain()
-        try:
-            yield NATS_URL
-        finally:
-            subprocess.run(
-                ["docker", "rm", "-f", container_name],
-                check=False,
-                capture_output=True,
-            )
-    else:
-        await probe.drain()
-        yield NATS_URL
+    except Exception as exc:
+        pytest.skip(f"NATS unavailable at {NATS_URL}: {exc}")
+    await probe.drain()
+    yield NATS_URL
 
 
 @pytest_asyncio.fixture

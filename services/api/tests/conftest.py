@@ -1,7 +1,7 @@
 """Shared fixtures for the DOM API service tests (plan Task 20/21).
 
 The API under test runs against the REAL local PostgreSQL (dom_dev) and the
-REAL local Valkey (docker dom-valkey, db 14), mirroring the infrastructure
+REAL local Valkey (dom-valkey, db 14), mirroring the infrastructure
 adapter test pattern (packages/py/infrastructure/tests): the DB session is a
 savepoint-wrapped transaction that rolls back after every test, and the Valkey
 database is FLUSHDB'd before and after every test. Nothing here is mocked
