@@ -19,6 +19,8 @@ tar czf "$OUT_DIR/dom-deploy-${TS}.tar.gz" \
 	--exclude='./.venv' \
 	--exclude='./.dsh' \
 	--exclude='./.agents' \
+	--exclude='./.env' \
+	--exclude='./.env.*' \
 	--exclude='./.worktrees' \
 	--exclude='./.workbuddy' \
 	--exclude='./.superpowers' \
@@ -28,7 +30,9 @@ tar czf "$OUT_DIR/dom-deploy-${TS}.tar.gz" \
 	--exclude='./.ruff_cache' \
 	--exclude='./.playwright-browsers' \
 	--exclude='./.uv-cache' \
+	--exclude='./.tmp-*' \
 	--exclude='./dist' \
+	--exclude='./._*' \
 	--exclude='./backups' \
 	--exclude='./*.log' \
 	--exclude='./README-*.png' \
