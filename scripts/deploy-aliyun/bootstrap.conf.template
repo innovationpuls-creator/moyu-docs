@@ -1,0 +1,24 @@
+# 墨屿公网入口 —— bootstrap 阶段配置（证书签发前）。
+# 只服务 ACME HTTP-01 验证与健康检查；业务流量返回 503，等待证书出现后
+# start-gateway.sh 会渲染 production.conf.template 并 reload。
+
+server {
+	listen 80;
+	server_name _;
+
+	location = /healthz {
+		access_log off;
+		default_type text/plain;
+		return 200 "ok\n";
+	}
+
+	location ^~ /.well-known/acme-challenge/ {
+		root /var/www/certbot;
+		default_type text/plain;
+	}
+
+	location / {
+		default_type text/plain;
+		return 503 "等待 TLS 证书签发（Let's Encrypt 短期 IP 证书）…\n";
+	}
+}

@@ -1,0 +1,82 @@
+# 版本控制与本地工具状态
+.git
+.github
+.worktrees
+.workbuddy
+.superpowers
+.dsh
+.agents
+.vscode
+.idea
+
+# 依赖与虚拟环境
+**/node_modules
+node_modules
+.pnpm-store
+.venv
+venv
+ENV
+
+# 构建产物与运行时缓存
+**/dist
+**/build
+**/out
+**/.turbo
+**/.cache
+**/.uv-cache
+**/.vite
+**/.next
+**/*.tsbuildinfo
+**/__pycache__
+**/*.py[cod]
+**/*.so
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+htmlcov
+*.egg-info
+test-results
+playwright-report
+coverage
+.playwright-browsers
+
+# 日志
+*.log
+logs
+
+# 环境与密钥（纵深防御：凭据本就不应出现在构建上下文）
+.env
+.env.*
+!.env.example
+**/.npmrc
+**/.pypirc
+**/.netrc
+**/pip.conf
+**/.aws
+**/kubeconfig
+**/*.pem
+**/*.key
+**/*.crt
+**/*.cert
+secrets
+
+# 文档与说明（运行时镜像不需要）
+docs
+*.md
+LICENSE
+README-*.jpg
+README-*.png
+/df-contracts.html
+/dom-architecture.html
+/lc-task.html
+/seq-keystroke.html
+
+# 测试与 E2E 配置（构建与运行不需要；保留 vite.config.ts）
+tests
+**/tests
+**/playwright.config.ts
+**/vitest.config.ts
+
+# 演示/原型资产
+apps/web/demohtml
