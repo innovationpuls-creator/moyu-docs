@@ -29,6 +29,7 @@ import {
 	textInput,
 } from "../components/auth";
 import { navigate } from "../main";
+import { userErrorView } from "../shared/errors/user-message";
 
 const LOCKOUT_SECONDS = 15 * 60; // LOGIN_LOCKOUT_SECONDS = 900（FR-AUTH-035）
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -212,24 +213,22 @@ export async function renderLoginPage(app: HTMLElement): Promise<void> {
 				if (cause instanceof DomApiError) {
 					switch (cause.errorCode) {
 						case "INVALID_CREDENTIALS":
-							setError("danger", "邮箱或密码不正确，请慢慢检查后再试一次。");
+							setError("danger", userErrorView(cause).detail);
 							password.value = "";
 							password.focus();
 							break;
 						case "ACCOUNT_DISABLED":
-							setError(
-								"danger",
-								"该账号已被停用，请联系您的工作区管理员协助处理。",
-							);
+							setError("danger", userErrorView(cause).detail);
 							break;
 						case "RATE_LIMITED":
+							setError("danger", userErrorView(cause).detail);
 							startLockout();
 							break;
 						default:
-							setError("danger", cause.message || "登录失败，请稍后再试。");
+							setError("danger", userErrorView(cause).detail);
 					}
 				} else {
-					setError("danger", "登录失败，请稍后再试。");
+					setError("danger", userErrorView(cause).detail);
 				}
 				syncSubmit();
 			}

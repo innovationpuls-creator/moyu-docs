@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router";
 import { client } from "../../shared/api/client";
 import { resourceRuntime } from "../../shared/api/resource-runtime";
+import { userErrorView } from "../../shared/errors/user-message";
 import {
 	getResourceRealtimeClient,
 	resetResourceRealtimeClient,
@@ -65,18 +66,7 @@ function isPermanentSyncRejection(error: unknown): error is DomApiError {
 }
 
 function syncRejectionMessage(error: DomApiError): string {
-	switch (error.errorCode) {
-		case "SESSION_EXPIRED":
-		case "SESSION_REPLACED":
-		case "SESSION_NOT_AUTHORIZED":
-			return "登录状态已失效，请重新登录后重试同步。";
-		case "RESOURCE_PERMISSION_DENIED":
-			return "你没有编辑这份文档的权限。恢复权限后可重试同步。";
-		case "RESOURCE_NOT_FOUND":
-			return "这份文档目前无法访问。确认它仍存在且你有权查看后，可重试同步。";
-		default:
-			return "同步失败，服务器未接收这次修改。";
-	}
+	return userErrorView(error).detail;
 }
 
 type InlineAssetMetadata = Awaited<
@@ -459,7 +449,9 @@ function ResourceEditor({
 		syncRejectedRef.current = true;
 		setSyncRejected(true);
 		setSaveMessage(message);
-		setLocalStatus("修改已保存在这台设备，尚未同步到服务器。");
+		setLocalStatus(
+			"修改已保存在这台设备，尚未同步到服务器；网络恢复后会自动补传，也可以刷新页面手动同步。",
+		);
 		if (journalRetryTimer.current !== null) {
 			window.clearTimeout(journalRetryTimer.current);
 			journalRetryTimer.current = null;
@@ -567,7 +559,7 @@ function ResourceEditor({
 						refreshed = true;
 					} catch {
 						setSaveMessage(
-							"未能重新读取服务器序号；本地 Yjs 修改仍保留，稍后重试。",
+							"没能重新读取服务器的最新状态，你的修改仍安全保存在本机，稍后会自动再试，也可以刷新页面手动同步。",
 						);
 					}
 					const newer = pendingJournalRef.current;

@@ -6,6 +6,7 @@ import { DomApiError } from "@dom/client-sdk";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { client } from "../../shared/api/client";
+import { userErrorView } from "../../shared/errors/user-message";
 import { getResourceRealtimeClient } from "../../shared/realtime";
 import { ConsoleIcon } from "../../shared/ui/console-icons";
 import { formatConsoleDate } from "../../shared/ui/date";
@@ -17,32 +18,17 @@ function anchorText(anchor: unknown): string | null {
 }
 
 function commentErrorMessage(error: unknown): string {
-	if (!(error instanceof DomApiError))
+	if (!(error instanceof DomApiError)) {
 		return "评论发送失败，请检查网络后重试。";
-	if (error.errorCode === "RESOURCE_PERMISSION_DENIED") {
-		return "你没有权限在此文档中发表评论。";
 	}
-	if (error.errorCode === "RESOURCE_AUTHORIZATION_UNAVAILABLE") {
-		return "暂时无法确认评论权限，请稍后重试。";
-	}
-	return error.retryable
-		? "评论暂时未发送，请检查网络后重试。"
-		: `评论发送失败（${error.errorCode}）。`;
+	return userErrorView(error).detail;
 }
 
 function threadStatusErrorMessage(error: unknown): string {
 	if (!(error instanceof DomApiError)) {
 		return "讨论状态更新失败，请检查网络后重试。";
 	}
-	if (error.errorCode === "RESOURCE_PERMISSION_DENIED") {
-		return "你没有权限更改这条讨论的状态。";
-	}
-	if (error.errorCode === "COMMENT_THREAD_NOT_FOUND") {
-		return "这条讨论已不存在，请刷新评论列表。";
-	}
-	return error.retryable
-		? "讨论状态暂时无法更新，请检查网络后重试。"
-		: `讨论状态更新失败（${error.errorCode}）。`;
+	return userErrorView(error).detail;
 }
 
 export function CommentsPanel({
