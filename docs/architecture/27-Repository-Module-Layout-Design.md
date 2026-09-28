@@ -1066,8 +1066,6 @@ provider response fixture
 
 ```text
 infra/
-├── compose/
-├── docker/
 ├── helm/
 ├── terraform/
 ├── envoy/
@@ -1076,12 +1074,6 @@ infra/
 ├── opensearch/
 └── grafana/
 ```
-
----
-
-## 60. compose
-
-只负责 Local Infrastructure。
 
 ---
 

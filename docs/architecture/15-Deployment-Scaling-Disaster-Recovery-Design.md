@@ -2897,21 +2897,6 @@ Planned Failback
 
 ## 125. 部署阶段
 
-### Stage 0：单 CVM 自托管例外（ADR 0054、0055）
-
-当用户明确指定一台 Ubuntu CVM 并要求通过 Docker Compose 部署时，可以按主机现状选择入口：
-
-```text
-Single CVM + Docker Compose
-Self-hosted PostgreSQL 18 + Docker volume
-Self-hosted MinIO + private bucket + Docker volume
-Independent Nginx + Certbot TLS Edge (ADR 0055), or existing OneTree edge (ADR 0054)
-```
-
-DOM 使用独立的 PostgreSQL 与 MinIO 容器及卷，不复用其他项目的数据库、数据卷、网络或证书。数据库和对象存储不发布宿主机端口。目标主机没有既有共享入口时，DOM 自己运行 Nginx 和 Certbot 并独占 80/443；只有在用户明确指定且目标主机已有 OneTree ingress 时，DOM Web 才加入 OneTree 网络并沿用该入口。
-
-此阶段应用、PostgreSQL、MinIO、NATS JetStream 与 Valkey 均存在 CVM 单点。CVM 故障期间应用入口和实时协作不可用；此配置不满足下一阶段的多实例高可用基线。PostgreSQL、MinIO 与 NATS 数据使用命名卷，需纳入 CVM 外的备份与恢复计划。
-
 ### Stage 1：正式生产基线
 
 ```text
@@ -3539,7 +3524,7 @@ History Check
 20. 第一阶段采用 Single Region Multi-AZ + Cross Region DR，不做 Multi-Region Active-Active。
 21. 生产上线前必须明确并记录 RPO / RTO SLO；当前文档中的数值只作为容量与演练规划参考，不作为 Architecture Constitution 的固定业务承诺。
 22. RPO / RTO 目标变化不得要求重写 Resource / Persistence 核心模型，应通过 HA、Backup、PITR、跨区域副本与 Runbook 能力调整。
-23. Stage 1 正式生产的正常单节点故障依靠 HA，目标接近零数据损失；Stage 0 单 CVM 例外明确接受应用主机中断。
+23. Stage 1 正式生产的正常单节点故障依靠 HA，目标接近零数据损失。
 24. Backup 必须独立、加密、可验证，并定期 Restore Drill。
 25. Search Index / Cache 等派生数据应优先可重建，不作为最高级 Backup 目标。
 26. Rollout 必须支持 Rolling / Canary / Rollback。

@@ -84,7 +84,7 @@ flowchart LR
 
 浏览器里跑的是 React 编辑器，它负责普通读写和实时收发。API 服务用 Python 的 FastAPI 编写，处理账号、权限、工作区、资源这些业务，并读写 PostgreSQL。实时协同服务用 TypeScript 编写，它是 WSS 网关加 Yjs 中继，负责把 update 落盘并发广播，也就是前面说的第二、三、四步。后台 Worker 用 Python 编写，处理索引、检查点、清理这类不着急的活，任务通过 NATS JetStream 排队。
 
-再补两个支撑组件：Valkey 提供缓存与会话，附件存放在 S3 兼容对象存储里，本地一键环境用的就是 MinIO。搜索方面，OpenSearch 是技术栈里规划的目标，目前还没有落地，现在的检索由 PostgreSQL 承担。
+再补两个支撑组件：Valkey 提供缓存与会话，附件存放在 S3 兼容对象存储里，本地开发用的就是 MinIO。搜索方面，OpenSearch 是技术栈里规划的目标，目前还没有落地，现在的检索由 PostgreSQL 承担。
 
 ## 使用的技术
 
@@ -97,15 +97,9 @@ flowchart LR
 
 ## 本地运行
 
-运行它需要 Node.js 24、pnpm 12、Python 3.12、uv、Docker Compose、just，以及 openssl。
+运行它需要 Node.js 24、pnpm 12、Python 3.12、uv、just，以及 openssl。
 
-先跑起来最简单的方式是一条命令，它会自动生成一个被 git 忽略的本地密钥文件，然后构建并启动 PostgreSQL、Valkey、NATS、MinIO、API、实时协同服务、维护 Worker 和 Web：
-
-```sh
-just docker-up
-```
-
-等它启动完，浏览器打开 http://localhost:5180 ，注册一个账号就能进入工作区（端口可以用 DOM_WEB_PORT 覆盖）。配套的命令还有 `just docker-ps` 看状态、`just docker-logs` 看日志、`just docker-down` 停止。如果是在一台新机器上，第一次之前先装好依赖：
+如果是在一台新机器上，第一次之前先装好依赖：
 
 ```sh
 pnpm install --frozen-lockfile
