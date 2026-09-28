@@ -3177,7 +3177,7 @@ Gateway 不成为大文件数据通道。
 基础技术产品不再由本地 AI 自由选择，统一遵守 `26-Technology-Stack-Decision.md`：
 
 ```text
-Edge = Gateway API + Envoy Gateway
+Edge = 随部署方案决策（由 docker skills 决定，ADR 0056；必须支持 HTTPS / WSS）
 Queue / Event Bus = NATS JetStream
 Python HTTP Client = httpx
 Cache = Valkey

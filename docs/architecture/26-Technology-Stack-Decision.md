@@ -970,44 +970,31 @@ non-root runtime
 
 ## 56. Orchestrator
 
-正式多实例高可用生产：
-
-```text
-Kubernetes
-```
+生产编排方式由 docker skills 按项目目标在部署时决策，不在本文档锁定具体平台（例如 Docker Compose 或 Kubernetes；决策记录见 ADR 0056）。
 
 ---
 
 ## 57. Deployment Package
 
-正式多实例高可用生产使用：
-
-```text
-Helm
-```
+部署打包方式由 docker skills 随编排方案决策，不在本文档锁定打包工具（例如 Compose 配置或 Helm Chart）。
 
 ---
 
 ## 58. Infrastructure as Code
 
-使用：
+云资源 IaC 使用：
 
 ```text
 Terraform
 ```
 
+或由部署方案确定等价的 IaC 工具。
+
 ---
 
 ## 59. Edge
 
-Kubernetes Edge：
-
-```text
-Gateway API
-Envoy Gateway
-```
-
-支持：
+入口方案随部署决定（例如 Compose 入口 / Kubernetes Ingress），不在本文档锁定特定产品；必须支持：
 
 ```text
 HTTPS
@@ -1023,19 +1010,11 @@ rate limit integration
 
 ## 60. Secrets
 
-使用：
+Secret 管理方式随部署方案决策（例如云 Secret Manager / Key Vault），但必须遵守：
 
 ```text
-External Secrets Operator
+Secret 不进入 Git / 明文 values
 ```
-
-连接云厂商：
-
-```text
-Secret Manager / Key Vault
-```
-
-Secret 不进入 Git / Helm 明文 values。
 
 ---
 
@@ -1161,9 +1140,9 @@ Yjs payload
 | JS Package Manager | pnpm |
 | Root Task Runner | just |
 | Local Infra | Developer-provided dependencies |
-| Production HA | Kubernetes + Helm + Terraform |
-| Edge | Gateway API + Envoy Gateway |
-| Secrets | External Secrets Operator |
+| Production HA | 由 docker skills 决策（截至 ADR 0056：不锁定具体平台） |
+| Edge | 随部署方案决策，必须支持 HTTPS / WSS 长连接 |
+| Secrets | 随部署方案决策，Secret 不进入 Git / 明文 |
 | CI/CD | GitHub Actions |
 
 ---
@@ -1185,6 +1164,6 @@ Yjs payload
 11. Binary Asset 使用 S3-compatible Object Storage。
 12. Contract 使用 JSON Schema 2020-12 + OpenAPI 3.1。
 13. OpenTelemetry 是统一遥测标准。
-14. Local development uses developer-provided dependencies; multi-instance high-availability Production uses Kubernetes + Helm + Terraform.
+14. Local development uses developer-provided dependencies; production must be multi-instance high-availability, and the deployment stack (orchestrator / packaging / IaC) is decided by the docker skills instead of being locked to a specific platform (ADR 0056).
 15. Exact Patch Version 由 lockfile / image digest 固定。
 16. 修改本技术栈必须 ADR，不允许本地 AI 即兴换栈。

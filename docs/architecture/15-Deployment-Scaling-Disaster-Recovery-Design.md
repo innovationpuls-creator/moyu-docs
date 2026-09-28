@@ -2951,7 +2951,7 @@ Global Strong Consistency
 自研数据库
 自研消息队列
 自研对象存储
-所有服务 Kubernetes 化才可运行
+所有服务依赖特定编排平台（如 Kubernetes）才可运行
 数据库 Multi-Master
 每个 Resource 独立数据库
 每个 Workspace 独立集群
@@ -3478,7 +3478,7 @@ History Check
 
 本设计不规定：
 
-- 必须使用 Kubernetes 还是其他容器平台
+- 必须使用 Kubernetes 还是其他编排/容器平台（由 docker skills 决策，ADR 0056）
 - 使用哪一家 Cloud
 - 使用 Patroni 还是 Cloud Managed PostgreSQL HA
 - Load Balancer 产品

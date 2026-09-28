@@ -1066,20 +1066,12 @@ provider response fixture
 
 ```text
 infra/
-├── helm/
 ├── terraform/
-├── envoy/
 ├── otel/
 ├── nats/
 ├── opensearch/
 └── grafana/
 ```
-
----
-
-## 61. helm
-
-负责 Kubernetes Application Release。
 
 ---
 
